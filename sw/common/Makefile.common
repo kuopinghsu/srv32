@@ -1,0 +1,8 @@
+CC      = riscv32-unknown-elf-gcc
+AR      = riscv32-unknown-elf-ar
+OBJDUMP = riscv32-unknown-elf-objdump
+OBJCOPY = riscv32-unknown-elf-objcopy
+READELF = riscv32-unknown-elf-readelf
+
+CFLAGS  = -O3 -Wall -march=rv32i -nostartfiles -nostdlib
+LDFLAGS = -lc -lm -lgcc -lsys

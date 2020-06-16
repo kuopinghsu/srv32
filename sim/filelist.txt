@@ -1,0 +1,5 @@
++incdir+../rtl
++define+TRACE
+../rtl/riscv.v
+../testbench/testbench.v
+../testbench/memmodel.v

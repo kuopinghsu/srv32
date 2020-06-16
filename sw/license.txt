@@ -1,0 +1,9 @@
+
+common - common path for link script, startup and syscall
+hello - hello world example
+dhrystone - dhrystone benchmark
+coremark - coremark benchmark
+
+The dhrystone and coremark are licensed by their respective authors, please refer to the header file for permission.
+The other folders are licensed under the GPL written by Kuoping Hsu.
+
