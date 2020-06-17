@@ -7,6 +7,7 @@
 `define RD          11:7
 `define RS1         19:15
 `define RS2         24:20
+`define IMM12       31:20
 
 localparam  [31: 0] RESETVEC   = 32'h0000_0000;
 
@@ -66,10 +67,10 @@ localparam  [ 2: 0] OP_ECALL   = 3'b000,    // inst[20] == 0: ECALL, inst[20] ==
                     OP_CSRRCI  = 3'b111;
 
 // CSR registers
-localparam  [12: 0] CSR_RDCYCLE  = 12'hc00,
-                    CSR_RDCYCLEH = 12'hc80,
-                    CSR_RDTIME   = 12'hc01,
-                    CSR_RDTIMEH  = 12'hc81,
-                    CSR_INSTRET  = 12'hc02,
-                    CSR_INSTRETH = 12'hc82;
+localparam  [12: 0] CSR_RDCYCLE    = 12'hc00,
+                    CSR_RDCYCLEH   = 12'hc80,
+                    CSR_RDTIME     = 12'hc01,
+                    CSR_RDTIMEH    = 12'hc81,
+                    CSR_RDINSTRET  = 12'hc02,
+                    CSR_RDINSTRETH = 12'hc82;
 

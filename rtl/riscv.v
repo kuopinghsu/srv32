@@ -50,6 +50,7 @@ module riscv (
     reg                     ex_memwr;
     reg                     ex_mem2reg;
     reg                     ex_alu;
+    reg                     ex_csr;
     reg                     ex_lui;
     reg                     ex_auipc;
     reg                     ex_jal;
@@ -80,9 +81,10 @@ module riscv (
     wire                    wb_flush;
 
     reg                     illegal_inst;
+    reg                     illegal_csr;
 
-    reg             [63: 0] cycle;
-    reg             [63: 0] instret;
+    reg             [63: 0] rdcycle;
+    reg             [63: 0] rdinstret;
 
     integer                 i;
 
@@ -96,21 +98,9 @@ assign dmem_wdata           = wb_wdata;
 assign dmem_wstrb           = wb_wstrb;
 
 always @(posedge clk or negedge resetb) begin
-    if (!resetb) begin
-        cycle               <= 64'h0;
-        instret             <= 64'h0;
-    end else if (!stall_r) begin
-        cycle               <= cycle + 1'b1;
-        if (!ex_stall && !ex_flush) begin
-            instret         <= instret + 1'b1;
-        end
-    end
-end
-
-always @(posedge clk or negedge resetb) begin
     if (!resetb)
         exception           <= 1'b0;
-    else if (illegal_inst || imem_addr[1:0] != 0)
+    else if (illegal_inst || illegal_csr || imem_addr[1:0] != 0)
         exception           <= 1'b1;
 end
 
@@ -123,7 +113,6 @@ always @(posedge clk or negedge resetb) begin
         flush               <= stall_r;
     end
 end
-
 
 ////////////////////////////////////////////////////////////
 //      F/D  E   W
@@ -150,7 +139,7 @@ always @* begin
         OP_ARITHI: imm      = (inst[`FUNC3] == OP_SLL || inst[`FUNC3] == OP_SR) ? {27'h0, inst[24:20]} : {{20{inst[31]}}, inst[31:20]}; // I-type
         OP_ARITHR: imm      = 'd0; // R-type
         OP_FENCE : imm      = 'd0;
-        OP_SYSTEM: imm      = {27'h0, inst[19:15]};
+        OP_SYSTEM: imm      = {20'h0, inst[31:20]};
         default: begin // illegal instruction
             illegal_inst    = 1'b1;
             //$display("Illegal instruction");
@@ -171,6 +160,7 @@ always @(posedge clk or negedge resetb) begin
         ex_memwr            <= 1'b0;
         ex_mem2reg          <= 1'b0;
         ex_alu              <= 1'b0;
+        ex_csr              <= 1'b0;
         ex_jal              <= 1'b0;
         ex_jalr             <= 1'b0;
         ex_branch           <= 1'b0;
@@ -189,6 +179,7 @@ always @(posedge clk or negedge resetb) begin
         ex_mem2reg          <= inst[`OPCODE] == OP_LOAD;
         ex_alu              <= (inst[`OPCODE] == OP_ARITHI) ||
                                (inst[`OPCODE] == OP_ARITHR);
+        ex_csr              <= (inst[`OPCODE] == OP_SYSTEM) && !(inst[`IMM12] == 'h0 || inst[`IMM12] == 'h1);
         ex_lui              <= inst[`OPCODE] == OP_LUI;
         ex_auipc            <= inst[`OPCODE] == OP_AUIPC;
         ex_jal              <= inst[`OPCODE] == OP_JAL;
@@ -252,7 +243,7 @@ always @* begin
                             if (result_subu[32]) branch_taken = 1'b0;
                          end
                 default: begin
-                         $display("Unknown branch instruction\n");
+                         $display("Unknown branch instruction");
                          $finish(2);
                          end
             endcase
@@ -271,6 +262,7 @@ always @* begin
         ex_jalr:    result          = ex_pc + 4;
         ex_lui:     result          = ex_imm;
         ex_auipc:   result          = ex_pc + ex_imm;
+        ex_csr:     result          = csr_read;
         ex_alu:
             case(ex_alu_op)
                 OP_ADD : if (ex_subtype == 1'b0)
@@ -319,7 +311,7 @@ always @(posedge clk or negedge resetb) begin
     end else if (!stall_r && !ex_stall) begin
         wb_result           <= result;
         wb_memwr            <= ex_memwr && !ex_flush;
-        wb_alu2reg          <= ex_alu | ex_lui | ex_auipc | ex_jal | ex_jalr | ex_mem2reg;
+        wb_alu2reg          <= ex_alu | ex_lui | ex_auipc | ex_jal | ex_jalr | ex_csr | ex_mem2reg;
         wb_dst_sel          <= ex_dst_sel;
         wb_branch           <= branch_taken;
         wb_branch_nxt       <= wb_branch;
@@ -411,6 +403,44 @@ always @* begin
         OP_LHU : wb_rdata = (wb_raddr[1]) ? {16'h0, dmem_rdata[31:16]} : {16'h0, dmem_rdata[15:0]};
         default: wb_rdata = 'hx;
     endcase
+end
+
+////////////////////////////////////////////////////////////
+// CSR file (only support read-only registers)
+//  rdcycle
+//  rdinstret
+////////////////////////////////////////////////////////////
+    wire            ex_csr_rd;
+    reg     [31: 0] csr_read;
+
+always @* begin
+    if (ex_csr) begin
+        case (ex_imm[11:0])
+            CSR_RDCYCLE    : csr_read <= rdcycle[31:0];
+            CSR_RDCYCLEH   : csr_read <= rdcycle[63:32];
+            CSR_RDINSTRET  : csr_read <= rdinstret[31:0];
+            CSR_RDINSTRETH : csr_read <= rdinstret[63:32];
+            default: begin
+                illegal_csr <= 1'b1;
+                $display("Unsupport CSR register %0x", ex_imm[11:0]);
+            end
+        endcase
+    end else begin
+        illegal_csr <= 1'b0;
+        csr_read    <= 32'h0;
+    end
+end
+
+always @(posedge clk or negedge resetb) begin
+    if (!resetb) begin
+        rdcycle             <= 64'h0;
+        rdinstret           <= 64'h0;
+    end else if (!stall_r) begin
+        rdcycle             <= rdcycle + 1'b1;
+        if (!ex_stall && !ex_flush) begin
+            rdinstret       <= rdinstret + 1'b1;
+        end
+    end
 end
 
 ////////////////////////////////////////////////////////////

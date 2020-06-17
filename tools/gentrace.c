@@ -422,147 +422,27 @@ int main(int argc, char **argv) {
                 break;
             }
             case OP_SYSTEM: { // I-Type
+                // RDCYCLE, RDTIME and RDINSTRET are read only
                 switch(inst.i.func3) {
                     case OP_ECALL  : break;
-                    case OP_CSRRW  :
-                            switch(inst.i.imm) {
-                                case CSR_RDCYCLE   : regs[inst.i.rd] = cycle.d.lo;
-                                                     cycle.d.lo = regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDCYCLEH  : regs[inst.i.rd] = cycle.d.hi;
-                                                     cycle.d.hi = regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDTIME    : regs[inst.i.rd] = time.d.lo;
-                                                     time.d.lo = regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDTIMEH   : regs[inst.i.rd] = time.d.hi;
-                                                     time.d.hi = regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDINSTRET : regs[inst.i.rd] = instret.d.lo;
-                                                     instret.d.lo = regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDINSTRETH: regs[inst.i.rd] = instret.d.hi;
-                                                     instret.d.hi = regs[inst.i.rs1];
-                                                     break;
-                                default: printf("Unsupport CSR register %d\n", inst.i.imm);
-                                         exit(-1);
-                            }
-                            break;
-                    case OP_CSRRS  :
-                            switch(inst.i.imm) {
-                                case CSR_RDCYCLE   : regs[inst.i.rd] = cycle.d.lo;
-                                                     cycle.d.lo |= regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDCYCLEH  : regs[inst.i.rd] = cycle.d.hi;
-                                                     cycle.d.hi |= regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDTIME    : regs[inst.i.rd] = time.d.lo;
-                                                     time.d.lo |= regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDTIMEH   : regs[inst.i.rd] = time.d.hi;
-                                                     time.d.hi |= regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDINSTRET : regs[inst.i.rd] = instret.d.lo;
-                                                     instret.d.lo |= regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDINSTRETH: regs[inst.i.rd] = instret.d.hi;
-                                                     instret.d.hi |= regs[inst.i.rs1];
-                                                     break;
-                                default: printf("Unsupport CSR register %d\n", inst.i.imm);
-                                         exit(-1);
-                            }
-                            break;
-                    case OP_CSRRC  :
-                            switch(inst.i.imm) {
-                                case CSR_RDCYCLE   : regs[inst.i.rd] = cycle.d.lo;
-                                                     cycle.d.lo &= ~regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDCYCLEH  : regs[inst.i.rd] = cycle.d.hi;
-                                                     cycle.d.hi &= ~regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDTIME    : regs[inst.i.rd] = time.d.lo;
-                                                     time.d.lo &= ~regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDTIMEH   : regs[inst.i.rd] = time.d.hi;
-                                                     time.d.hi &= ~regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDINSTRET : regs[inst.i.rd] = instret.d.lo;
-                                                     instret.d.lo &= ~regs[inst.i.rs1];
-                                                     break;
-                                case CSR_RDINSTRETH: regs[inst.i.rd] = instret.d.hi;
-                                                     instret.d.hi &= ~regs[inst.i.rs1];
-                                                     break;
-                                default: printf("Unsupport CSR register %d\n", inst.i.imm);
-                                         exit(-1);
-                            }
-                            break;
-                    case OP_CSRRWI :
-                            switch(inst.i.imm) {
-                                case CSR_RDCYCLE   : regs[inst.i.rd] = cycle.d.lo;
-                                                     cycle.d.lo = inst.i.rs1;
-                                                     break;
-                                case CSR_RDCYCLEH  : regs[inst.i.rd] = cycle.d.hi;
-                                                     cycle.d.hi = inst.i.rs1;
-                                                     break;
-                                case CSR_RDTIME    : regs[inst.i.rd] = time.d.lo;
-                                                     time.d.lo = inst.i.rs1;
-                                                     break;
-                                case CSR_RDTIMEH   : regs[inst.i.rd] = time.d.hi;
-                                                     time.d.hi = inst.i.rs1;
-                                                     break;
-                                case CSR_RDINSTRET : regs[inst.i.rd] = instret.d.lo;
-                                                     instret.d.lo = inst.i.rs1;
-                                                     break;
-                                case CSR_RDINSTRETH: regs[inst.i.rd] = instret.d.hi;
-                                                     instret.d.hi = inst.i.rs1;
-                                                     break;
-                                default: printf("Unsupport CSR register %d\n", inst.i.imm);
-                                         exit(-1);
-                            }
-                            break;
-                    case OP_CSRRSI :
-                            switch(inst.i.imm) {
-                                case CSR_RDCYCLE   : regs[inst.i.rd] = cycle.d.lo;
-                                                     cycle.d.lo |= inst.i.rs1;
-                                                     break;
-                                case CSR_RDCYCLEH  : regs[inst.i.rd] = cycle.d.hi;
-                                                     cycle.d.hi |= inst.i.rs1;
-                                                     break;
-                                case CSR_RDTIME    : regs[inst.i.rd] = time.d.lo;
-                                                     time.d.lo |= inst.i.rs1;
-                                                     break;
-                                case CSR_RDTIMEH   : regs[inst.i.rd] = time.d.hi;
-                                                     time.d.hi |= inst.i.rs1;
-                                                     break;
-                                case CSR_RDINSTRET : regs[inst.i.rd] = instret.d.lo;
-                                                     instret.d.lo |= inst.i.rs1;
-                                                     break;
-                                case CSR_RDINSTRETH: regs[inst.i.rd] = instret.d.hi;
-                                                     instret.d.hi |= inst.i.rs1;
-                                                     break;
-                                default: printf("Unsupport CSR register %d\n", inst.i.imm);
-                                         exit(-1);
-                            }
-                            break;
+                    case OP_CSRRW  : // fall through
+                    case OP_CSRRS  : // fall through
+                    case OP_CSRRC  : // fall through
+                    case OP_CSRRWI : // fall through
+                    case OP_CSRRSI : // fall through
                     case OP_CSRRCI :
                             switch(inst.i.imm) {
                                 case CSR_RDCYCLE   : regs[inst.i.rd] = cycle.d.lo;
-                                                     cycle.d.lo &= ~inst.i.rs1;
                                                      break;
                                 case CSR_RDCYCLEH  : regs[inst.i.rd] = cycle.d.hi;
-                                                     cycle.d.hi &= ~inst.i.rs1;
                                                      break;
                                 case CSR_RDTIME    : regs[inst.i.rd] = time.d.lo;
-                                                     time.d.lo &= ~inst.i.rs1;
                                                      break;
                                 case CSR_RDTIMEH   : regs[inst.i.rd] = time.d.hi;
-                                                     time.d.hi &= ~inst.i.rs1;
                                                      break;
                                 case CSR_RDINSTRET : regs[inst.i.rd] = instret.d.lo;
-                                                     instret.d.lo &= ~inst.i.rs1;
                                                      break;
                                 case CSR_RDINSTRETH: regs[inst.i.rd] = instret.d.hi;
-                                                     instret.d.hi &= ~inst.i.rs1;
                                                      break;
                                 default: printf("Unsupport CSR register %d\n", inst.i.imm);
                                          exit(-1);

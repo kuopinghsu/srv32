@@ -72,7 +72,7 @@ always @(posedge clk or negedge resetb) begin
             count   <= 8'h0;
 
         if (count > 100) begin
-            $display("timeout\n");
+            $display("Executing timeout");
             #10 $finish(2);
         end
     end
@@ -81,7 +81,7 @@ end
 // stop at exception
 always @(posedge clk) begin
     if (exception) begin
-        $display("Exception occurs, simulation exist.\n");
+        $display("Exception occurs, simulation exist.");
         #10 $finish(2);
     end
 end
@@ -149,7 +149,8 @@ always @(posedge clk) begin
         $write("%c", dmem_wdata[7:0]);
     end
     else if (dmem_wready && dmem_waddr == `MEM_EXIT) begin
-        $display("Program terminate\n");
+        $display("\nExcuting %0d instructions, %0d cycles", riscv.rdinstret, riscv.rdcycle);
+        $display("Program terminate");
         #10 $finish(1);
     end
     else if (dmem_wready && dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
@@ -164,7 +165,7 @@ end
     reg [7*8:1] regname;
 
 initial begin
-    if ($test$plusargs("gentrace")) begin
+    if ($test$plusargs("trace")) begin
         fp = $fopen("trace.log", "w");
     end
 end
@@ -217,7 +218,7 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
-    if ($test$plusargs("gentrace") && !riscv.wb_stall && !riscv.stall_r &&
+    if ($test$plusargs("trace") && !riscv.wb_stall && !riscv.stall_r &&
         !riscv.wb_flush && fillcount == 2'b11) begin
         $fwrite(fp, "%08x %08x", riscv.wb_pc, riscv.wb_insn);
         if (riscv.wb_mem2reg) begin
