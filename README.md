@@ -32,7 +32,7 @@ make -j$(nproc)
 +meminit    memory intialize zero
 +dumpvcd    dump VCD file
 +trace      generate tracelog
-```text
+```
 
 ## Software simulator
 
