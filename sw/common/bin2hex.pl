@@ -1,6 +1,9 @@
 #!/usr/bin/perl -w
 use strict;
 
+my $MEMINIT = 1;
+my $RAMSIZE = 128*1024;
+
 hex2bin("imem.bin", "imem.hex");
 hex2bin("dmem.bin", "dmem.hex");
 
@@ -24,8 +27,12 @@ sub hex2bin {
     printf OUT "%08x // 32'h%08x\n", $v, $i;
     $i+=4;
   }
-  while($i < 128*1024) {
-    printf OUT "xxxxxxxx // 32'h%08x\n", $i;
+  while($i < $RAMSIZE) {
+    if ($MEMINIT) {
+        printf OUT "00000000 // 32'h%08x\n", $i;
+    } else {
+        printf OUT "xxxxxxxx // 32'h%08x\n", $i;
+    }
     $i+=4;
   }
 

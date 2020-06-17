@@ -1,5 +1,6 @@
 // Memory model
 // Wirtten by Kuoping Hsu, 2020, MIT license
+
 module memmodel # (
     parameter SIZE  = 4096,
     parameter FILE  = "memory.bin"

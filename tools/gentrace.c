@@ -7,6 +7,8 @@
 #include "opcode.h"
 
 #define MAXLEN  1024
+#define RAMSIZE 128*1024
+
 COUNTER time;
 COUNTER cycle;
 COUNTER instret;
@@ -116,9 +118,9 @@ int main(int argc, char **argv) {
     int *imem;
     int *dmem;
     int imem_addr = 0;
-    int dmem_addr = 128*1024;
-    int imem_size = 128*1024;
-    int dmem_size = 128*1024;
+    int dmem_addr = RAMSIZE;
+    int imem_size = RAMSIZE;
+    int dmem_size = RAMSIZE;
     char *ifile = "../sw/imem.bin";
     char *dfile = "../sw/dmem.bin";
     char *tfile = NULL;
@@ -323,7 +325,11 @@ int main(int argc, char **argv) {
             case OP_STORE : { // S-Type
                 int address = regs[inst.s.rs1] + to_imm_s(inst.s.imm2, inst.s.imm1);
                 int data = regs[inst.s.rs2];
-                if (ft) fprintf(ft, "%08x %08x write 0x%08x <= 0x%08x\n", pc, inst.inst, address, data);
+                int mask = (inst.s.func3 == OP_SB) ? 0xff :
+                           (inst.s.func3 == OP_SH) ? 0xffff :
+                           (inst.s.func3 == OP_SW) ? 0xffffffff :
+                           0xffffffff;
+                if (ft) fprintf(ft, "%08x %08x write 0x%08x <= 0x%08x\n", pc, inst.inst, address, (data & mask));
                 if (address < dmem_addr || address > dmem_addr+dmem_size) {
                     switch(address) {
                         case MMIO_PUTC:
@@ -345,13 +351,13 @@ int main(int argc, char **argv) {
                                  break;
                     case OP_SH : dmem[address/4] = (address&2) ? ((dmem[address/4]&0xffff)|(data << 16)) : ((dmem[address/4]&0xffff0000)|(data&0xffff));
                                  if (address&1) {
-                                    printf("Unalignment address 0x%08x to write at 0x%08x\n", address, pc);
+                                    printf("Unalignment address 0x%08x to write at 0x%08x\n", address+dmem_addr, pc);
                                     exit(-1);
                                  }
                                  break;
                     case OP_SW : dmem[address/4] = data;
                                  if (address&3) {
-                                    printf("Unalignment address 0x%08x to write at 0x%08x\n", address, pc);
+                                    printf("Unalignment address 0x%08x to write at 0x%08x\n", address+dmem_addr, pc);
                                     exit(-1);
                                  }
                                  break;
@@ -432,17 +438,17 @@ int main(int argc, char **argv) {
                     case OP_CSRRSI : // fall through
                     case OP_CSRRCI :
                             switch(inst.i.imm) {
-                                case CSR_RDCYCLE   : regs[inst.i.rd] = cycle.d.lo;
+                                case CSR_RDCYCLE   : regs[inst.i.rd] = cycle.d.lo-1;
                                                      break;
-                                case CSR_RDCYCLEH  : regs[inst.i.rd] = cycle.d.hi;
+                                case CSR_RDCYCLEH  : regs[inst.i.rd] = cycle.d.hi-1;
                                                      break;
-                                case CSR_RDTIME    : regs[inst.i.rd] = time.d.lo;
+                                case CSR_RDTIME    : regs[inst.i.rd] = time.d.lo-1;
                                                      break;
-                                case CSR_RDTIMEH   : regs[inst.i.rd] = time.d.hi;
+                                case CSR_RDTIMEH   : regs[inst.i.rd] = time.d.hi-1;
                                                      break;
-                                case CSR_RDINSTRET : regs[inst.i.rd] = instret.d.lo;
+                                case CSR_RDINSTRET : regs[inst.i.rd] = instret.d.lo-1;
                                                      break;
-                                case CSR_RDINSTRETH: regs[inst.i.rd] = instret.d.hi;
+                                case CSR_RDINSTRETH: regs[inst.i.rd] = instret.d.hi-1;
                                                      break;
                                 default: printf("Unsupport CSR register %d\n", inst.i.imm);
                                          exit(-1);

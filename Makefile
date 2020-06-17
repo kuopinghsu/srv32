@@ -1,22 +1,27 @@
-.PHONY: hello dhrystone coremark tools
+SUBDIRS = hello dhrystone coremark
 
-hello: clean tools
-	@make -C sw hello
-	@make -C sim
+.PHONY: $(SUBDIRS) tools
 
-dhrystone: clean tools
-	@make -C sw dhrystone
-	@make -C sim
+help:
+	@echo "make all         build all diags and run the RTL sim"
+	@echo "make hello       build hello diag and run the RTL sim"
+	@echo "make dhrystone   build Dhrystone diag and run the RTL sim"
+	@echo "make coremark    build Coremark diag and run the RTL sim"
+	@echo "make clean       clean"
 
-coremark: clean tools
-	@make -C sw coremark
-	@make -C sim
+all:
+	for i in $(SUBDIRS); do \
+		$(MAKE) $$i; \
+	done
 
-tools:
-	@make -C tools
+$(SUBDIRS): clean
+	@$(MAKE) -C sw $@ && $(MAKE) -C sim run && $(MAKE) -C tools run
+	@echo "Compare the trace between RTL and software simulator"
+	@diff --brief sim/trace.log tools/trace.log
+	@echo === Simulation passed ===
 
 clean:
-	@make -C sw clean
-	@make -C sim clean
-	@make -C tools clean
+	for i in sw sim tools; do \
+		$(MAKE) -C $$i clean; \
+	done
 

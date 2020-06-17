@@ -1,22 +1,16 @@
+SUBDIRS = hello dhrystone coremark
 
-.PHONY: all clean hello dhrystone coremark common
+.PHONY: $(SUBDIRS) common clean
 
-all: hello #dhrystone coremark
+all: hello
 
-hello: common
-	make -C hello
-
-dhrystone: common
-	make -C dhrystone
-
-coremark: common
-	make -C coremark
+$(SUBDIRS): common
+	$(MAKE) -C $@
 
 common:
-	make -C common
+	$(MAKE) -C $@
 
 clean:
-	make -C common clean
-	make -C hello clean
-	make -C dhrystone clean
-	make -C coremark clean
+	for i in $(SUBDIRS) common; do \
+		$(MAKE) -C $$i clean; \
+	done

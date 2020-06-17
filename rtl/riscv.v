@@ -27,24 +27,31 @@ module riscv (
 
 `include "opcode.vh"
 
-    reg             [31: 0] if_pc;
     reg                     stall_r;
-
     wire            [31: 0] inst;
     reg                     flush;
+    reg             [ 1: 0] pipefill;
+
+    wire                    if_stall;
+    wire                    ex_stall;
+    wire                    wb_stall;
+
+    reg             [31: 0] fetch_pc;
+    reg             [31: 0] if_pc;
+    reg             [31: 0] ex_pc;
+    reg             [31: 0] wb_pc;
 
     // register files
     reg             [31: 0] regs [31: 1];
     wire            [31: 0] reg_rdata1, reg_rdata2;
+    wire            [31: 0] alu_op1;
+    wire            [31: 0] alu_op2;
 
-    reg             [31: 0] ex_pc;
     reg             [31: 0] ex_imm;
     reg                     ex_imm_sel;
-
     reg             [ 4: 0] ex_src1_sel;
     reg             [ 4: 0] ex_src2_sel;
     reg             [ 4: 0] ex_dst_sel;
-
     reg             [ 2: 0] ex_alu_op;
     reg                     ex_subtype;
     reg                     ex_memwr;
@@ -56,14 +63,10 @@ module riscv (
     reg                     ex_jal;
     reg                     ex_jalr;
     reg                     ex_branch;
+    wire                    ex_csr_rd;
+    reg             [31: 0] ex_csr_read;
+
     reg                     wb_alu2reg;
-
-    wire                    if_stall;
-    wire                    ex_stall;
-    wire                    wb_stall;
-
-    reg             [31: 0] fetch_pc;
-    reg             [31: 0] wb_pc;
     reg             [31: 0] wb_result;
     reg             [ 2: 0] wb_alu_op;
     reg                     wb_memwr;
@@ -192,8 +195,6 @@ end
 ////////////////////////////////////////////////////////////
 // stage 2: execute
 ////////////////////////////////////////////////////////////
-    wire            [31: 0] alu_op1;
-    wire            [31: 0] alu_op2;
     wire            [32: 0] result_subs;
     wire            [32: 0] result_subu;
     reg             [31: 0] result;
@@ -213,6 +214,8 @@ assign ex_flush             = wb_branch || wb_branch_nxt;
 
 always @* begin
     branch_taken = !ex_flush;
+    next_pc      = fetch_pc + 4;
+
     case(1'b1)
         ex_jal   : next_pc = ex_pc + ex_imm;
         ex_jalr  : next_pc = alu_op1 + ex_imm;
@@ -249,8 +252,8 @@ always @* begin
             endcase
         end
         default  : begin
-                   next_pc              = fetch_pc + 4;
-                   branch_taken         = 1'b0;
+                   next_pc          = fetch_pc + 4;
+                   branch_taken     = 1'b0;
                    end
     endcase
 end
@@ -262,7 +265,7 @@ always @* begin
         ex_jalr:    result          = ex_pc + 4;
         ex_lui:     result          = ex_imm;
         ex_auipc:   result          = ex_pc + ex_imm;
-        ex_csr:     result          = csr_read;
+        ex_csr:     result          = ex_csr_read;
         ex_alu:
             case(ex_alu_op)
                 OP_ADD : if (ex_subtype == 1'b0)
@@ -347,7 +350,7 @@ always @(posedge clk or negedge resetb) begin
                 wb_wstrb    <= 4'hf;
             end
             default: begin
-                wb_wdata    <= {32{1'hx}};
+                wb_wdata    <= 32'hx;
                 wb_wstrb    <= 4'hx;
             end
         endcase
@@ -410,24 +413,20 @@ end
 //  rdcycle
 //  rdinstret
 ////////////////////////////////////////////////////////////
-    wire            ex_csr_rd;
-    reg     [31: 0] csr_read;
-
 always @* begin
+    illegal_csr = 1'b0;
+    ex_csr_read = 21'h0;
     if (ex_csr) begin
         case (ex_imm[11:0])
-            CSR_RDCYCLE    : csr_read <= rdcycle[31:0];
-            CSR_RDCYCLEH   : csr_read <= rdcycle[63:32];
-            CSR_RDINSTRET  : csr_read <= rdinstret[31:0];
-            CSR_RDINSTRETH : csr_read <= rdinstret[63:32];
+            CSR_RDCYCLE    : ex_csr_read = rdcycle[31:0];
+            CSR_RDCYCLEH   : ex_csr_read = rdcycle[63:32];
+            CSR_RDINSTRET  : ex_csr_read = rdinstret[31:0];
+            CSR_RDINSTRETH : ex_csr_read = rdinstret[63:32];
             default: begin
-                illegal_csr <= 1'b1;
+                illegal_csr = 1'b1;
                 $display("Unsupport CSR register %0x", ex_imm[11:0]);
             end
         endcase
-    end else begin
-        illegal_csr <= 1'b0;
-        csr_read    <= 32'h0;
     end
 end
 
@@ -435,10 +434,15 @@ always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         rdcycle             <= 64'h0;
         rdinstret           <= 64'h0;
+        pipefill            <= 2'b00;
     end else if (!stall_r) begin
-        rdcycle             <= rdcycle + 1'b1;
-        if (!ex_stall && !ex_flush) begin
-            rdinstret       <= rdinstret + 1'b1;
+        if (pipefill != 2'b10)
+            pipefill        <= pipefill + 1'b1;
+        else begin
+            rdcycle         <= rdcycle + 1'b1;
+            if (!ex_stall && !ex_flush) begin
+                rdinstret   <= rdinstret + 1'b1;
+            end
         end
     end
 end
