@@ -44,7 +44,7 @@ Usage: tracegen [-h] [-b n] [-l logfile]
        --log file, -l file     generate log file
 ```
 
-## bechmark
+## Bechmark
 
 * Dhrystone
 
