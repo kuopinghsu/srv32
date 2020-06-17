@@ -111,6 +111,17 @@ enum {
 };
 
 enum {
+    OP_MUL     = 0,
+    OP_MULH    = 1,
+    OP_MULSU   = 2,
+    OP_MULU    = 3,
+    OP_DIV     = 4,
+    OP_DIVU    = 5,
+    OP_REM     = 6,
+    OP_REMU    = 7
+};
+
+enum {
     OP_ECALL   = 0,
     OP_CSRRW   = 1,
     OP_CSRRS   = 2,

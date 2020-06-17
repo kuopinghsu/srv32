@@ -394,31 +394,66 @@ int main(int argc, char **argv) {
                 break;
             }
             case OP_ARITHR: { // R-Type
-                switch(inst.r.func3) {
-                    case OP_ADD  : if (inst.r.func7 == 0)
-                                       regs[inst.r.rd] = regs[inst.r.rs1] + regs[inst.r.rs2];
-                                   else
-                                       regs[inst.r.rd] = regs[inst.r.rs1] - regs[inst.r.rs2];
-                                   break;
-                    case OP_SLL  : regs[inst.r.rd] = regs[inst.r.rs1] << regs[inst.r.rs2];
-                                   break;
-                    case OP_SLT  : regs[inst.r.rd] = regs[inst.r.rs1] < regs[inst.r.rs2] ? 1 : 0;
-                                   break;
-                    case OP_SLTU : regs[inst.r.rd] = ((unsigned int)regs[inst.r.rs1]) < ((unsigned int)regs[inst.r.rs2]) ? 1 : 0;
-                                   break;
-                    case OP_XOR  : regs[inst.r.rd] = regs[inst.r.rs1] ^ regs[inst.r.rs2];
-                                   break;
-                    case OP_SR   : if (inst.r.func7 == 0)
-                                       regs[inst.r.rd] = ((unsigned int)regs[inst.r.rs1]) >> regs[inst.r.rs2];
-                                   else
-                                       regs[inst.r.rd] = regs[inst.r.rs1] >> regs[inst.r.rs2];
-                                   break;
-                    case OP_OR   : regs[inst.r.rd] = regs[inst.r.rs1] | regs[inst.r.rs2];
-                                   break;
-                    case OP_AND  : regs[inst.r.rd] = regs[inst.r.rs1] & regs[inst.r.rs2];
-                                   break;
-                    default: printf("Unknown instruction at 0x%08x\n", pc);
-                             exit(-1);
+                if (inst.r.func7 == 1) { // RV32M Multiply Extension
+                    switch(inst.r.func3) {
+                        case OP_MUL   : regs[inst.r.rd] = regs[inst.r.rs1] * regs[inst.r.rs2];
+                                        break;
+                        case OP_MULH  : {
+                                        long long a = (long long)regs[inst.r.rs1];
+                                        long long b = (long long)regs[inst.r.rs2];
+                                        regs[inst.r.rd] = (int)((a * b) >> 32);
+                                        }
+                                        break;
+                        case OP_MULSU : {
+                                        long long a = (long long)regs[inst.r.rs1];
+                                        unsigned long long b = (unsigned long long)regs[inst.r.rs2];
+                                        regs[inst.r.rd] = (int)((a * b) >> 32);
+                                        }
+                                        break;
+                        case OP_MULU  : {
+                                        unsigned long long a = (unsigned long long)regs[inst.r.rs1];
+                                        unsigned long long b = (unsigned long long)regs[inst.r.rs2];
+                                        regs[inst.r.rd] = (int)((a * b) >> 32);
+                                        }
+                                        break;
+                        case OP_DIV   : regs[inst.r.rd] = regs[inst.r.rs1] / regs[inst.r.rs2];
+                                        break;
+                        case OP_DIVU  : regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1])/((unsigned)regs[inst.r.rs2]));
+                                        break;
+                        case OP_REM   : regs[inst.r.rd] = regs[inst.r.rs1] % regs[inst.r.rs2];
+                                        break;
+                        case OP_REMU  : regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1])%((unsigned)regs[inst.r.rs2]));
+                                        break;
+                        default: printf("Unknown instruction at 0x%08x\n", pc);
+                                 exit(-1);
+                    }
+                } else {
+                    switch(inst.r.func3) {
+                        case OP_ADD  : if (inst.r.func7 == 0)
+                                           regs[inst.r.rd] = regs[inst.r.rs1] + regs[inst.r.rs2];
+                                       else
+                                           regs[inst.r.rd] = regs[inst.r.rs1] - regs[inst.r.rs2];
+                                       break;
+                        case OP_SLL  : regs[inst.r.rd] = regs[inst.r.rs1] << regs[inst.r.rs2];
+                                       break;
+                        case OP_SLT  : regs[inst.r.rd] = regs[inst.r.rs1] < regs[inst.r.rs2] ? 1 : 0;
+                                       break;
+                        case OP_SLTU : regs[inst.r.rd] = ((unsigned int)regs[inst.r.rs1]) < ((unsigned int)regs[inst.r.rs2]) ? 1 : 0;
+                                       break;
+                        case OP_XOR  : regs[inst.r.rd] = regs[inst.r.rs1] ^ regs[inst.r.rs2];
+                                       break;
+                        case OP_SR   : if (inst.r.func7 == 0)
+                                           regs[inst.r.rd] = ((unsigned int)regs[inst.r.rs1]) >> regs[inst.r.rs2];
+                                       else
+                                           regs[inst.r.rd] = regs[inst.r.rs1] >> regs[inst.r.rs2];
+                                       break;
+                        case OP_OR   : regs[inst.r.rd] = regs[inst.r.rs1] | regs[inst.r.rs2];
+                                       break;
+                        case OP_AND  : regs[inst.r.rd] = regs[inst.r.rs1] & regs[inst.r.rs2];
+                                       break;
+                        default: printf("Unknown instruction at 0x%08x\n", pc);
+                                 exit(-1);
+                    }
                 }
                 if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst, inst.r.rd, regname[inst.r.rd], regs[inst.r.rd]);
                 break;
