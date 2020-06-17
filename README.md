@@ -70,19 +70,11 @@ The simulator read the memory initialize file from sw/imem.bin and sw/dmem.bin.
 
 * Dhrystone
 
-~~~
-    Number_Of_Runs: 100
-    User_Time: 29356 cycles, 24343 insn
-    Cycles_Per_Instruction: 1.205
-    Dhrystones_Per_Second_Per_MHz: 3406
-    DMIPS_Per_MHz: 1.938
-~~~
+<img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/dhrystone.png" alt="Dhrystone" width=640>
 
 * Coremark
 
-~~~
-    CoreMark 1.0 : 91.194239 / GCC8.2.0 -O3 -march=rv32i -nostartfiles -nostdlib -flto -L../common -DPERFORMANCE_RUN=1   -lc -lm -lgcc -lsys -T ../common/default.ld / STACK
-~~~
+<img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/coremark.png" alt="Coremark" width=640>
 
 ## Cycles per Instruction Performance
 
@@ -90,11 +82,11 @@ Two instructions brach panelty if branch taken, CPI is 1 for other instructions.
 
 * Register Forwarding
 
-<img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/forwarding.svg" alt="Register Forwarding" width=320>
+<img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/forwarding.svg" alt="Register Forwarding" width=640>
 
 * Branch Penalty
 
-<img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/branch.svg" alt="Branch Penalty" width=320>
+<img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/branch.svg" alt="Branch Penalty" width=640>
 
 ## TODO
 
