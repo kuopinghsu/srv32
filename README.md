@@ -78,11 +78,11 @@ The simulator read the memory initialize file from sw/imem.bin and sw/dmem.bin.
 
 Here is the simulation result of benchmarks.
 
-* Dhrystone
+### Dhrystone
 
 <img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/dhrystone.png" alt="Dhrystone" width=640>
 
-* Coremark
+### Coremark
 
 <img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/coremark.png" alt="Coremark" width=640>
 
@@ -104,9 +104,14 @@ When the branch is taken during the execute phase, it needs to flush the instruc
 
 <img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/branch.svg" alt="Branch Penalty" width=640>
 
+## Memory Interface
+
+One instruction memory and one data memory. The instuction memory is read-only for one read port, while data memory is two port, one for reading and one for writing.
+
 ## TODO
 
 * pass formal verification
+* merge the memory interface into one memory for one port
 * support ECALL and EBREAK instructions
 * interrupt handling
 * support FreeRTOS
