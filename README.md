@@ -39,6 +39,7 @@ Only running make without paramets will get help.
 
     $ make
     make all         build all diags and run the RTL sim
+    make build       build all diags and the RTL
     make hello       build hello diag and run the RTL sim
     make dhrystone   build Dhrystone diag and run the RTL sim
     make coremark    build Coremark diag and run the RTL sim

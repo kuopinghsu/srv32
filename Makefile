@@ -4,6 +4,7 @@ SUBDIRS = hello dhrystone coremark
 
 help:
 	@echo "make all         build all diags and run the RTL sim"
+	@echo "make build       build all diags and the RTL"
 	@echo "make hello       build hello diag and run the RTL sim"
 	@echo "make dhrystone   build Dhrystone diag and run the RTL sim"
 	@echo "make coremark    build Coremark diag and run the RTL sim"
@@ -12,6 +13,11 @@ help:
 all:
 	for i in $(SUBDIRS); do \
 		$(MAKE) $$i; \
+	done
+
+build:
+	for i in sw sim tools; do \
+		$(MAKE) -C $$i; \
 	done
 
 $(SUBDIRS): clean
