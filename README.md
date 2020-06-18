@@ -100,7 +100,7 @@ The problem with data hazards, introduced by this sequence of instructions can b
 
 * Branch Penalty
 
-When the branch enters the write-back phase, it needs to flush the instructions that have been fetched into the pipeline, which causes a delay of two instructions, so the extra cost of the branch is two.
+When the branch is taken during the execute phase, it needs to flush the instructions that have been fetched into the pipeline, which causes a delay of two instructions, so the extra cost of the branch is two.
 
 <img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/branch.svg" alt="Branch Penalty" width=640>
 
