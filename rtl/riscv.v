@@ -246,8 +246,11 @@ always @* begin
                             if (result_subu[32]) branch_taken = 1'b0;
                          end
                 default: begin
+                         next_pc    = fetch_pc;
+                         `ifndef SYNTHESIS
                          $display("Unknown branch instruction");
                          $finish(2);
+                         `endif
                          end
             endcase
         end
@@ -277,13 +280,9 @@ always @* begin
                 OP_SLTU: result     = result_subu[32] ? 'd1 : 'd0;
                 OP_XOR : result     = alu_op1 ^ alu_op2;
                 OP_SR  : if (ex_subtype == 1'b0)
-                            result  = alu_op1 >> alu_op2;
-                         else begin
-                            result  = alu_op1 >> alu_op2;
-                            /* verilator lint_off WIDTH */
-                            for(i = 0; i < alu_op2[4:0]; i = i + 1) result[31-i] = alu_op1[31];
-                            /* verilator lint_on WIDTH */
-                         end
+                            result  = alu_op1 >>> alu_op2;
+                         else
+                            result  = $signed(alu_op1) >>> alu_op2;
                 OP_OR  : result     = alu_op1 | alu_op2;
                 OP_AND : result     = alu_op1 & alu_op2;
                 default: result     = 'hx;
@@ -424,7 +423,9 @@ always @* begin
             CSR_RDINSTRETH : ex_csr_read = rdinstret[63:32];
             default: begin
                 illegal_csr = 1'b1;
+                `ifndef SYNTHESIS
                 $display("Unsupport CSR register %0x", ex_imm[11:0]);
+                `endif
             end
         endcase
     end

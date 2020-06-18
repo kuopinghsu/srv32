@@ -1,0 +1,23 @@
+# read design
+read_verilog ../rtl/riscv.v
+
+# generic synthesis
+synth -top riscv
+opt -purge
+
+# mapping to cell library
+dfflibmap -liberty pdk/gscl45nm.lib
+opt
+abc -D 3000 -liberty pdk/gscl45nm.lib
+opt_clean -purge
+
+# report
+tee -o report/check.rpt check
+tee -o report/stats.rpt stat -liberty pdk/gscl45nm.lib
+
+# write .dot file
+# show -prefix output/synth
+
+# write synthesized design
+write_verilog output/synth.v
+
