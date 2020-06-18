@@ -30,7 +30,7 @@ This is not a RISC-V core available for production
 | testbench | testbench, memory model        |
 | tool      | software simulator             |
 
-## Simulation parameters
+## RTL Simulation
 
     # Ubuntu package needed to run the RTL simulation
     sudo apt install iverilog
@@ -52,11 +52,17 @@ Supports following parameter when running the simulation.
 
 For example, following command will generate the VCD dump.
 
-    cd sim && ./riscrun +dumpvcd
+    cd sim && ./riscsim +dumpvcd
+
+Use +trace to generate a trace log, which can be compared with the log file of the software simulator to ensure that the RTL simulation is correct.
+
+    cd sim && ./riscsim +trace
 
 The RTL testbench read the memory initialize file from sw/imem.hex and sw/dmem.hex.
 
-## Software simulator
+## Software Simulator
+
+Tracegen is a software simulator that can generate trace logs for comparison with RTL simulation results. It can also set parameters of branch penalty to run benchmarks to see the effect of branch penalty. The branch instructions of hardware is two instructions delay for branch penalties.
 
     Usage: tracegen [-h] [-b n] [-l logfile]
 
@@ -64,9 +70,13 @@ The RTL testbench read the memory initialize file from sw/imem.hex and sw/dmem.h
            --branch n, -b n        branch penalty (default 2)
            --log file, -l file     generate log file
 
+The software simulator supports RV32IM instruction set, while the hardware supoorts RV32I instructions set. When running the Dhrystone/Coremark benchmark, there is no difference in score after enabling or disabling the multiply instructions. The benchmark test does not use multiply instructions.
+
 The simulator read the memory initialize file from sw/imem.bin and sw/dmem.bin.
 
 ## Bechmark
+
+Here is the simulation result of benchmarks.
 
 * Dhrystone
 
@@ -80,11 +90,17 @@ The simulator read the memory initialize file from sw/imem.bin and sw/dmem.bin.
 
 Two instructions brach panelty if branch taken, CPI is 1 for other instructions. The average Cycles per Instruction (CPI) is approximately 1.2 on Dhrystone diag.
 
+This core is three-stage pipeline processors, which is Fetch & Decode (F/D), execution (E) and write back (WB).
+
 * Register Forwarding
+
+The problem with data hazards, introduced by this sequence of instructions can be solved with a simple hardware technique called forwarding. When the execution result accesses the same register, the execution result is directly forwarded to the next instruction.
 
 <img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/forwarding.svg" alt="Register Forwarding" width=640>
 
 * Branch Penalty
+
+When the branch enters the write-back phase, it needs to flush the instructions that have been fetched into the pipeline, which causes a delay of two instructions, so the extra cost of the branch is two.
 
 <img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/branch.svg" alt="Branch Penalty" width=640>
 
