@@ -87,6 +87,8 @@ Here is the simulation result of benchmarks.
 
 <img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/coremark.png" alt="Coremark" width=640>
 
+> Note: This is not the correct Coremark value. Coremark requires a total time of more than 10 seconds, but this will result in a longer simulation time. This Coremark value only provides a reference when the iteration is 4.
+
 ## Cycles per Instruction Performance
 
 Two instructions brach panelty if branch taken, CPI is 1 for other instructions. The average Cycles per Instruction (CPI) is approximately 1.2 on Dhrystone diag.
