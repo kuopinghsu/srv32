@@ -3,15 +3,20 @@
 
 `define MEM_PUTC    32'h8000001c
 `define MEM_EXIT    32'h8000002c
+`define TOP         riscv
 
 module testbench();
-    localparam      DRAMSIZE = 128*1024;
-    localparam      IRAMSIZE = 128*1024;
+    localparam      DRAMSIZE    = 128*1024;
+    localparam      IRAMSIZE    = 128*1024;
 
     reg             clk;
     reg             resetb;
     reg             stall;
     wire            exception;
+
+    reg     [31: 0] next_pc;
+    reg     [ 7: 0] count;
+    reg     [ 1: 0] fillcount;
 
     wire            imem_ready;
     wire    [31: 0] imem_rdata;
@@ -27,14 +32,14 @@ module testbench();
     wire    [31: 0] dmem_waddr;
     wire    [31: 0] dmem_wdata;
     wire    [ 3: 0] dmem_wstrb;
+    wire            wready;
 
-    reg     [31: 0] next_pc;
-    reg     [ 7: 0] count;
-    reg     [ 1: 0] fillcount;
-
+assign imem_valid   = 1'b1;
 assign dmem_rvalid  = 1'b1;
 assign dmem_wvalid  = 1'b1;
-assign imem_valid   = 1'b1;
+
+assign wready = (dmem_wready &&
+       (dmem_waddr == `MEM_PUTC || dmem_waddr == `MEM_EXIT)) ? 1'b0 : dmem_wready;
 
 initial begin
 
@@ -63,9 +68,9 @@ always @(posedge clk or negedge resetb) begin
         next_pc     <= 32'h0;
         count       <= 8'h0;
     end else begin
-        next_pc     <= riscv.if_pc;
+        next_pc     <= `TOP.if_pc;
 
-        if (next_pc == riscv.if_pc)
+        if (next_pc == `TOP.if_pc)
             count   <= count + 1;
         else
             count   <= 8'h0;
@@ -107,13 +112,13 @@ end
         .dmem_wstrb (dmem_wstrb)
     );
 
-    memmodel # (
+    mem2ports # (
         .SIZE(IRAMSIZE),
-        .FILE("../sw/imem.hex")
+        .FILE("../sw/imem.bin")
     ) imem (
         .clk   (clk),
 
-        .rready(imem_ready),
+        .rready(imem_ready & imem_valid),
         .wready(1'b0),
         .rdata (imem_rdata),
         .raddr (imem_addr[31:2]),
@@ -122,14 +127,14 @@ end
         .wstrb (4'h0)
     );
 
-    memmodel # (
+    mem2ports # (
         .SIZE(DRAMSIZE),
-        .FILE("../sw/dmem.hex")
+        .FILE("../sw/dmem.bin")
     ) dmem (
         .clk   (clk),
 
-        .rready(dmem_rready),
-        .wready(dmem_wready),
+        .rready(dmem_rready & dmem_rvalid),
+        .wready(wready & dmem_wvalid),
         .rdata (dmem_rdata),
         .raddr (dmem_raddr[31:2]),
         .waddr (dmem_waddr[31:2]),
@@ -148,17 +153,22 @@ always @(posedge clk) begin
         $write("%c", dmem_wdata[7:0]);
     end
     else if (dmem_wready && dmem_waddr == `MEM_EXIT) begin
-        $display("\nExcuting %0d instructions, %0d cycles", riscv.rdinstret, riscv.rdcycle);
+        $display("\nExcuting %0d instructions, %0d cycles", `TOP.rdinstret,
+                 `TOP.rdcycle);
         $display("Program terminate");
         #10 $finish(1);
     end
-    else if (dmem_wready && dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
+    else if (dmem_wready &&
+             dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
         $display("DMEM address %x out of range", dmem_waddr);
         #10 $finish(2);
     end
 end
 
 `ifdef TRACE
+////////////////////////////////////////////////////////////
+// Generate trace.log
+////////////////////////////////////////////////////////////
     integer         fp;
 
     reg [7*8:1] regname;
@@ -170,7 +180,7 @@ initial begin
 end
 
 always @* begin
-    case(riscv.wb_dst_sel)
+    case(`TOP.wb_dst_sel)
         'd0: regname = "zero";
         'd1: regname = "ra";
         'd2: regname = "sp";
@@ -210,38 +220,48 @@ end
 always @(posedge clk) begin
     if (!resetb) begin
         fillcount       <= 'd0;
-    end else if (!riscv.wb_stall && !riscv.stall_r && !riscv.wb_flush &&
+    end else if (!`TOP.wb_stall && !`TOP.stall_r && !`TOP.wb_flush &&
                  fillcount != 2'b11) begin
         fillcount       <= fillcount + 1;
     end
 end
 
 always @(posedge clk) begin
-    if ($test$plusargs("trace") && !riscv.wb_stall && !riscv.stall_r &&
-        !riscv.wb_flush && fillcount == 2'b11) begin
-        $fwrite(fp, "%08x %08x", riscv.wb_pc, riscv.wb_insn);
-        if (riscv.wb_mem2reg) begin
-            $fwrite(fp, " read 0x%08x => 0x%08x,", riscv.wb_raddress, riscv.dmem_rdata);
-            $fwrite(fp, " x%02d (%0s) <= 0x%08x\n", riscv.wb_dst_sel, regname, riscv.wb_rdata);
-        end else if (riscv.wb_alu2reg) begin
-            $fwrite(fp, " x%02d (%0s) <= 0x%08x\n", riscv.wb_dst_sel, regname, riscv.wb_result);
-        end else if (riscv.dmem_wready) begin
-            case(riscv.wb_alu_op)
+    if ($test$plusargs("trace") && !`TOP.wb_stall && !`TOP.stall_r &&
+        !`TOP.wb_flush && fillcount == 2'b11) begin
+        $fwrite(fp, "%08x %08x", `TOP.wb_pc, `TOP.wb_insn);
+        if (`TOP.wb_mem2reg) begin
+            $fwrite(fp, " read 0x%08x => 0x%08x,", `TOP.wb_raddress,
+                                                   `TOP.dmem_rdata);
+            $fwrite(fp, " x%02d (%0s) <= 0x%08x\n", `TOP.wb_dst_sel,
+                                                    regname, `TOP.wb_rdata);
+        end else if (`TOP.wb_alu2reg) begin
+            $fwrite(fp, " x%02d (%0s) <= 0x%08x\n", `TOP.wb_dst_sel, regname,
+                                                    `TOP.wb_result);
+        end else if (`TOP.dmem_wready) begin
+            case(`TOP.wb_alu_op)
                 3'h0: begin
-                    case (riscv.wb_wstrb)
-                        4'b0001: $fwrite(fp, " write 0x%08x <= 0x%08x\n", riscv.dmem_waddr, {24'h0, riscv.dmem_wdata[8*0+7:8*0]});
-                        4'b0010: $fwrite(fp, " write 0x%08x <= 0x%08x\n", riscv.dmem_waddr, {24'h0, riscv.dmem_wdata[8*1+7:8*1]});
-                        4'b0100: $fwrite(fp, " write 0x%08x <= 0x%08x\n", riscv.dmem_waddr, {24'h0, riscv.dmem_wdata[8*2+7:8*2]});
-                        4'b1000: $fwrite(fp, " write 0x%08x <= 0x%08x\n", riscv.dmem_waddr, {24'h0, riscv.dmem_wdata[8*3+7:8*3]});
+                    case (`TOP.wb_wstrb)
+                        4'b0001: $fwrite(fp, " write 0x%08x <= 0x%08x\n",
+                        `TOP.dmem_waddr, {24'h0, `TOP.dmem_wdata[8*0+7:8*0]});
+                        4'b0010: $fwrite(fp, " write 0x%08x <= 0x%08x\n",
+                        `TOP.dmem_waddr, {24'h0, `TOP.dmem_wdata[8*1+7:8*1]});
+                        4'b0100: $fwrite(fp, " write 0x%08x <= 0x%08x\n",
+                        `TOP.dmem_waddr, {24'h0, `TOP.dmem_wdata[8*2+7:8*2]});
+                        4'b1000: $fwrite(fp, " write 0x%08x <= 0x%08x\n",
+                        `TOP.dmem_waddr, {24'h0, `TOP.dmem_wdata[8*3+7:8*3]});
                     endcase
                 end
                 3'h1: begin
-                    if (riscv.wb_wstrb == 4'b0011)
-                        $fwrite(fp, " write 0x%08x <= 0x%08x\n", riscv.dmem_waddr, {16'h0, riscv.dmem_wdata[15:0]});
-                    else if (riscv.wb_wstrb == 4'b1100)
-                        $fwrite(fp, " write 0x%08x <= 0x%08x\n", riscv.dmem_waddr, {16'h0, riscv.dmem_wdata[31:16]});
+                    if (`TOP.wb_wstrb == 4'b0011)
+                        $fwrite(fp, " write 0x%08x <= 0x%08x\n",
+                        `TOP.dmem_waddr, {16'h0, `TOP.dmem_wdata[15:0]});
+                    else if (`TOP.wb_wstrb == 4'b1100)
+                        $fwrite(fp, " write 0x%08x <= 0x%08x\n",
+                        `TOP.dmem_waddr, {16'h0, `TOP.dmem_wdata[31:16]});
                 end
-                3'h2: $fwrite(fp, " write 0x%08x <= 0x%08x\n", riscv.dmem_waddr, riscv.dmem_wdata);
+                3'h2: $fwrite(fp, " write 0x%08x <= 0x%08x\n",
+                      `TOP.dmem_waddr, `TOP.dmem_wdata);
             endcase
         end else begin
             $fwrite(fp, "\n");

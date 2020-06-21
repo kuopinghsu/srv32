@@ -59,7 +59,7 @@ Use +trace to generate a trace log, which can be compared with the log file of t
 
     cd sim && ./riscsim +trace
 
-The RTL testbench read the memory initialize file from sw/imem.hex and sw/dmem.hex.
+The RTL testbench read the memory initialize file from sw/imem.bin and sw/dmem.bin.
 
 ## Software Simulator
 
@@ -72,8 +72,6 @@ Tracegen is a software simulator that can generate trace logs for comparison wit
            --log file, -l file     generate log file
 
 The software simulator supports RV32IM instruction set, while the hardware supoorts RV32I instructions set. When running the Dhrystone/Coremark benchmark, there is no difference in score after enabling or disabling the multiply instructions. The benchmark test does not use multiply instructions.
-
-The simulator read the memory initialize file from sw/imem.bin and sw/dmem.bin.
 
 ## Bechmark
 

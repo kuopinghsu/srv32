@@ -22,9 +22,9 @@ PORT_DIR = riscv
 all: compile
 	$(OBJCOPY) -j .text -O binary $(OUTFILE) ../imem.bin
 	$(OBJCOPY) -j .data -O binary $(OUTFILE) ../dmem.bin
+	$(OBJCOPY) -O binary $(OUTFILE) ../memory.bin
 	$(OBJDUMP) -d $(OUTFILE) > $(OUTFILE).dis
 	$(READELF) -a $(OUTFILE) > $(OUTFILE).symbol
-	cd .. && ./common/bin2hex.pl
 
 .PHONY: run score
 run: $(OUTFILE) rerun score
@@ -134,7 +134,7 @@ load: $(OUTFILE)
 .PHONY: clean
 clean:
 	rm -f $(OUTFILE) $(OPATH)*.log *.info $(OPATH)index.html $(PORT_CLEAN)
-	rm -f $(OUTFILE).dis $(OUTFILE).symbol ../[id]mem.*
+	rm -f $(OUTFILE).dis $(OUTFILE).symbol ../[id]mem.* ../memory.*
 
 .PHONY: force_rebuild
 force_rebuild:

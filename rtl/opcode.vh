@@ -67,7 +67,7 @@ localparam  [ 2: 0] OP_ECALL   = 3'b000,    // inst[20] == 0: ECALL, inst[20] ==
                     OP_CSRRCI  = 3'b111;
 
 // CSR registers
-localparam  [12: 0] CSR_RDCYCLE    = 12'hc00,
+localparam  [11: 0] CSR_RDCYCLE    = 12'hc00,
                     CSR_RDCYCLEH   = 12'hc80,
                     CSR_RDTIME     = 12'hc01,
                     CSR_RDTIMEH    = 12'hc81,

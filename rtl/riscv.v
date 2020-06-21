@@ -92,7 +92,7 @@ module riscv (
     integer                 i;
 
 assign inst                 = flush ? NOP : imem_rdata;
-assign if_stall             = !imem_valid;
+assign if_stall             = stall_r || !imem_valid;
 assign dmem_waddr           = wb_waddr;
 assign dmem_raddr           = alu_op1 + ex_imm;
 assign dmem_rready          = ex_mem2reg;
@@ -168,7 +168,7 @@ always @(posedge clk or negedge resetb) begin
         ex_jalr             <= 1'b0;
         ex_branch           <= 1'b0;
         ex_pc               <= RESETVEC;
-    end else if (!stall_r && !if_stall) begin
+    end else if (!if_stall) begin
         ex_imm              <= imm;
         ex_imm_sel          <= (inst[`OPCODE] == OP_JALR  ) ||
                                (inst[`OPCODE] == OP_LOAD  ) ||
@@ -203,7 +203,7 @@ end
     wire            [31: 0] wr_addr;
     wire                    ex_flush;
 
-assign ex_stall             = if_stall || (ex_mem2reg && !dmem_rvalid);
+assign ex_stall             = stall_r || if_stall || (ex_mem2reg && !dmem_rvalid);
 assign alu_op1[31: 0]       = reg_rdata1;
 assign alu_op2[31: 0]       = (ex_imm_sel) ? ex_imm : reg_rdata2;
 
@@ -294,7 +294,7 @@ end
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         fetch_pc            <= RESETVEC;
-    end else if (!stall_r && !ex_stall) begin
+    end else if (!ex_stall) begin
         fetch_pc            <= (ex_flush) ? fetch_pc + 4 : next_pc;
     end
 end
@@ -310,7 +310,7 @@ always @(posedge clk or negedge resetb) begin
         wb_mem2reg          <= 1'b0;
         wb_raddr            <= 2'h0;
         wb_alu_op           <= 3'h0;
-    end else if (!stall_r && !ex_stall) begin
+    end else if (!ex_stall) begin
         wb_result           <= result;
         wb_memwr            <= ex_memwr && !ex_flush;
         wb_alu2reg          <= ex_alu | ex_lui | ex_auipc | ex_jal | ex_jalr | ex_csr | ex_mem2reg;
@@ -328,7 +328,7 @@ always @(posedge clk or negedge resetb) begin
         wb_waddr            <= 32'h0;
         wb_wstrb            <= 4'h0;
         wb_wdata            <= 32'h0;
-    end else if (!stall_r && !ex_stall && ex_memwr) begin
+    end else if (!ex_stall && ex_memwr) begin
         wb_waddr            <= wr_addr;
         case(ex_alu_op)
             OP_SB: begin
@@ -349,8 +349,8 @@ always @(posedge clk or negedge resetb) begin
                 wb_wstrb    <= 4'hf;
             end
             default: begin
-                wb_wdata    <= 32'hx;
-                wb_wstrb    <= 4'hx;
+                wb_wdata    <= {32{1'bx}};
+                wb_wstrb    <= {4{1'bx}};
             end
         endcase
     end
@@ -361,13 +361,13 @@ end
 ////////////////////////////////////////////////////////////
 assign imem_addr            = fetch_pc;
 assign imem_ready           = !stall_r && !wb_stall;
-assign wb_stall             = ex_stall || (wb_memwr && !dmem_wvalid);
+assign wb_stall             = stall_r || ex_stall || (wb_memwr && !dmem_wvalid);
 assign wb_flush             = wb_nop || wb_nop_more;
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         if_pc               <= RESETVEC;
-    end else if (!stall_r && !wb_stall) begin
+    end else if (!wb_stall) begin
         if_pc               <= fetch_pc;
     end
 end
@@ -376,7 +376,7 @@ always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         wb_nop              <= 1'b0;
         wb_nop_more         <= 1'b0;
-    end else if (!stall_r && !(ex_stall || (wb_memwr && !dmem_wvalid))) begin
+    end else if (!ex_stall && !(wb_memwr && !dmem_wvalid)) begin
         wb_nop              <= wb_branch;
         wb_nop_more         <= wb_nop;
     end
@@ -414,7 +414,7 @@ end
 ////////////////////////////////////////////////////////////
 always @* begin
     illegal_csr = 1'b0;
-    ex_csr_read = 21'h0;
+    ex_csr_read = 32'h0;
     if (ex_csr) begin
         case (ex_imm[11:0])
             CSR_RDCYCLE    : ex_csr_read = rdcycle[31:0];
@@ -513,7 +513,7 @@ end
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         ex_insn             <= 32'h0;
-    end else if (!stall_r && !if_stall) begin
+    end else if (!if_stall) begin
         ex_insn             <= inst;
     end
 end
@@ -522,14 +522,14 @@ always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         wb_pc               <= RESETVEC;
         wb_insn             <= 32'h0;
-    end else if (!stall_r && !ex_stall) begin
+    end else if (!ex_stall) begin
         wb_pc               <= ex_pc;
         wb_insn             <= ex_insn;
     end
 end
 
 always @(posedge clk) begin
-    if (!stall_r && !ex_stall) begin
+    if (!ex_stall) begin
         wb_raddress         <= dmem_raddr[31:0];
     end
 end
