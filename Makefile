@@ -1,4 +1,4 @@
-SUBDIRS = hello dhrystone coremark
+SUBDIRS = hello dhrystone coremark qsort
 
 .PHONY: $(SUBDIRS) tools
 
@@ -8,6 +8,7 @@ help:
 	@echo "make hello       build hello diag and run the RTL sim"
 	@echo "make dhrystone   build Dhrystone diag and run the RTL sim"
 	@echo "make coremark    build Coremark diag and run the RTL sim"
+	@echo "make qsort       build qosrt diag and run the RTL sim"
 	@echo "make clean       clean"
 
 all:

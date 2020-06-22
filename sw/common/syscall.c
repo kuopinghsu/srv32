@@ -89,3 +89,13 @@ _sbrk (int nbytes)
     return base;
 }
 
+int _kill(int pid, int sig)
+{
+    return -1;
+}
+
+int _getpid(void)
+{
+    return 0;
+}
+

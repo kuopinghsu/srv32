@@ -1,4 +1,4 @@
-SUBDIRS = hello dhrystone coremark
+SUBDIRS = hello dhrystone coremark qsort
 
 .PHONY: $(SUBDIRS) common clean
 

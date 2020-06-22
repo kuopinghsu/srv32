@@ -104,7 +104,7 @@ static inline int to_imm_u(unsigned int n) {
 }
 
 static void progstate(int exitcode) {
-    printf("\nExcuting %lld instructions, %lld cycles\n", instret.c, cycle.c);
+    printf("\nExcuting %lld instructions, %lld cycles, %1.3f CPI\n", instret.c, cycle.c, ((float)cycle.c)/instret.c);
     printf("Program terminate\n");
     exit(exitcode);
 }
@@ -184,6 +184,9 @@ int main(int argc, char **argv) {
     dsize = fread(dmem, sizeof(int), dmem_size/sizeof(int), fd);
     isize *= sizeof(int);
     dsize *= sizeof(int);
+
+    // clear the rest of data memory
+    memset(&dmem[dsize/sizeof(int)], 0, dmem_size-dsize);
 
     if (isize <= 0 || dsize <= 0) {
         printf("file read error\n");

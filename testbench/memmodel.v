@@ -30,18 +30,18 @@ assign radr[ADDRW-1: 0] = raddr[ADDRW+1: 2];
 assign wadr[ADDRW-1: 0] = waddr[ADDRW+1: 2];
 
 initial begin
-    if ($test$plusargs("meminit")) begin
-        for (i=0; i<SIZE/4; i=i+1) mem[i] = 32'h0;
-    end
-
     file = $fopen(FILE, "rb");
     if (file) begin
         for (i=0; i<SIZE/4; i=i+1) begin
             r = $fread(data, file);
-            mem[i][8*0+7:8*0] = data[8*3+7:8*3];
-            mem[i][8*1+7:8*1] = data[8*2+7:8*2];
-            mem[i][8*2+7:8*2] = data[8*1+7:8*1];
-            mem[i][8*3+7:8*3] = data[8*0+7:8*0];
+            if (r) begin
+                mem[i][8*0+7:8*0] = data[8*3+7:8*3];
+                mem[i][8*1+7:8*1] = data[8*2+7:8*2];
+                mem[i][8*2+7:8*2] = data[8*1+7:8*1];
+                mem[i][8*3+7:8*3] = data[8*0+7:8*0];
+            end else if ($test$plusargs("meminit")) begin
+                mem[i] = 32'h0;
+            end
         end
         $fclose(file);
     end else begin

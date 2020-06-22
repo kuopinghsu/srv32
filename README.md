@@ -43,6 +43,7 @@ Only running make without paramets will get help.
     make hello       build hello diag and run the RTL sim
     make dhrystone   build Dhrystone diag and run the RTL sim
     make coremark    build Coremark diag and run the RTL sim
+    make qsort       build qsort diag and run the RTL sim
     make clean       clean
 
 Supports following parameter when running the simulation.
