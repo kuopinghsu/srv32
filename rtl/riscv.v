@@ -1,5 +1,12 @@
 // Three pipeline stage RV32I RISCV processor
 // Written by Kuoping Hsu, 2020, MIT license
+
+// Define it to enable RV32M multiply extension
+`define RV32M_ENABLED       1
+
+// ============================================================
+// RISCV for imem and dmem seperate port
+// ============================================================
 module riscv (
     input                   clk,
     input                   resetb,
@@ -65,6 +72,11 @@ module riscv (
     reg                     ex_branch;
     wire                    ex_csr_rd;
     reg             [31: 0] ex_csr_read;
+    reg                     ex_illegal;
+
+`ifdef RV32M_ENABLED
+    reg                     ex_mul;
+`endif // RV32M_ENABLED
 
     reg                     wb_alu2reg;
     reg             [31: 0] wb_result;
@@ -83,7 +95,6 @@ module riscv (
     reg             [31: 0] wb_rdata;
     wire                    wb_flush;
 
-    reg                     illegal_inst;
     reg                     illegal_csr;
 
     reg             [63: 0] rdcycle;
@@ -103,7 +114,7 @@ assign dmem_wstrb           = wb_wstrb;
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
         exception           <= 1'b0;
-    else if (illegal_inst || illegal_csr || imem_addr[1:0] != 0)
+    else if (ex_illegal || illegal_csr || imem_addr[1:0] != 0)
         exception           <= 1'b1;
 end
 
@@ -128,9 +139,6 @@ end
     reg             [31: 0] imm;
 
 always @* begin
-    imm                     = 32'h0;
-    illegal_inst            = 1'b0;
-
     case(inst[`OPCODE])
         OP_AUIPC : imm      = {inst[31:12], 12'd0}; // U-type
         OP_LUI   : imm      = {inst[31:12], 12'd0}; // U-type
@@ -143,11 +151,7 @@ always @* begin
         OP_ARITHR: imm      = 'd0; // R-type
         OP_FENCE : imm      = 'd0;
         OP_SYSTEM: imm      = {20'h0, inst[31:20]};
-        default: begin // illegal instruction
-            illegal_inst    = 1'b1;
-            //$display("Illegal instruction");
-            //$finish(2);
-        end
+        default  : imm      = 'd0;
     endcase
 end
 
@@ -168,6 +172,10 @@ always @(posedge clk or negedge resetb) begin
         ex_jalr             <= 1'b0;
         ex_branch           <= 1'b0;
         ex_pc               <= RESETVEC;
+        ex_illegal          <= 1'b0;
+        `ifdef RV32M_ENABLED
+        ex_mul              <= 1'b0;
+        `endif // RV32M_ENABLED
     end else if (!if_stall) begin
         ex_imm              <= imm;
         ex_imm_sel          <= (inst[`OPCODE] == OP_JALR  ) ||
@@ -189,6 +197,23 @@ always @(posedge clk or negedge resetb) begin
         ex_jalr             <= inst[`OPCODE] == OP_JALR;
         ex_branch           <= inst[`OPCODE] == OP_BRANCH;
         ex_pc               <= if_pc;
+        ex_illegal          <= !((inst[`OPCODE] == OP_AUIPC )||
+                                 (inst[`OPCODE] == OP_LUI   )||
+                                 (inst[`OPCODE] == OP_JAL   )||
+                                 (inst[`OPCODE] == OP_JALR  )||
+                                 (inst[`OPCODE] == OP_BRANCH)||
+                                 (inst[`OPCODE] == OP_LOAD  )||
+                                 (inst[`OPCODE] == OP_STORE )||
+                                 (inst[`OPCODE] == OP_ARITHI)||
+                                 ((inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20)) ||
+                                 `ifdef RV32M_ENABLED
+                                 ((inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h01)) ||
+                                 `endif // RV32M_ENABLED
+                                 (inst[`OPCODE] == OP_FENCE )||
+                                 (inst[`OPCODE] == OP_SYSTEM));
+        `ifdef RV32M_ENABLED
+        ex_mul              <= (inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h1);
+        `endif // RV32M_ENABLED
     end
 end
 
@@ -261,6 +286,19 @@ always @* begin
     endcase
 end
 
+`ifdef RV32M_ENABLED
+    wire            [63: 0] result_mul;
+    wire            [63: 0] result_mulsu;
+    wire            [63: 0] result_mulu;
+
+assign result_mul[63: 0]    = $signed({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
+                              $signed({{32{alu_op2[31]}}, alu_op2[31: 0]});
+assign result_mulu[63: 0]   = $unsigned({{32{1'b0}}, alu_op1[31: 0]}) *
+                              $unsigned({{32{1'b0}}, alu_op2[31: 0]});
+assign result_mulsu[63: 0]  = $signed({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
+                              $unsigned({{32{1'b0}}, alu_op2[31: 0]});
+`endif // RV32M_ENABLED
+
 always @* begin
     case(1'b1)
         ex_memwr:   result          = alu_op2;
@@ -269,6 +307,20 @@ always @* begin
         ex_lui:     result          = ex_imm;
         ex_auipc:   result          = ex_pc + ex_imm;
         ex_csr:     result          = ex_csr_read;
+        `ifdef RV32M_ENABLED
+        ex_mul:
+            case(ex_alu_op)
+                OP_MUL   : result   = result_mul[31: 0];
+                OP_MULH  : result   = result_mul[63:32];
+                OP_MULSU : result   = result_mulsu[63:32];
+                OP_MULU  : result   = result_mulu[63:32];
+                OP_DIV   : result   = $signed(alu_op1) / $signed(alu_op2);
+                OP_DIVU  : result   = $unsigned(alu_op1) / $unsigned(alu_op2);
+                OP_REM   : result   = $signed(alu_op1) % $signed(alu_op2);
+                OP_REMU  : result   = $unsigned(alu_op1) % $unsigned(alu_op2);
+                default  : result   = {32{1'bx}};
+            endcase
+        `endif // RV32M_ENABLED
         ex_alu:
             case(ex_alu_op)
                 OP_ADD : if (ex_subtype == 1'b0)
@@ -285,9 +337,9 @@ always @* begin
                             result  = $signed(alu_op1) >>> alu_op2;
                 OP_OR  : result     = alu_op1 | alu_op2;
                 OP_AND : result     = alu_op1 & alu_op2;
-                default: result     = 'hx;
+                default: result     = {32{1'bx}};
             endcase
-        default: result = 'hx;
+        default: result = {32{1'bx}};
     endcase
 end
 

@@ -5,19 +5,22 @@ This is a simple RISC-V 3-stage pipeline processor.
 I wrote this code to understand the RV32I instruction set, just for fun.
 This is not a RISC-V core available for production
 
+> Notes: add RV32M supporting now.
+
 ## Building toolchains
+
+Install RV32IM toolchains.
 
     # Ubuntu packages needed:
     sudo apt-get install autoconf automake autotools-dev curl libmpc-dev \
         libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo \
         gperf libtool patchutils bc zlib1g-dev git libexpat1-dev
 
-    git clone https://github.com/riscv/riscv-gnu-toolchain riscv-gnu-toolchain-rv32i
-    cd riscv-gnu-toolchain-rv32i
-    git submodule update --init --recursive
+    git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
+    cd riscv-gnu-toolchain
 
     mkdir build; cd build
-    ../configure --with-arch=rv32i --prefix=/opt/riscv32i
+    ../configure --with-arch=rv32im --prefix=/opt/riscv32im
     make -j$(nproc)
 
 ## Files list
@@ -27,6 +30,7 @@ This is not a RISC-V core available for production
 | doc       | Instruction sets document      |
 | rtl       | RTL files                      |
 | sim       | Icarus verilog simulation env  |
+| syn       | Syntheis env for Yosys         |
 | testbench | testbench, memory model        |
 | tool      | software simulator             |
 
@@ -72,11 +76,11 @@ Tracegen is a software simulator that can generate trace logs for comparison wit
            --branch n, -b n        branch penalty (default 2)
            --log file, -l file     generate log file
 
-The software simulator supports RV32IM instruction set, while the hardware supoorts RV32I instructions set. When running the Dhrystone/Coremark benchmark, there is no difference in score after enabling or disabling the multiply instructions. The benchmark test does not use multiply instructions.
+The software simulator and hardware supports RV32IM instruction sets.
 
 ## Bechmark
 
-Here is the simulation result of benchmarks.
+Here is the RV32I simulation result of benchmarks.
 
 ### Dhrystone
 
@@ -86,7 +90,7 @@ Here is the simulation result of benchmarks.
 
 <img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/coremark.png" alt="Coremark" width=640>
 
-> Note: This is not the correct Coremark value. Coremark requires a total time of more than 10 seconds, but this will result in a longer simulation time. This Coremark value only provides a reference when the iteration is 4.
+> Note: Coremark requires a total time of more than 10 seconds, but this will result in a longer simulation time. This Coremark value provides a reference when the iteration is 4.
 
 ## Cycles per Instruction Performance
 
@@ -98,13 +102,13 @@ This core is three-stage pipeline processors, which is Fetch & Decode (F/D), exe
 
 The problem with data hazards, introduced by this sequence of instructions can be solved with a simple hardware technique called forwarding. When the execution result accesses the same register, the execution result is directly forwarded to the next instruction.
 
-<img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/forwarding.svg" alt="Register Forwarding" width=640>
+<img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/forwarding.svg" alt="Register Forwarding" width=480>
 
 * Branch Penalty
 
 When the branch is taken during the execute phase, it needs to flush the instructions that have been fetched into the pipeline, which causes a delay of two instructions, so the extra cost of the branch is two.
 
-<img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/branch.svg" alt="Branch Penalty" width=640>
+<img src="https://github.com/kuopinghsu/simple-riscv/blob/master/images/branch.svg" alt="Branch Penalty" width=480>
 
 ## Memory Interface
 
@@ -116,7 +120,9 @@ One instruction memory and one data memory. The instuction memory is read-only f
 * merge the memory interface into one memory for one port
 * support ECALL and EBREAK instructions
 * interrupt handling
+* support RV32C compress extension
 * support FreeRTOS
+* branch predictor??
 
 # License
 

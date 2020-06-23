@@ -4,5 +4,5 @@ OBJDUMP = riscv32-unknown-elf-objdump
 OBJCOPY = riscv32-unknown-elf-objcopy
 READELF = riscv32-unknown-elf-readelf
 
-CFLAGS  = -O3 -Wall -march=rv32i -nostartfiles -nostdlib
+CFLAGS  = -O3 -Wall -march=rv32im -nostartfiles -nostdlib
 LDFLAGS = -lc -lm -lgcc -lsys

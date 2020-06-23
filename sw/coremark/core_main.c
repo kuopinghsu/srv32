@@ -125,7 +125,6 @@ main(int argc, char *argv[])
 #endif
     /* first call any initializations needed */
     portable_init(&(results[0].port), &argc, argv);
-    ee_printf("Coremark is running and takes a while.\n");
     /* First some checks to make sure benchmark will run ok */
     if (sizeof(struct list_head_s) > 128)
     {
@@ -425,6 +424,9 @@ for (i = 0; i < MULTITHREAD; i++)
             ee_printf(" / %d:%s", default_num_contexts, PARALLEL_METHOD);
 #endif
             ee_printf("\n");
+            ee_printf("CoreMark/MHz: %f\n",
+                        default_num_contexts * results[0].iterations
+                            / time_in_secs(total_time)/(CLOCKS_PER_SEC/1000000.0));
         }
 #endif
     }

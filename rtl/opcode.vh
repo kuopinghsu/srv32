@@ -3,6 +3,7 @@
 
 `define OPCODE      6:0
 `define FUNC3       14:12
+`define FUNC7       31:25
 `define SUBTYPE     30
 `define RD          11:7
 `define RS1         19:15
@@ -56,6 +57,16 @@ localparam  [ 2: 0] OP_ADD     = 3'b000,    // inst[30] == 0: ADD, inst[31] == 1
                     OP_SR      = 3'b101,    // inst[30] == 0: SRL, inst[31] == 1: SRA
                     OP_OR      = 3'b110,
                     OP_AND     = 3'b111;
+
+// FUNC3, INST[14:12], INST[6:0] = 7'b0110011, FUNC7 INST[31:25] == 0x01
+localparam  [ 2: 0] OP_MUL     = 3'b000,
+                    OP_MULH    = 3'b001,
+                    OP_MULSU   = 3'b010,
+                    OP_MULU    = 3'b011,
+                    OP_DIV     = 3'b100,
+                    OP_DIVU    = 3'b101,
+                    OP_REM     = 3'b110,
+                    OP_REMU    = 3'b111;
 
 // FUNC3, INST[14:12], INST[6:0] = 7'b1110011
 localparam  [ 2: 0] OP_ECALL   = 3'b000,    // inst[20] == 0: ECALL, inst[20] == 1: EBREAK

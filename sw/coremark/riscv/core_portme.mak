@@ -30,7 +30,7 @@ ITERATIONS = 4
 
 # Flag : CFLAGS
 #	Use this flag to define compiler options. Note, you can add compiler options from the command line using XCFLAGS="other flags"
-PORT_CFLAGS = -O3 -march=rv32i -nostartfiles -nostdlib -flto -L../common -DPERFORMANCE_RUN=1
+PORT_CFLAGS = -O3 -march=rv32im -nostartfiles -nostdlib -flto -L../common -DPERFORMANCE_RUN=1
 FLAGS_STR = "$(PORT_CFLAGS) $(XCFLAGS) $(XLFLAGS) $(LFLAGS_END)"
 CFLAGS = $(PORT_CFLAGS) -I$(PORT_DIR) -I. -DFLAGS_STR=\"$(FLAGS_STR)\"
 #Flag : LFLAGS_END
