@@ -30,6 +30,7 @@ Install RV32IM toolchains.
 | doc       | Instruction sets document      |
 | rtl       | RTL files                      |
 | sim       | Icarus verilog simulation env  |
+| sw        | Benchmark, diags ... etc.      |
 | syn       | Syntheis env for Yosys         |
 | testbench | testbench, memory model        |
 | tool      | software simulator             |
