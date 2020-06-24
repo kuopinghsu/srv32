@@ -11,8 +11,8 @@ all: $(TARGET)
 $(TARGET): $(SRC)
 	iverilog $(BFLAGS) -o $(TARGET)
 
-run: $(TARGET)
-	./$(TARGET) $(RFLAGS)
+run: $(TARGET) checkcode.awk
+	./$(TARGET) $(RFLAGS) | awk -f $(filter %.awk, $^)
 
 clean:
 	@$(RM) $(TARGET) testbench.vcd trace.log
