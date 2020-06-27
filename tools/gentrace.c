@@ -22,9 +22,10 @@ char *regname[32] = {
 
 void usage(void) {
     printf(
-"Usage: tracegen [-h] [-b n] [-l logfile]\n\n"
+"Usage: tracegen [-h] [-b n] [-p] [-l logfile]\n\n"
 "       --help, -n              help\n"
 "       --branch n, -b n        branch penalty (default 2)\n"
+"       --predict, -p           static branch prediction\n"
 "       --log file, -l file     generate log file\n"
 "\n"
     );
@@ -103,7 +104,7 @@ static inline int to_imm_u(unsigned int n) {
     return (int)(n << 12);
 }
 
-static void progstate(int exitcode) {
+static void prog_exit(int exitcode) {
     printf("\nExcuting %lld instructions, %lld cycles, %1.3f CPI\n", instret.c, cycle.c, ((float)cycle.c)/instret.c);
     printf("Program terminate\n");
     exit(exitcode);
@@ -117,22 +118,24 @@ int main(int argc, char **argv) {
     int pc = 0;
     int *imem;
     int *dmem;
-    int imem_addr = 0;
-    int dmem_addr = RAMSIZE;
-    int imem_size = RAMSIZE;
-    int dmem_size = RAMSIZE;
+    const int imem_addr = 0;
+    const int dmem_addr = RAMSIZE;
+    const int imem_size = RAMSIZE;
+    const int dmem_size = RAMSIZE;
     char *ifile = "../sw/imem.bin";
     char *dfile = "../sw/dmem.bin";
     char *tfile = NULL;
     int isize;
     int dsize;
     int branch_penalty = BRANCH_PENALTY;
+    int branch_predict = 0;
 
-    const char *optstring = "hb:l:";
+    const char *optstring = "hb:pl:";
     int c;
     struct option opts[] = {
         {"help", 0, NULL, 'h'},
         {"branch", 1, NULL, 'b'},
+        {"predict", 0, NULL, 'p'},
         {"log", 1, NULL, 'l'}
     };
 
@@ -143,6 +146,9 @@ int main(int argc, char **argv) {
                 return 1;
             case 'b':
                 branch_penalty = atoi(optarg);
+                break;
+            case 'p':
+                branch_predict = 1;
                 break;
             case 'l':
                 if ((tfile = malloc(MAXLEN)) == NULL) {
@@ -235,6 +241,10 @@ int main(int argc, char **argv) {
                 regs[inst.j.rd] = pc + 4;
                 if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst, inst.j.rd, regname[inst.j.rd], regs[inst.j.rd]);
                 pc += to_imm_j(inst.j.imm);
+                if (to_imm_j(inst.j.imm) == 0) {
+                    printf("Warnning: forever loop detected at PC 0x%08x\n", pc);
+                    prog_exit(1);
+                }
                 cycle.c += branch_penalty;
                 continue;
             }
@@ -247,46 +257,53 @@ int main(int argc, char **argv) {
             }
             case OP_BRANCH: { // B-Type
                 if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
+                int offset = to_imm_b(inst.b.imm2, inst.b.imm1);
                 switch(inst.b.func3) {
                     case OP_BEQ  :
                         if (regs[inst.b.rs1] == regs[inst.b.rs2]) {
-                            pc += to_imm_b(inst.b.imm2, inst.b.imm1);
-                            cycle.c += branch_penalty;
+                            pc += offset;
+                            if (!branch_predict || offset > 0)
+                                cycle.c += branch_penalty;
                             continue;
                         }
                         break;
                     case OP_BNE  :
                         if (regs[inst.b.rs1] != regs[inst.b.rs2]) {
-                            pc += to_imm_b(inst.b.imm2, inst.b.imm1);
-                            cycle.c += branch_penalty;
+                            pc += offset;
+                            if (!branch_predict || offset > 0)
+                                cycle.c += branch_penalty;
                             continue;
                         }
                         break;
                     case OP_BLT  :
                         if (regs[inst.b.rs1] < regs[inst.b.rs2]) {
-                            pc += to_imm_b(inst.b.imm2, inst.b.imm1);
-                            cycle.c += branch_penalty;
+                            pc += offset;
+                            if (!branch_predict || offset > 0)
+                                cycle.c += branch_penalty;
                             continue;
                         }
                         break;
                     case OP_BGE  :
                         if (regs[inst.b.rs1] >= regs[inst.b.rs2]) {
-                            pc += to_imm_b(inst.b.imm2, inst.b.imm1);
-                            cycle.c += branch_penalty;
+                            pc += offset;
+                            if (!branch_predict || offset > 0)
+                                cycle.c += branch_penalty;
                             continue;
                         }
                         break;
                     case OP_BLTU :
                         if (((unsigned int)regs[inst.b.rs1]) < ((unsigned int)regs[inst.b.rs2])) {
-                            pc += to_imm_b(inst.b.imm2, inst.b.imm1);
-                            cycle.c += branch_penalty;
+                            pc += offset;
+                            if (!branch_predict || offset > 0)
+                                cycle.c += branch_penalty;
                             continue;
                         }
                         break;
                     case OP_BGEU :
                         if (((unsigned int)regs[inst.b.rs1]) >= ((unsigned int)regs[inst.b.rs2])) {
-                            pc += to_imm_b(inst.b.imm2, inst.b.imm1);
-                            cycle.c += branch_penalty;
+                            pc += offset;
+                            if (!branch_predict || offset > 0)
+                                cycle.c += branch_penalty;
                             continue;
                         }
                         break;
@@ -341,7 +358,7 @@ int main(int argc, char **argv) {
                             pc += 4;
                             continue;
                         case MMIO_EXIT:
-                            progstate(data);
+                            prog_exit(data);
                             break;
                         default:
                             printf("Unknown address 0x%08x to write at 0x%08x\n", address, pc);
@@ -468,7 +485,31 @@ int main(int argc, char **argv) {
             case OP_SYSTEM: { // I-Type
                 // RDCYCLE, RDTIME and RDINSTRET are read only
                 switch(inst.i.func3) {
-                    case OP_ECALL  : break;
+                    case OP_ECALL  : if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
+                                     if (inst.i.imm == 1) { // ebreak
+                                        break; // TODO
+                                     }
+                                     // ecall
+                                     switch(regs[A7]) { // function argument A7/X17
+                                        case SYS_EXIT:
+                                            prog_exit(0);
+                                            break;
+                                        case SYS_WRITE:
+                                            if (regs[A0] == STDOUT) {
+                                                char *ptr = (char*)dmem;
+                                                int i;
+                                                for(i=0; i<regs[A2]; i++) {
+                                                    char c = ptr[regs[A1]-dmem_addr+i];
+                                                    putchar(c);
+                                                }
+                                                fflush(stdout);
+                                            }
+                                            break;
+                                        default:
+                                            printf("Unsupport system call 0x%08x\n", regs[17]);
+                                            prog_exit(1);
+                                     }
+                                     break;
                     case OP_CSRRW  : // fall through
                     case OP_CSRRS  : // fall through
                     case OP_CSRRC  : // fall through
@@ -491,11 +532,12 @@ int main(int argc, char **argv) {
                                 default: printf("Unsupport CSR register %d\n", inst.i.imm);
                                          exit(-1);
                             }
+                            if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                        pc, inst.inst, inst.i.rd, regname[inst.i.rd], regs[inst.i.rd]);
                             break;
                     default: printf("Unknown system instruction at 0x%08x\n", pc);
                              exit(-1);
                 }
-                if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst, inst.i.rd, regname[inst.i.rd], regs[inst.i.rd]);
                 break;
             }
             default: {

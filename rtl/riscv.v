@@ -4,6 +4,9 @@
 // Define it to enable RV32M multiply extension
 `define RV32M_ENABLED       1
 
+// Define it to enable syscall
+`define HAVE_SYSCALL        1
+
 // ============================================================
 // RISCV for imem and dmem seperate port
 // ============================================================
@@ -16,20 +19,23 @@ module riscv (
 
     // interface of instruction RAM
     output                  imem_ready,
-    input           [31: 0] imem_rdata,
     input                   imem_valid,
     output          [31: 0] imem_addr,
+    input                   imem_rresp,
+    input           [31: 0] imem_rdata,
     
     // interface of data RAM
     output                  dmem_wready,
-    output                  dmem_rready,
-    input           [31: 0] dmem_rdata,
     input                   dmem_wvalid,
-    input                   dmem_rvalid,
     output          [31: 0] dmem_waddr,
-    output          [31: 0] dmem_raddr,
     output          [31: 0] dmem_wdata,
-    output          [ 3: 0] dmem_wstrb
+    output          [ 3: 0] dmem_wstrb,
+
+    output                  dmem_rready,
+    input                   dmem_rvalid,
+    input                   dmem_rresp,
+    output          [31: 0] dmem_raddr,
+    input           [31: 0] dmem_rdata
 );
 
 `include "opcode.vh"
@@ -70,6 +76,7 @@ module riscv (
     reg                     ex_jal;
     reg                     ex_jalr;
     reg                     ex_branch;
+    reg                     ex_system;
     wire                    ex_csr_rd;
     reg             [31: 0] ex_csr_read;
     reg                     ex_illegal;
@@ -78,6 +85,7 @@ module riscv (
     reg                     ex_mul;
 `endif // RV32M_ENABLED
 
+    reg                     wb_break;
     reg                     wb_alu2reg;
     reg             [31: 0] wb_result;
     reg             [ 2: 0] wb_alu_op;
@@ -86,6 +94,7 @@ module riscv (
     reg             [ 4: 0] wb_dst_sel;
     reg                     wb_branch;
     reg                     wb_branch_nxt;
+    reg                     wb_system;
     reg                     wb_nop;
     reg                     wb_nop_more;
     reg             [31: 0] wb_waddr;
@@ -171,6 +180,9 @@ always @(posedge clk or negedge resetb) begin
         ex_jal              <= 1'b0;
         ex_jalr             <= 1'b0;
         ex_branch           <= 1'b0;
+        `ifdef HAVE_SYSCALL
+        ex_system           <= 1'b0;
+        `endif // HAVE_SYSCALL
         ex_pc               <= RESETVEC;
         ex_illegal          <= 1'b0;
         `ifdef RV32M_ENABLED
@@ -196,6 +208,9 @@ always @(posedge clk or negedge resetb) begin
         ex_jal              <= inst[`OPCODE] == OP_JAL;
         ex_jalr             <= inst[`OPCODE] == OP_JALR;
         ex_branch           <= inst[`OPCODE] == OP_BRANCH;
+        `ifdef HAVE_SYSCALL
+        ex_system           <= inst[`OPCODE] == OP_SYSTEM;
+        `endif // HAVE_SYSCALL
         ex_pc               <= if_pc;
         ex_illegal          <= !((inst[`OPCODE] == OP_AUIPC )||
                                  (inst[`OPCODE] == OP_LUI   )||
@@ -274,7 +289,7 @@ always @* begin
                          next_pc    = fetch_pc;
                          `ifndef SYNTHESIS
                          $display("Unknown branch instruction");
-                         $finish(2);
+                         #10 $finish(2);
                          `endif
                          end
             endcase
@@ -362,6 +377,10 @@ always @(posedge clk or negedge resetb) begin
         wb_mem2reg          <= 1'b0;
         wb_raddr            <= 2'h0;
         wb_alu_op           <= 3'h0;
+        `ifdef HAVE_SYSCALL
+        wb_system           <= 1'b0;
+        wb_break            <= 1'b0;
+        `endif // HAVE_SYSCALL
     end else if (!ex_stall) begin
         wb_result           <= result;
         wb_memwr            <= ex_memwr && !ex_flush;
@@ -372,6 +391,10 @@ always @(posedge clk or negedge resetb) begin
         wb_mem2reg          <= ex_mem2reg;
         wb_raddr            <= dmem_raddr[1:0];
         wb_alu_op           <= ex_alu_op;
+        `ifdef HAVE_SYSCALL
+        wb_system           <= ex_system;
+        wb_break            <= ex_imm[0];
+        `endif // HAVE_SYSCALL
     end
 end
 
@@ -413,7 +436,7 @@ end
 ////////////////////////////////////////////////////////////
 assign imem_addr            = fetch_pc;
 assign imem_ready           = !stall_r && !wb_stall;
-assign wb_stall             = stall_r || ex_stall || (wb_memwr && !dmem_wvalid);
+assign wb_stall             = stall_r || ex_stall || (wb_memwr && !dmem_wvalid) || (wb_mem2reg && !dmem_rresp);
 assign wb_flush             = wb_nop || wb_nop_more;
 
 always @(posedge clk or negedge resetb) begin
@@ -458,6 +481,39 @@ always @* begin
         default: wb_rdata = 'hx;
     endcase
 end
+
+////////////////////////////////////////////////////////////
+// System call
+////////////////////////////////////////////////////////////
+`ifdef HAVE_SYSCALL
+`ifndef SYNTHESIS
+always @(posedge clk) begin
+    if (wb_system && !wb_stall) begin
+        if (wb_break) begin   // ebreak
+            // TODO
+            //$stop;
+        end else begin      // ecall
+            case(regs[REG_A7][7:0])  // function arguments A7/X17
+                SYS_EXIT: begin
+                    $display("\nExcuting %0d instructions, %0d cycles", rdinstret, rdcycle);
+                    $display("Program terminate");
+                    #10 $finish(2);
+                end
+                SYS_FSTAT: ;
+                SYS_WRITE: begin
+                    // TODO: do system call on memory model
+                end
+                SYS_SBRK: ;
+                default: begin
+                    // TODO
+                    // $display("Unknown syscall call %08x", regs[REG_A7]);
+                end
+            endcase
+        end
+    end
+end
+`endif //SYNTHESIS
+`endif // HAVE_SYSCALL
 
 ////////////////////////////////////////////////////////////
 // CSR file (only support read-only registers)

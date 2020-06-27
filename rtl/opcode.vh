@@ -85,3 +85,19 @@ localparam  [11: 0] CSR_RDCYCLE    = 12'hc00,
                     CSR_RDINSTRET  = 12'hc02,
                     CSR_RDINSTRETH = 12'hc82;
 
+// system call defined in the file /usr/include/asm-generic/unistd.h
+localparam  [ 7: 0] SYS_CLOSE   = 8'h39,
+                    SYS_WRITE   = 8'h40,
+                    SYS_FSTAT   = 8'h50,
+                    SYS_EXIT    = 8'h5d,
+                    SYS_SBRK    = 8'hd6;
+
+// Register/ABI mapping
+localparam  [ 4: 0] REG_ZERO =  0, REG_RA =  1, REG_SP  =  2, REG_GP  =  3,
+                    REG_TP   =  4, REG_T0 =  5, REG_T1  =  6, REG_T2  =  7,
+                    REG_S0   =  8, REG_S1 =  9, REG_A0  = 10, REG_A1  = 11,
+                    REG_A2   = 12, REG_A3 = 13, REG_A4  = 14, REG_A5  = 15,
+                    REG_A6   = 16, REG_A7 = 17, REG_S2  = 18, REG_S3  = 19,
+                    REG_S4   = 20, REG_S5 = 21, REG_S6  = 22, REG_S7  = 23,
+                    REG_S8   = 24, REG_S9 = 25, REG_S10 = 26, REG_S11 = 27,
+                    REG_T3   = 28, REG_T4 = 29, REG_T5  = 30, REG_T6  = 31;

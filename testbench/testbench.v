@@ -3,9 +3,12 @@
 
 `define MEM_PUTC    32'h8000001c
 `define MEM_EXIT    32'h8000002c
+
 `define TOP         riscv
 
 module testbench();
+    `include "opcode.vh"
+
     localparam      DRAMSIZE    = 128*1024;
     localparam      IRAMSIZE    = 128*1024;
 
@@ -33,6 +36,8 @@ module testbench();
     wire    [31: 0] dmem_wdata;
     wire    [ 3: 0] dmem_wstrb;
     wire            wready;
+
+    integer         i;
 
 assign imem_valid   = 1'b1;
 assign dmem_rvalid  = 1'b1;
@@ -97,19 +102,22 @@ end
         .exception  (exception),
 
         .imem_ready (imem_ready),
-        .imem_rdata (imem_rdata),
         .imem_valid (imem_valid),
         .imem_addr  (imem_addr),
+        .imem_rresp (imem_rresp),
+        .imem_rdata (imem_rdata),
 
-        .dmem_rready(dmem_rready),
         .dmem_wready(dmem_wready),
-        .dmem_rdata (dmem_rdata),
-        .dmem_rvalid(dmem_rvalid),
         .dmem_wvalid(dmem_wvalid),
-        .dmem_raddr (dmem_raddr),
         .dmem_waddr (dmem_waddr),
         .dmem_wdata (dmem_wdata),
-        .dmem_wstrb (dmem_wstrb)
+        .dmem_wstrb (dmem_wstrb),
+
+        .dmem_rready(dmem_rready),
+        .dmem_rvalid(dmem_rvalid),
+        .dmem_raddr (dmem_raddr),
+        .dmem_rresp (dmem_rresp),
+        .dmem_rdata (dmem_rdata)
     );
 
     mem2ports # (
@@ -117,9 +125,11 @@ end
         .FILE("../sw/imem.bin")
     ) imem (
         .clk   (clk),
+        .resetb(resetb),
 
         .rready(imem_ready & imem_valid),
         .wready(1'b0),
+        .rresp (imem_rresp),
         .rdata (imem_rdata),
         .raddr (imem_addr[31:2]),
         .waddr (30'h0),
@@ -132,9 +142,11 @@ end
         .FILE("../sw/dmem.bin")
     ) dmem (
         .clk   (clk),
+        .resetb(resetb),
 
         .rready(dmem_rready & dmem_rvalid),
         .wready(wready & dmem_wvalid),
+        .rresp (dmem_rresp),
         .rdata (dmem_rdata),
         .raddr (dmem_raddr[31:2]),
         .waddr (dmem_waddr[31:2]),
@@ -162,6 +174,17 @@ always @(posedge clk) begin
              dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
         $display("DMEM address %x out of range", dmem_waddr);
         #10 $finish(2);
+    end
+end
+
+// syscall
+always @(posedge clk) begin
+    if (`TOP.wb_system && !`TOP.wb_stall) begin
+        if (!`TOP.wb_break && `TOP.regs[REG_A7][7:0] == SYS_WRITE) begin
+            for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
+                $write("%c", dmem.getb(`TOP.regs[REG_A1] - IRAMSIZE + i));
+            end
+        end
     end
 end
 

@@ -2,7 +2,7 @@ SUBDIRS = hello dhrystone coremark qsort
 
 .PHONY: $(SUBDIRS) common clean
 
-all: hello
+all: $(SUBDIRS)
 
 $(SUBDIRS): common
 	$(MAKE) -C $@
