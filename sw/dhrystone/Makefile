@@ -1,7 +1,7 @@
 include ../common/Makefile.common
 
 SRC      = dhry_1.c dhry_2.c syscall.c
-CFLAGS  += -flto -DTIME -DRISCV -DHZ=100000000 -L../common
+CFLAGS  += -DTIME -DRISCV -DHZ=100000000 -L../common
 CFLAGS  += -Wno-return-type -Wno-implicit-function-declaration -Wno-implicit-int
 LDFLAGS += -T ../common/default.ld
 TARGET   = dhrystone
