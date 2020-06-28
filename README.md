@@ -3,6 +3,7 @@ Simple 3-stage pipeline RISC-V processor
 
 This is a simple RISC-V 3-stage pipeline processor.
 I wrote this code to understand the RV32I instruction set, just for fun.
+The performance is 1.821 DMIPS/MHz and 2.681 Coremark/MHz.
 This is not a RISC-V core available for production
 
 > Notes: RV32M support has been added.
