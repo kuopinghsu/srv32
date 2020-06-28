@@ -180,7 +180,8 @@ end
 // syscall
 always @(posedge clk) begin
     if (`TOP.wb_system && !`TOP.wb_stall) begin
-        if (!`TOP.wb_break && `TOP.regs[REG_A7][7:0] == SYS_WRITE) begin
+        if (!`TOP.wb_break && `TOP.regs[REG_A7][7:0] == SYS_WRITE &&
+             `TOP.regs[REG_A0] == 32'h1) begin // stdout
             for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
                 $write("%c", dmem.getb(`TOP.regs[REG_A1] - IRAMSIZE + i));
             end
