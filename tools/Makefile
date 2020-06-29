@@ -2,8 +2,12 @@ CC       = gcc
 SYS     := $(shell gcc -dumpmachine)
 
 ifneq (, $(findstring darwin, $(SYS)))
-CFLAGS   = -DMACOX
-LDFLAGS  =
+# to enable bfd library, install the binutils with
+# "--prefix=/usr/local/Cellar/binutils/2.34 --enable-install-libiberty"
+# on MacOS.
+BFD_PATH = /usr/local/Cellar/binutils/2.34
+CFLAGS   = -DMACOX -DPACKAGE -I$(BFD_PATH)/include
+LDFLAGS  = -L$(BFD_PATH)/lib -liberty -undefined dynamic_lookup
 else
 CFLAGS   = -Wno-stringop-truncation
 endif
