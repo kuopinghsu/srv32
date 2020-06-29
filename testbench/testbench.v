@@ -1,10 +1,15 @@
 // Testbench
 // Written by Kuoping Hsu, 2020, MIT license
 
+//`define SINGLE_RAM  1
 `define MEM_PUTC    32'h8000001c
 `define MEM_EXIT    32'h8000002c
 
+`ifdef SINGLE_RAM
+`define TOP         top.riscv
+`else
 `define TOP         riscv
+`endif
 
 module testbench();
     `include "opcode.vh"
@@ -20,31 +25,7 @@ module testbench();
     reg     [31: 0] next_pc;
     reg     [ 7: 0] count;
     reg     [ 1: 0] fillcount;
-
-    wire            imem_ready;
-    wire    [31: 0] imem_rdata;
-    wire            imem_valid;
-    wire    [31: 0] imem_addr;
-
-    wire            dmem_rready;
-    wire            dmem_wready;
-    wire    [31: 0] dmem_rdata;
-    wire            dmem_rvalid;
-    wire            dmem_wvalid;
-    wire    [31: 0] dmem_raddr;
-    wire    [31: 0] dmem_waddr;
-    wire    [31: 0] dmem_wdata;
-    wire    [ 3: 0] dmem_wstrb;
-    wire            wready;
-
     integer         i;
-
-assign imem_valid   = 1'b1;
-assign dmem_rvalid  = 1'b1;
-assign dmem_wvalid  = 1'b1;
-
-assign wready = (dmem_wready &&
-       (dmem_waddr == `MEM_PUTC || dmem_waddr == `MEM_EXIT)) ? 1'b0 : dmem_wready;
 
 initial begin
 
@@ -94,6 +75,104 @@ always @(posedge clk) begin
         #10 $finish(2);
     end
 end
+
+`ifdef SINGLE_RAM
+
+    wire            mem_ready;
+    wire            mem_valid;
+    wire            mem_we;
+    wire    [31: 0] mem_addr;
+    wire            mem_rresp;
+    wire    [31: 0] mem_rdata;
+    wire    [31: 0] mem_wdata;
+    wire    [ 3: 0] mem_wstrb;
+    wire            ready;
+
+    assign mem_valid = 1'b1;
+
+    assign ready =
+        (mem_ready && mem_we &&
+         (mem_addr == `MEM_PUTC || mem_addr == `MEM_EXIT)) ? 1'b0 : mem_ready;
+
+    top top (
+        .clk        (clk),
+        .resetb     (resetb),
+        .stall      (stall),
+        .exception  (exception),
+
+        .mem_ready  (mem_ready),
+        .mem_valid  (mem_valid),
+        .mem_we     (mem_we),
+        .mem_addr   (mem_addr),
+        .mem_rresp  (mem_rresp),
+        .mem_rdata  (mem_rdata),
+        .mem_wdata  (mem_wdata),
+        .mem_wstrb  (mem_wstrb)
+    );
+
+    mem1port # (
+        .SIZE(IRAMSIZE+DRAMSIZE),
+        .FILE("../sw/memory.bin")
+    ) mem (
+        .clk   (clk),
+        .resetb(resetb),
+
+        .ready (ready),
+        .we    (mem_we),
+        .addr  (mem_addr[31:2]),
+        .rresp (mem_rresp),
+        .rdata (mem_rdata),
+        .wdata (mem_wdata),
+        .wstrb (mem_wstrb)
+    );
+
+    // check memory range
+    always @(posedge clk) begin
+        if (mem_ready && mem_we && mem_addr == `MEM_PUTC) begin
+            $write("%c", mem_wdata[7:0]);
+        end
+        else if (mem_ready && mem_we && mem_addr == `MEM_EXIT) begin
+            $display("\nExcuting %0d instructions, %0d cycles", `TOP.rdinstret,
+                     `TOP.rdcycle);
+            $display("Program terminate");
+            #10 $finish(1);
+        end
+        else if (mem_ready &&
+                 mem_addr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
+            $display("DMEM address %x out of range", mem_addr);
+            #10 $finish(2);
+        end
+    end
+
+`else // SINGLE_RAM
+
+    wire            imem_ready;
+    wire            imem_valid;
+    wire    [31: 0] imem_addr;
+    wire            imem_rresp;
+    wire    [31: 0] imem_rdata;
+
+    wire            dmem_wready;
+    wire            dmem_wvalid;
+    wire    [31: 0] dmem_waddr;
+    wire    [31: 0] dmem_wdata;
+    wire    [ 3: 0] dmem_wstrb;
+
+    wire            dmem_rready;
+    wire            dmem_rvalid;
+    wire    [31: 0] dmem_raddr;
+    wire            dmem_rresp;
+    wire    [31: 0] dmem_rdata;
+
+    wire            wready;
+
+    assign imem_valid   = 1'b1;
+    assign dmem_rvalid  = 1'b1;
+    assign dmem_wvalid  = 1'b1;
+
+    assign wready =
+        (dmem_wready &&
+         (dmem_waddr == `MEM_PUTC || dmem_waddr == `MEM_EXIT)) ? 1'b0 : dmem_wready;
 
     riscv riscv(
         .clk        (clk),
@@ -154,28 +233,30 @@ end
         .wstrb (dmem_wstrb)
     );
 
-// check memory range
-always @(posedge clk) begin
-    if (imem_ready && imem_addr[31:$clog2(IRAMSIZE)] != 'd0) begin
-        $display("IMEM address %x out of range", imem_addr);
-        #10 $finish(2);
+    // check memory range
+    always @(posedge clk) begin
+        if (imem_ready && imem_addr[31:$clog2(IRAMSIZE)] != 'd0) begin
+            $display("IMEM address %x out of range", imem_addr);
+            #10 $finish(2);
+        end
+
+        if (dmem_wready && dmem_waddr == `MEM_PUTC) begin
+            $write("%c", dmem_wdata[7:0]);
+        end
+        else if (dmem_wready && dmem_waddr == `MEM_EXIT) begin
+            $display("\nExcuting %0d instructions, %0d cycles", `TOP.rdinstret,
+                     `TOP.rdcycle);
+            $display("Program terminate");
+            #10 $finish(1);
+        end
+        else if (dmem_wready &&
+                 dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
+            $display("DMEM address %x out of range", dmem_waddr);
+            #10 $finish(2);
+        end
     end
 
-    if (dmem_wready && dmem_waddr == `MEM_PUTC) begin
-        $write("%c", dmem_wdata[7:0]);
-    end
-    else if (dmem_wready && dmem_waddr == `MEM_EXIT) begin
-        $display("\nExcuting %0d instructions, %0d cycles", `TOP.rdinstret,
-                 `TOP.rdcycle);
-        $display("Program terminate");
-        #10 $finish(1);
-    end
-    else if (dmem_wready &&
-             dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
-        $display("DMEM address %x out of range", dmem_waddr);
-        #10 $finish(2);
-    end
-end
+`endif // SINGLE_RAM
 
 // syscall
 always @(posedge clk) begin

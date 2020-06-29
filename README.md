@@ -54,7 +54,7 @@ Only running make without paramets will get help.
 
 Supports following parameter when running the simulation.
 
-    +meminit    memory intialize zero
+    +no-meminit do not memory intialize zero
     +dumpvcd    dump VCD file
     +trace      generate tracelog
 
@@ -70,13 +70,21 @@ The RTL testbench read the memory initialize file from sw/imem.bin and sw/dmem.b
 
 ## Software Simulator
 
+    # Ubuntu package needed to build the simulator
+    sudo apt install libbfd-dev
+
 Tracegen is a software simulator that can generate trace logs for comparison with RTL simulation results. It can also set parameters of branch penalty to run benchmarks to see the effect of branch penalty. The branch instructions of hardware is two instructions delay for branch penalties.
 
-    Usage: tracegen [-h] [-b n] [-l logfile]
+~~~
+Usage: tracegen [-h] [-b n] [-p] [-l logfile] file
 
-           --help, -n              help
-           --branch n, -b n        branch penalty (default 2)
-           --log file, -l file     generate log file
+       --help, -n              help
+       --branch n, -b n        branch penalty (default 2)
+       --predict, -p           static branch prediction
+       --log file, -l file     generate log file
+
+       file                    the elf executable file
+~~~
 
 The software simulator and hardware supports RV32IM instruction sets.
 

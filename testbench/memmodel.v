@@ -57,7 +57,7 @@ initial begin
                 mem[i][8*1+7:8*1] = data[8*2+7:8*2];
                 mem[i][8*2+7:8*2] = data[8*1+7:8*1];
                 mem[i][8*3+7:8*3] = data[8*0+7:8*0];
-            end else if ($test$plusargs("meminit")) begin
+            end else if (!$test$plusargs("no-meminit")) begin
                 mem[i] = 32'h0;
             end
         end
@@ -149,7 +149,7 @@ initial begin
                 mem[i][8*1+7:8*1] = data[8*2+7:8*2];
                 mem[i][8*2+7:8*2] = data[8*1+7:8*1];
                 mem[i][8*3+7:8*3] = data[8*0+7:8*0];
-            end else if ($test$plusargs("meminit")) begin
+            end else if (!$test$plusargs("no-meminit")) begin
                 mem[i] = 32'h0;
             end
         end

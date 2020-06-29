@@ -2,7 +2,7 @@
 BFLAGS = -f filelist.txt
 
 # Run flags
-RFLAGS = +trace +meminit
+RFLAGS = +trace
 
 TARGET = riscsim
 

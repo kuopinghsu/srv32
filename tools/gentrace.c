@@ -1,9 +1,10 @@
 // Software simulator for RISC-V RV32I instruction sets
-// Written by Kuoping Hsu, 2020, GPL license
+// Copyright 2020, Kuoping Hsu, GPL license
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <bfd.h>
 #include "opcode.h"
 
 #define MAXLEN  1024
@@ -22,11 +23,13 @@ char *regname[32] = {
 
 void usage(void) {
     printf(
-"Usage: tracegen [-h] [-b n] [-p] [-l logfile]\n\n"
+"Usage: tracegen [-h] [-b n] [-p] [-l logfile] file\n\n"
 "       --help, -n              help\n"
 "       --branch n, -b n        branch penalty (default 2)\n"
 "       --predict, -p           static branch prediction\n"
 "       --log file, -l file     generate log file\n"
+"\n"
+"       file                    the elf executable file\n"
 "\n"
     );
 }
@@ -110,20 +113,55 @@ static void prog_exit(int exitcode) {
     exit(exitcode);
 }
 
+static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {
+    bfd *abfd = NULL;
+
+    // init bfd
+    bfd_init();
+
+    // load binary file
+    if ((abfd = bfd_openr(file, NULL)) == NULL) {
+		printf("Failed to open file %s!\n", file);
+		return 0;
+    }
+
+	// no section info is loaded unless we call bfd_check_format!:
+	if (!bfd_check_format (abfd, bfd_object)) {
+		printf("Failed to open file %s!\n", file);
+		return 0;
+    }
+
+	asection *text = bfd_get_section_by_name (abfd, ".text");
+	asection *data = bfd_get_section_by_name (abfd, ".data");
+
+	// copy the contents of the data and executable sections into the allocated memory
+	bfd_get_section_contents(abfd, text, imem, 0, text->size);
+	bfd_get_section_contents(abfd, data, dmem, 0, data->size);
+
+    *isize = text->size;
+    *dsize = data->size;
+
+    printf("Load .text section %ld, .data section %ld bytes\n", text->size, data->size);
+
+    bfd_close(abfd);
+
+    return 1;
+}
+
 int main(int argc, char **argv) {
-    FILE *fi = NULL, *fd = NULL, *ft = NULL;
+    FILE *ft = NULL;
     static int regs[32];
 
     int i;
+    int result;
     int pc = 0;
     int *imem;
     int *dmem;
+    char *file = NULL;
     const int imem_addr = 0;
     const int dmem_addr = RAMSIZE;
     const int imem_size = RAMSIZE;
     const int dmem_size = RAMSIZE;
-    char *ifile = "../sw/imem.bin";
-    char *dfile = "../sw/dmem.bin";
     char *tfile = NULL;
     int isize;
     int dsize;
@@ -163,14 +201,23 @@ int main(int argc, char **argv) {
         }
     }
 
-    if ((fi=fopen(ifile, "rb")) == NULL) {
-        printf("can not open file %s\n", ifile);
-        exit(1);
+    if (argc > 1) {
+        if ((file = malloc(MAXLEN)) == NULL) {
+            printf("malloc fail\n");
+            exit(1);
+        }
+        strncpy(file, argv[optind], MAXLEN);
+    } else {
+        usage();
+        printf("Error: missing input file.\n\n");
+        return 1;
     }
-    if ((fd=fopen(dfile, "rb")) == NULL) {
-        printf("can not open file %s\n", dfile);
-        exit(1);
+
+    if (!file) {
+        usage();
+        return 1;
     }
+
     if (tfile) {
         if ((ft=fopen(tfile, "w")) == NULL) {
             printf("can not open file %s\n", tfile);
@@ -186,16 +233,11 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    isize = fread(imem, sizeof(int), imem_size/sizeof(int), fi);
-    dsize = fread(dmem, sizeof(int), dmem_size/sizeof(int), fd);
-    isize *= sizeof(int);
-    dsize *= sizeof(int);
+    // clear the data memory
+    memset(dmem, 0, dmem_size);
 
-    // clear the rest of data memory
-    memset(&dmem[dsize/sizeof(int)], 0, dmem_size-dsize);
-
-    if (isize <= 0 || dsize <= 0) {
-        printf("file read error\n");
+    // load the .text and .data section
+    if ((result = elfread(file, (char*)imem, (char*)dmem, &isize, &dsize)) == 0) {
         exit(1);
     }
 
@@ -550,8 +592,6 @@ int main(int argc, char **argv) {
 
     aligned_free(imem);
     aligned_free(dmem);
-    fclose(fi);
-    fclose(fd);
     if (ft) fclose(ft);
 }
 

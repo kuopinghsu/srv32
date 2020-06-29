@@ -8,21 +8,30 @@ else
 CFLAGS   = -Wno-stringop-truncation
 endif
 
-CFLAGS  += -O2 -Wall
-LDFLAGS +=
+CFLAGS  += -O2 -g -Wall
+LDFLAGS += -lbfd
 
 SRC      = gentrace.c
+OBJECTS  = $(SRC:.c=.o)
 TARGET   = gentrace
 
-.PHONY: $(TARGET) run
+.SUFFIXS: .c .o
 
-all: $(TARGET)
+.PHONY: clean
 
-$(TARGET): $(SRC) opcode.h
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRC) $(LDFLAGS)
+%.o: %.c opcode.h
+	$(CC) -c -o $@ $< $(CFLAGS)
 
-run: $(TARGET)
-	./$(TARGET) -l trace.log
+$(TARGET): $(OBJECTS)
+	$(CC) -o $(TARGET) $(OBJECTS) $(LDFLAGS)
+
+%.run: $(TARGET)
+	@if [ -f ../sw/$*/$* ]; then \
+		./$(TARGET) -l trace.log ../sw/$*/$*; \
+	else \
+		echo "file ../sw/$*/$* not found"; \
+	fi
 
 clean:
-	@$(RM) *.o trace.log $(TARGET)
+	@$(RM) $(OBJECTS) trace.log $(TARGET)
+
