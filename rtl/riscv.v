@@ -33,8 +33,8 @@ module riscv (
 
     output                  dmem_rready,
     input                   dmem_rvalid,
-    input                   dmem_rresp,
     output          [31: 0] dmem_raddr,
+    input                   dmem_rresp,
     input           [31: 0] dmem_rdata
 );
 
@@ -174,7 +174,6 @@ always @(posedge clk or negedge resetb) begin
         ex_alu_op           <= 3'h0;
         ex_subtype          <= 1'b0;
         ex_memwr            <= 1'b0;
-        ex_mem2reg          <= 1'b0;
         ex_alu              <= 1'b0;
         ex_csr              <= 1'b0;
         ex_jal              <= 1'b0;
@@ -199,7 +198,6 @@ always @(posedge clk or negedge resetb) begin
         ex_alu_op           <= inst[`FUNC3];
         ex_subtype          <= inst[`SUBTYPE] && !(inst[`OPCODE] == OP_ARITHI && inst[`FUNC3] == OP_ADD);
         ex_memwr            <= inst[`OPCODE] == OP_STORE;
-        ex_mem2reg          <= inst[`OPCODE] == OP_LOAD;
         ex_alu              <= (inst[`OPCODE] == OP_ARITHI) ||
                                (inst[`OPCODE] == OP_ARITHR);
         ex_csr              <= (inst[`OPCODE] == OP_SYSTEM) && !(inst[`IMM12] == 'h0 || inst[`IMM12] == 'h1);
@@ -230,6 +228,15 @@ always @(posedge clk or negedge resetb) begin
         ex_mul              <= (inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h1);
         `endif // RV32M_ENABLED
     end
+end
+
+always @(posedge clk or negedge resetb) begin
+    if (!resetb)
+        ex_mem2reg          <= 1'b0;
+    else if (inst[`OPCODE] == OP_LOAD)
+        ex_mem2reg          <= 1'b1;
+    else if (ex_mem2reg && dmem_rvalid)
+        ex_mem2reg          <= 1'b0;
 end
 
 ////////////////////////////////////////////////////////////
@@ -369,7 +376,6 @@ end
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         wb_result           <= 32'h0;
-        wb_memwr            <= 1'b0;
         wb_alu2reg          <= 1'b0;
         wb_dst_sel          <= 5'h0;
         wb_branch           <= 1'b0;
@@ -383,7 +389,6 @@ always @(posedge clk or negedge resetb) begin
         `endif // HAVE_SYSCALL
     end else if (!ex_stall) begin
         wb_result           <= result;
-        wb_memwr            <= ex_memwr && !ex_flush;
         wb_alu2reg          <= ex_alu | ex_lui | ex_auipc | ex_jal | ex_jalr | ex_csr | ex_mem2reg;
         wb_dst_sel          <= ex_dst_sel;
         wb_branch           <= branch_taken;
@@ -396,6 +401,15 @@ always @(posedge clk or negedge resetb) begin
         wb_break            <= ex_imm[0];
         `endif // HAVE_SYSCALL
     end
+end
+
+always @(posedge clk or negedge resetb) begin
+    if (!resetb)
+        wb_memwr            <= 1'b0;
+    else if (ex_memwr && !ex_flush)
+        wb_memwr            <= 1'b1;
+    else if (wb_memwr && dmem_wvalid)
+        wb_memwr            <= 1'b0;
 end
 
 always @(posedge clk or negedge resetb) begin
