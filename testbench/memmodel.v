@@ -3,7 +3,7 @@
 
 module mem2ports # (
     parameter SIZE  = 4096,
-    parameter FILE  = "../sw/memory.bin"
+    parameter FILE  = "memory.bin"
 ) (
     input               clk,
     input               resetb,
@@ -98,7 +98,7 @@ endmodule
 
 module mem1port # (
     parameter SIZE  = 4096,
-    parameter FILE  = "../sw/memory.bin"
+    parameter FILE  = "memory.bin"
 ) (
     input               clk,
     input               resetb,

@@ -24,7 +24,7 @@ char *regname[32] = {
 void usage(void) {
     printf(
 "Usage: tracegen [-h] [-b n] [-p] [-l logfile] file\n\n"
-"       --help, -n              help\n"
+"       --help, -h              help\n"
 "       --branch n, -b n        branch penalty (default 2)\n"
 "       --predict, -p           static branch prediction\n"
 "       --log file, -l file     generate log file\n"
@@ -478,13 +478,17 @@ int main(int argc, char **argv) {
                                         regs[inst.r.rd] = (int)((a * b) >> 32);
                                         }
                                         break;
-                        case OP_DIV   : regs[inst.r.rd] = regs[inst.r.rs1] / regs[inst.r.rs2];
+                        case OP_DIV   : if (regs[inst.r.rs2])
+                                            regs[inst.r.rd] = regs[inst.r.rs1] / regs[inst.r.rs2];
                                         break;
-                        case OP_DIVU  : regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1])/((unsigned)regs[inst.r.rs2]));
+                        case OP_DIVU  : if (regs[inst.r.rs2])
+                                            regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1])/((unsigned)regs[inst.r.rs2]));
                                         break;
-                        case OP_REM   : regs[inst.r.rd] = regs[inst.r.rs1] % regs[inst.r.rs2];
+                        case OP_REM   : if (regs[inst.r.rs2])
+                                            regs[inst.r.rd] = regs[inst.r.rs1] % regs[inst.r.rs2];
                                         break;
-                        case OP_REMU  : regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1])%((unsigned)regs[inst.r.rs2]));
+                        case OP_REMU  : if (regs[inst.r.rs2])
+                                            regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1])%((unsigned)regs[inst.r.rs2]));
                                         break;
                         default: printf("Unknown instruction at 0x%08x\n", pc);
                                  exit(-1);
@@ -545,6 +549,23 @@ int main(int argc, char **argv) {
                                                     putchar(c);
                                                 }
                                                 fflush(stdout);
+                                            }
+                                            break;
+                                        case SYS_DUMP: {
+                                                FILE *fp;
+                                                int i;
+                                                if ((fp = fopen("dump.txt", "w")) == NULL) {
+                                                    printf("Create dump.txt fail\n");
+                                                    exit(1);
+                                                }
+                                                if ((regs[A0] & 3) != 0 || (regs[A1] & 3) != 0) {
+                                                    printf("Alignment error on memory dumping.\n");
+                                                    exit(1);
+                                                }
+                                                for(i = (regs[A0]-dmem_addr)/4; i < (regs[A1]-dmem_addr)/4; i++) {
+                                                    fprintf(fp, "%08x\n", dmem[i]);
+                                                }
+                                                fclose(fp);
                                             }
                                             break;
                                         default:

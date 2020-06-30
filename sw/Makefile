@@ -14,3 +14,6 @@ clean:
 	for i in $(SUBDIRS) common; do \
 		$(MAKE) -C $$i clean; \
 	done
+
+distclean: clean
+

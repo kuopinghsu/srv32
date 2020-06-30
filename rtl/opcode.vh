@@ -90,7 +90,8 @@ localparam  [ 7: 0] SYS_CLOSE   = 8'h39,
                     SYS_WRITE   = 8'h40,
                     SYS_FSTAT   = 8'h50,
                     SYS_EXIT    = 8'h5d,
-                    SYS_SBRK    = 8'hd6;
+                    SYS_SBRK    = 8'hd6,
+                    SYS_DUMP    = 8'h88;
 
 // Register/ABI mapping
 localparam  [ 4: 0] REG_ZERO =  0, REG_RA =  1, REG_SP  =  2, REG_GP  =  3,

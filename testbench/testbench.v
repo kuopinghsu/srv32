@@ -26,8 +26,11 @@ module testbench();
     reg     [ 7: 0] count;
     reg     [ 1: 0] fillcount;
     integer         i;
+    integer         file;
 
 initial begin
+
+    file = $fopen("dump.txt", "w");
 
     if ($test$plusargs("dumpvcd")) begin
         $dumpfile("testbench.vcd");
@@ -112,7 +115,7 @@ end
 
     mem1port # (
         .SIZE(IRAMSIZE+DRAMSIZE),
-        .FILE("../sw/memory.bin")
+        .FILE("memory.bin")
     ) mem (
         .clk   (clk),
         .resetb(resetb),
@@ -201,7 +204,7 @@ end
 
     mem2ports # (
         .SIZE(IRAMSIZE),
-        .FILE("../sw/imem.bin")
+        .FILE("imem.bin")
     ) imem (
         .clk   (clk),
         .resetb(resetb),
@@ -218,7 +221,7 @@ end
 
     mem2ports # (
         .SIZE(DRAMSIZE),
-        .FILE("../sw/dmem.bin")
+        .FILE("dmem.bin")
     ) dmem (
         .clk   (clk),
         .resetb(resetb),
@@ -265,6 +268,13 @@ always @(posedge clk) begin
              `TOP.regs[REG_A0] == 32'h1) begin // stdout
             for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
                 $write("%c", dmem.getb(`TOP.regs[REG_A1] - IRAMSIZE + i));
+            end
+        end else if (!`TOP.wb_break && `TOP.regs[REG_A7][7:0] == SYS_DUMP) begin
+            for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 4) begin
+                $fdisplay(file, "%02x%02x%02x%02x", dmem.getb(i - IRAMSIZE + 3),
+                                                    dmem.getb(i - IRAMSIZE + 2),
+                                                    dmem.getb(i - IRAMSIZE + 1),
+                                                    dmem.getb(i - IRAMSIZE + 0));
             end
         end
     end

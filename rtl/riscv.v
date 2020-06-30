@@ -518,6 +518,9 @@ always @(posedge clk) begin
                     // TODO: do system call on memory model
                 end
                 SYS_SBRK: ;
+                SYS_DUMP: begin
+                    // TODO: do system call on memory model
+                end
                 default: begin
                     // TODO
                     // $display("Unknown syscall call %08x", regs[REG_A7]);

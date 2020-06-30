@@ -33,6 +33,7 @@ Install RV32IM toolchains.
 | sim       | Icarus verilog simulation env  |
 | sw        | Benchmark, diags ... etc.      |
 | syn       | Syntheis env for Yosys         |
+| tests     | Compliance tests               |
 | testbench | testbench, memory model        |
 | tool      | software simulator             |
 
@@ -152,6 +153,10 @@ One instruction memory and one data memory. The instuction memory is read-only f
 ## Synthesis
 
 Provide the Yosys synthesis script on the syn folder.
+
+## Compliance tests
+
+TODO, not yet pass all tests
 
 ## TODO
 

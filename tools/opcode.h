@@ -146,7 +146,8 @@ enum {
     SYS_WRITE   = 0x40,
     SYS_FSTAT   = 0x50,
     SYS_EXIT    = 0x5d,
-    SYS_SBRK    = 0xd6
+    SYS_SBRK    = 0xd6,
+    SYS_DUMP    = 0x88
 };
 
 typedef union _counter {
