@@ -46,6 +46,8 @@ Only running make without paramets will get help.
 
     $ make
     make all         build all diags and run the RTL sim
+    make tests       RTL compliance test
+    make tests-sw    simulator compliance test
     make build       build all diags and the RTL
     make hello       build hello diag and run the RTL sim
     make dhrystone   build Dhrystone diag and run the RTL sim

@@ -78,12 +78,31 @@ localparam  [ 2: 0] OP_ECALL   = 3'b000,    // inst[20] == 0: ECALL, inst[20] ==
                     OP_CSRRCI  = 3'b111;
 
 // CSR registers
-localparam  [11: 0] CSR_RDCYCLE    = 12'hc00,
-                    CSR_RDCYCLEH   = 12'hc80,
-                    CSR_RDTIME     = 12'hc01,
-                    CSR_RDTIMEH    = 12'hc81,
-                    CSR_RDINSTRET  = 12'hc02,
-                    CSR_RDINSTRETH = 12'hc82;
+localparam  [11: 0] CSR_VENDERID    = 12'hF11,    // Vender ID
+                    CSR_MARCHID     = 12'hF13,    // Architecture ID
+                    CSR_IMPLID      = 12'hF14,    // Implementation ID
+                    CSR_MHARDID     = 12'hF15,    // Hardware thread ID
+
+                    CSR_MSTATUS     = 12'h300,    // Machine status register
+                    CSR_MISA        = 12'h301,    // ISA and extensions
+                    CSR_MEDELEG     = 12'h302,    // Machine exception delegation register
+                    CSR_MIDELEG     = 12'h303,    // Machine interrupt delegation register
+                    CSR_MIE         = 12'h304,    // Machine interrupt-enable register
+                    CSR_MTVEC       = 12'h305,    // Machine trap-handler base address
+                    CSR_MCOUNTEREN  = 12'h306,    // Machine counter enable
+
+                    CSR_MSCRATCH    = 12'h340,    // Scratch register for machine trap handlers
+                    CSR_MEPC        = 12'h341,    // Machine exception program counter
+                    CSR_MCAUSE      = 12'h342,    // Machine trap cause
+                    CSR_MTVAL       = 12'h343,    // Machine bad address or instructions
+                    CSR_MIP         = 12'h344,    // Machine interrupt pending
+
+                    CSR_RDCYCLE     = 12'hc00,    // cycle counter
+                    CSR_RDCYCLEH    = 12'hc80,    // upper 32-bits of cycle counter
+                    CSR_RDTIME      = 12'hc01,    // timer counter
+                    CSR_RDTIMEH     = 12'hc81,    // upper 32-bits of timer counter
+                    CSR_RDINSTRET   = 12'hc02,    // Intructions-retired counter
+                    CSR_RDINSTRETH  = 12'hc82;    // upper 32-bits of intruction-retired counter
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
 localparam  [ 7: 0] SYS_CLOSE   = 8'h39,

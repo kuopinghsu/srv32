@@ -132,12 +132,31 @@ enum {
 };
 
 enum {
-    CSR_RDCYCLE    = 0xc00,
-    CSR_RDCYCLEH   = 0xc80,
-    CSR_RDTIME     = 0xc01,
-    CSR_RDTIMEH    = 0xc81,
-    CSR_RDINSTRET  = 0xc02,
-    CSR_RDINSTRETH = 0xc82
+    CSR_VENDERID    = 0xF11,    // Vender ID
+    CSR_MARCHID     = 0xF13,    // Architecture ID
+    CSR_IMPLID      = 0xF14,    // Implementation ID
+    CSR_MHARDID     = 0xF15,    // Hardware thread ID
+
+    CSR_MSTATUS     = 0x300,    // Machine status register
+    CSR_MISA        = 0x301,    // ISA and extensions
+    CSR_MEDELEG     = 0x302,    // Machine exception delegation register
+    CSR_MIDELEG     = 0x303,    // Machine interrupt delegation register
+    CSR_MIE         = 0x304,    // Machine interrupt-enable register
+    CSR_MTVEC       = 0x305,    // Machine trap-handler base address
+    CSR_MCOUNTEREN  = 0x306,    // Machine counter enable
+
+    CSR_MSCRATCH    = 0x340,    // Scratch register for machine trap handlers
+    CSR_MEPC        = 0x341,    // Machine exception program counter
+    CSR_MCAUSE      = 0x342,    // Machine trap cause
+    CSR_MTVAL       = 0x343,    // Machine bad address or instructions
+    CSR_MIP         = 0x344,    // Machine interrupt pending
+
+    CSR_RDCYCLE     = 0xc00,    // cycle counter
+    CSR_RDCYCLEH    = 0xc80,    // upper 32-bits of cycle counter
+    CSR_RDTIME      = 0xc01,    // timer counter
+    CSR_RDTIMEH     = 0xc81,    // upper 32-bits of timer counter
+    CSR_RDINSTRET   = 0xc02,    // Intructions-retired counter
+    CSR_RDINSTRETH  = 0xc82     // upper 32-bits of intruction-retired counter
 };
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
