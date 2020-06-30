@@ -10,10 +10,10 @@ CFLAGS   = -DMACOX -DPACKAGE -I$(BFD_PATH)/include
 LDFLAGS  = -L$(BFD_PATH)/lib -liberty -undefined dynamic_lookup
 else
 CFLAGS   = -Wno-stringop-truncation
+LDFLAGS  = -lbfd
 endif
 
 CFLAGS  += -O2 -g -Wall
-LDFLAGS += -lbfd
 
 SRC      = gentrace.c
 OBJECTS  = $(SRC:.c=.o)
