@@ -7,12 +7,20 @@
 #include <bfd.h>
 #include "opcode.h"
 
-#define MAXLEN  1024
-#define RAMSIZE 128*1024
+#define MAXLEN      1024
+#define RAMSIZE     128*1024
+
+#define IMEM_BASE   0
+#define DMEM_BASE   RAMSIZE
+#define IMEM_SIZE   RAMSIZE
+#define DMEM_SIZE   RAMSIZE
 
 COUNTER time;
 COUNTER cycle;
 COUNTER instret;
+int mtvec = 0;
+int misa  = 0x40000000;
+int quiet = 0;
 
 char *regname[32] = {
     "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
@@ -20,6 +28,11 @@ char *regname[32] = {
     "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7",
     "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"
 };
+
+#define IVA2PA(addr) ((addr)-IMEM_BASE)
+#define IPA2VA(addr) ((addr)+IMEM_BASE)
+#define DVA2PA(addr) ((addr)-DMEM_BASE)
+#define DPA2VA(addr) ((addr)+DMEM_BASE)
 
 void usage(void) {
     printf(
@@ -60,9 +73,11 @@ static inline int to_imm_i(unsigned int n) {
     return (int)((n & (1<<11)) ? (n | 0xfffff000) : n);
 }
 
+/*
 static inline int to_imm_iu(unsigned int n) {
     return (int)(n);
 }
+*/
 
 static inline int to_imm_s(unsigned int n1, unsigned int n2) {
     unsigned int n = (n1 << 5) + n2;
@@ -108,8 +123,10 @@ static inline int to_imm_u(unsigned int n) {
 }
 
 static void prog_exit(int exitcode) {
-    printf("\nExcuting %lld instructions, %lld cycles, %1.3f CPI\n", instret.c, cycle.c, ((float)cycle.c)/instret.c);
-    printf("Program terminate\n");
+    if (!quiet) {
+        printf("\nExcuting %lld instructions, %lld cycles, %1.3f CPI\n", instret.c, cycle.c, ((float)cycle.c)/instret.c);
+        printf("Program terminate\n");
+    }
     exit(exitcode);
 }
 
@@ -141,11 +158,38 @@ static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {
     *isize = text->size;
     *dsize = data->size;
 
-    printf("Load .text section %ld, .data section %ld bytes\n", text->size, data->size);
+    if (!quiet) printf("Load .text section %ld, .data section %ld bytes\n", text->size, data->size);
 
     bfd_close(abfd);
 
     return 1;
+}
+
+int csr_rw(int regs, int val) {
+    int result = 0;
+    switch(regs) {
+        case CSR_RDCYCLE   : result = cycle.d.lo-1;
+                             break;
+        case CSR_RDCYCLEH  : result = cycle.d.hi-1;
+                             break;
+        case CSR_RDTIME    : result = time.d.lo-1;
+                             break;
+        case CSR_RDTIMEH   : result = time.d.hi-1;
+                             break;
+        case CSR_RDINSTRET : result = instret.d.lo-1;
+                             break;
+        case CSR_RDINSTRETH: result = instret.d.hi-1;
+                             break;
+        case CSR_MTVEC     : result = mtvec;
+                             mtvec = val;
+                             break;
+        case CSR_MISA      : result = misa;
+                             misa = val;
+                             break;
+        default: printf("Unsupport CSR register 0x%03x\n", regs);
+                 exit(-1);
+    }
+    return result;
 }
 
 int main(int argc, char **argv) {
@@ -158,23 +202,20 @@ int main(int argc, char **argv) {
     int *imem;
     int *dmem;
     char *file = NULL;
-    const int imem_addr = 0;
-    const int dmem_addr = RAMSIZE;
-    const int imem_size = RAMSIZE;
-    const int dmem_size = RAMSIZE;
     char *tfile = NULL;
     int isize;
     int dsize;
     int branch_penalty = BRANCH_PENALTY;
     int branch_predict = 0;
 
-    const char *optstring = "hb:pl:";
+    const char *optstring = "hb:pl:q";
     int c;
     struct option opts[] = {
         {"help", 0, NULL, 'h'},
         {"branch", 1, NULL, 'b'},
         {"predict", 0, NULL, 'p'},
-        {"log", 1, NULL, 'l'}
+        {"log", 1, NULL, 'l'},
+        {"quiet", 0, NULL, 'q'}
     };
 
     while((c = getopt_long(argc, argv, optstring, opts, NULL)) != -1) {
@@ -194,6 +235,9 @@ int main(int argc, char **argv) {
                     exit(1);
                 }
                 strncpy(tfile, optarg, MAXLEN);
+                break;
+            case 'q':
+                quiet = 1;
                 break;
             default:
                 usage();
@@ -224,17 +268,17 @@ int main(int argc, char **argv) {
             exit(1);
         }
     }
-    if ((imem = (int*)aligned_malloc(sizeof(int), imem_size)) == NULL) {
+    if ((imem = (int*)aligned_malloc(sizeof(int), IMEM_SIZE)) == NULL) {
         printf("malloc fail\n");
         exit(1);
     }
-    if ((dmem = (int*)aligned_malloc(sizeof(int), dmem_size)) == NULL) {
+    if ((dmem = (int*)aligned_malloc(sizeof(int), DMEM_SIZE)) == NULL) {
         printf("malloc fail\n");
         exit(1);
     }
 
     // clear the data memory
-    memset(dmem, 0, dmem_size);
+    memset(dmem, 0, DMEM_SIZE);
 
     // load the .text and .data section
     if ((result = elfread(file, (char*)imem, (char*)dmem, &isize, &dsize)) == 0) {
@@ -267,7 +311,7 @@ int main(int argc, char **argv) {
             break;
         }
         regs[0] = 0;
-        inst.inst = imem[pc/4-imem_addr];
+        inst.inst = imem[IVA2PA(pc)/4];
         switch(inst.r.op) {
             case OP_AUIPC : { // U-Type
                 regs[inst.u.rd] = pc + to_imm_u(inst.u.imm);
@@ -291,9 +335,11 @@ int main(int argc, char **argv) {
                 continue;
             }
             case OP_JALR  : { // I-Type
-                regs[inst.i.rd] = pc + 4;
-                if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst, inst.i.rd, regname[inst.i.rd], regs[inst.i.rd]);
+		int new_pc = pc + 4;
+                if (ft) fprintf(ft, "%08x ", pc);
                 pc = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
+                regs[inst.i.rd] = new_pc;
+                if (ft) fprintf(ft, "%08x x%02d (%s) <= 0x%08x\n", inst.inst, inst.i.rd, regname[inst.i.rd], regs[inst.i.rd]);
                 cycle.c += branch_penalty;
                 continue;
             }
@@ -358,12 +404,12 @@ int main(int argc, char **argv) {
             case OP_LOAD  : { // I-Type
                 int data;
                 int address = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
-                if (address < dmem_addr || address >= dmem_addr + dmem_size) {
+                if (address < DMEM_BASE || address >= DMEM_BASE + DMEM_SIZE) {
                     printf("x%0d = 0x%08x, imm = %d\n", inst.i.rs1, regs[inst.i.rs1], to_imm_i(inst.i.imm));
                     printf("memory address 0x%08x out of range\n", address);
                     exit(-1);
                 }
-                address -= dmem_addr;
+                address = DVA2PA(address);
                 data = dmem[address/4];
                 switch(inst.i.func3) {
                     case OP_LB  : data = (data >> ((address&3)*8))&0xff;
@@ -381,7 +427,7 @@ int main(int argc, char **argv) {
                              exit(-1);
                 }
                 regs[inst.i.rd] = data;
-                if (ft) fprintf(ft, "%08x %08x read 0x%08x => 0x%08x, x%02d (%s) <= 0x%08x\n", pc, inst.inst, address+dmem_addr, dmem[address/4], inst.i.rd, regname[inst.i.rd], regs[inst.i.rd]);
+                if (ft) fprintf(ft, "%08x %08x read 0x%08x => 0x%08x, x%02d (%s) <= 0x%08x\n", pc, inst.inst, DPA2VA(address), dmem[address/4], inst.i.rd, regname[inst.i.rd], regs[inst.i.rd]);
                 break;
             }
             case OP_STORE : { // S-Type
@@ -392,7 +438,7 @@ int main(int argc, char **argv) {
                            (inst.s.func3 == OP_SW) ? 0xffffffff :
                            0xffffffff;
                 if (ft) fprintf(ft, "%08x %08x write 0x%08x <= 0x%08x\n", pc, inst.inst, address, (data & mask));
-                if (address < dmem_addr || address > dmem_addr+dmem_size) {
+                if (address < DMEM_BASE || address > DMEM_BASE+DMEM_SIZE) {
                     switch(address) {
                         case MMIO_PUTC:
                             putchar((char)data);
@@ -407,19 +453,19 @@ int main(int argc, char **argv) {
                             exit(-1);
                     }
                 }
-                address -= dmem_addr;
+                address = DVA2PA(address);
                 switch(inst.s.func3) {
                     case OP_SB : dmem[address/4] = (dmem[address/4]&~(0xff<<((address&3)*8))) | ((data & 0xff)<<((address&3)*8));
                                  break;
                     case OP_SH : dmem[address/4] = (address&2) ? ((dmem[address/4]&0xffff)|(data << 16)) : ((dmem[address/4]&0xffff0000)|(data&0xffff));
                                  if (address&1) {
-                                    printf("Unalignment address 0x%08x to write at 0x%08x\n", address+dmem_addr, pc);
+                                    printf("Unalignment address 0x%08x to write at 0x%08x\n", DPA2VA(address), pc);
                                     exit(-1);
                                  }
                                  break;
                     case OP_SW : dmem[address/4] = data;
                                  if (address&3) {
-                                    printf("Unalignment address 0x%08x to write at 0x%08x\n", address+dmem_addr, pc);
+                                    printf("Unalignment address 0x%08x to write at 0x%08x\n", DPA2VA(address), pc);
                                     exit(-1);
                                  }
                                  break;
@@ -434,7 +480,9 @@ int main(int argc, char **argv) {
                                    break;
                     case OP_SLT  : regs[inst.i.rd] = regs[inst.i.rs1] < to_imm_i(inst.i.imm) ? 1 : 0;
                                    break;
-                    case OP_SLTU : regs[inst.i.rd] = regs[inst.i.rs1] < to_imm_iu(inst.i.imm) ? 1 : 0;
+                    case OP_SLTU : //FIXME: to pass compliance test, the IMM should be singed extension, and compare with unsinged.
+                                   //regs[inst.i.rd] = ((unsigned int)regs[inst.i.rs1]) < ((unsigned int)to_imm_iu(inst.i.imm)) ? 1 : 0;
+                                   regs[inst.i.rd] = ((unsigned int)regs[inst.i.rs1]) < ((unsigned int)to_imm_i(inst.i.imm)) ? 1 : 0;
                                    break;
                     case OP_XOR  : regs[inst.i.rd] = regs[inst.i.rs1] ^ to_imm_i(inst.i.imm);
                                    break;
@@ -461,34 +509,58 @@ int main(int argc, char **argv) {
                         case OP_MUL   : regs[inst.r.rd] = regs[inst.r.rs1] * regs[inst.r.rs2];
                                         break;
                         case OP_MULH  : {
-                                        long long a = (long long)regs[inst.r.rs1];
-                                        long long b = (long long)regs[inst.r.rs2];
-                                        regs[inst.r.rd] = (int)((a * b) >> 32);
+                                        union {
+                                            long long l;
+                                            struct { int l, h; } n;
+                                        } a, b, r;
+                                        a.l = (long long)regs[inst.r.rs1];
+                                        b.l = (long long)regs[inst.r.rs2];
+                                        r.l = a.l * b.l;
+                                        regs[inst.r.rd] = r.n.h;
                                         }
                                         break;
                         case OP_MULSU : {
-                                        long long a = (long long)regs[inst.r.rs1];
-                                        unsigned long long b = (unsigned long long)regs[inst.r.rs2];
-                                        regs[inst.r.rd] = (int)((a * b) >> 32);
+                                        union {
+                                            long long l;
+                                            struct { int l, h; } n;
+                                        } a, b, r;
+                                        a.l = (long long)regs[inst.r.rs1];
+                                        b.n.l = regs[inst.r.rs2];
+                                        b.n.h = 0;
+                                        r.l = a.l * b.l;
+                                        regs[inst.r.rd] = r.n.h;
                                         }
                                         break;
                         case OP_MULU  : {
-                                        unsigned long long a = (unsigned long long)regs[inst.r.rs1];
-                                        unsigned long long b = (unsigned long long)regs[inst.r.rs2];
-                                        regs[inst.r.rd] = (int)((a * b) >> 32);
+                                        union {
+                                            long long l;
+                                            struct { int l, h; } n;
+                                        } a, b, r;
+                                        a.n.l = regs[inst.r.rs1]; a.n.h = 0;
+                                        b.n.l = regs[inst.r.rs2]; b.n.h = 0;
+                                        r.l = ((unsigned long long)a.l) * ((unsigned long long)b.l);
+                                        regs[inst.r.rd] = r.n.h;
                                         }
                                         break;
                         case OP_DIV   : if (regs[inst.r.rs2])
-                                            regs[inst.r.rd] = regs[inst.r.rs1] / regs[inst.r.rs2];
+                                            regs[inst.r.rd] = (int)(((long long)regs[inst.r.rs1]) / regs[inst.r.rs2]);
+                                        else
+                                            regs[inst.r.rd] = 0xffffffff;
                                         break;
                         case OP_DIVU  : if (regs[inst.r.rs2])
-                                            regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1])/((unsigned)regs[inst.r.rs2]));
+                                            regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1]) / ((unsigned)regs[inst.r.rs2]));
+                                        else
+                                            regs[inst.r.rd] = 0xffffffff;
                                         break;
                         case OP_REM   : if (regs[inst.r.rs2])
-                                            regs[inst.r.rd] = regs[inst.r.rs1] % regs[inst.r.rs2];
+                                            regs[inst.r.rd] = (int)(((long long)regs[inst.r.rs1]) % regs[inst.r.rs2]);
+                                        else
+                                            regs[inst.r.rd] = regs[inst.r.rs1];
                                         break;
                         case OP_REMU  : if (regs[inst.r.rs2])
-                                            regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1])%((unsigned)regs[inst.r.rs2]));
+                                            regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1]) % ((unsigned)regs[inst.r.rs2]));
+                                        else
+                                            regs[inst.r.rd] = regs[inst.r.rs1];
                                         break;
                         default: printf("Unknown instruction at 0x%08x\n", pc);
                                  exit(-1);
@@ -529,6 +601,7 @@ int main(int argc, char **argv) {
                 break;
             }
             case OP_SYSTEM: { // I-Type
+                int val;
                 // RDCYCLE, RDTIME and RDINSTRET are read only
                 switch(inst.i.func3) {
                     case OP_ECALL  : if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
@@ -545,7 +618,7 @@ int main(int argc, char **argv) {
                                                 char *ptr = (char*)dmem;
                                                 int i;
                                                 for(i=0; i<regs[A2]; i++) {
-                                                    char c = ptr[regs[A1]-dmem_addr+i];
+                                                    char c = ptr[DVA2PA(regs[A1])+i];
                                                     putchar(c);
                                                 }
                                                 fflush(stdout);
@@ -562,7 +635,7 @@ int main(int argc, char **argv) {
                                                     printf("Alignment error on memory dumping.\n");
                                                     exit(1);
                                                 }
-                                                for(i = (regs[A0]-dmem_addr)/4; i < (regs[A1]-dmem_addr)/4; i++) {
+                                                for(i = DVA2PA(regs[A0])/4; i < DVA2PA(regs[A1])/4; i++) {
                                                     fprintf(fp, "%08x\n", dmem[i]);
                                                 }
                                                 fclose(fp);
@@ -573,28 +646,13 @@ int main(int argc, char **argv) {
                                             prog_exit(1);
                                      }
                                      break;
-                    case OP_CSRRW  : // fall through
-                    case OP_CSRRS  : // fall through
-                    case OP_CSRRC  : // fall through
-                    case OP_CSRRWI : // fall through
-                    case OP_CSRRSI : // fall through
-                    case OP_CSRRCI :
-                            switch(inst.i.imm) {
-                                case CSR_RDCYCLE   : regs[inst.i.rd] = cycle.d.lo-1;
-                                                     break;
-                                case CSR_RDCYCLEH  : regs[inst.i.rd] = cycle.d.hi-1;
-                                                     break;
-                                case CSR_RDTIME    : regs[inst.i.rd] = time.d.lo-1;
-                                                     break;
-                                case CSR_RDTIMEH   : regs[inst.i.rd] = time.d.hi-1;
-                                                     break;
-                                case CSR_RDINSTRET : regs[inst.i.rd] = instret.d.lo-1;
-                                                     break;
-                                case CSR_RDINSTRETH: regs[inst.i.rd] = instret.d.hi-1;
-                                                     break;
-                                default: printf("Unsupport CSR register %d\n", inst.i.imm);
-                                         exit(-1);
-                            }
+                    case OP_CSRRW  : val = regs[inst.i.rs1];    // fall through
+                    case OP_CSRRS  : val = regs[inst.i.rs1];    // fall through
+                    case OP_CSRRC  : val = regs[inst.i.rs1];    // fall through
+                    case OP_CSRRWI : val = inst.i.rs1;          // fall through
+                    case OP_CSRRSI : val = inst.i.rs1;          // fall through
+                    case OP_CSRRCI : val = inst.i.rs1;
+                            regs[inst.i.rd] = csr_rw(inst.i.imm, val);
                             if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
                                         pc, inst.inst, inst.i.rd, regname[inst.i.rd], regs[inst.i.rd]);
                             break;

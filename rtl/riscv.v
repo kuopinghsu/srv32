@@ -336,10 +336,10 @@ always @* begin
                 OP_MULH  : result   = result_mul[63:32];
                 OP_MULSU : result   = result_mulsu[63:32];
                 OP_MULU  : result   = result_mulu[63:32];
-                OP_DIV   : result   = $signed(alu_op1) / $signed(alu_op2);
-                OP_DIVU  : result   = $unsigned(alu_op1) / $unsigned(alu_op2);
-                OP_REM   : result   = $signed(alu_op1) % $signed(alu_op2);
-                OP_REMU  : result   = $unsigned(alu_op1) % $unsigned(alu_op2);
+                OP_DIV   : result   = (alu_op2 == 'd0) ? 32'hffffffff : $signed(alu_op1) / $signed(alu_op2);
+                OP_DIVU  : result   = (alu_op2 == 'd0) ? 32'hffffffff : $unsigned(alu_op1) / $unsigned(alu_op2);
+                OP_REM   : result   = (alu_op2 == 'd0) ? alu_op1 : $signed(alu_op1) % $signed(alu_op2);
+                OP_REMU  : result   = (alu_op2 == 'd0) ? alu_op1 : $unsigned(alu_op1) % $unsigned(alu_op2);
                 default  : result   = {32{1'bx}};
             endcase
         `endif // RV32M_ENABLED

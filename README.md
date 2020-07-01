@@ -6,7 +6,8 @@ I wrote this code to understand the RV32I instruction set, just for fun.
 The performance is 1.821 DMIPS/MHz and 2.681 Coremark/MHz.
 This is not a RISC-V core available for production
 
-> Notes: RV32M support has been added.
+> RV32M support has been added.
+> Add complinace test.
 
 ## Building toolchains
 
@@ -46,14 +47,12 @@ Only running make without paramets will get help.
 
     $ make
     make all         build all diags and run the RTL sim
-    make tests       RTL compliance test
-    make tests-sw    simulator compliance test
+    make tests-all   run the simulator and RTL compliance test
     make build       build all diags and the RTL
-    make hello       build hello diag and run the RTL sim
     make dhrystone   build Dhrystone diag and run the RTL sim
     make coremark    build Coremark diag and run the RTL sim
-    make qsort       build qsort diag and run the RTL sim
     make clean       clean
+    make distclean   clean all
 
 Supports following parameter when running the simulation.
 
@@ -158,16 +157,29 @@ Provide the Yosys synthesis script on the syn folder.
 
 ## Compliance tests
 
-TODO, not yet pass all tests
+Compliance test for software simulator and RTL. This is the compliance test form RISC-V Foundation Compliance Task Group.
+The github repository is at https://github.com/riscv/riscv-compliance. Running the following command will clone
+the repository into tests folder and do the compliance test.
+
+    make tests-all
+
+### Known issues on compliance tests
+
+* The test I-MISALIGN_JMP-01, I-MISALIGN_LDST-01, I-EBREAK-01 and I-ECALL-01 on RV32I are not yet implemted.
+* RTL failed to test DIV and REM on RV32M.
+
+## Known issues
+
+* Not fully pass the compliance test for RV32I and RV32M instruction sets.
+* Memory can not respond non-valid, i.e., the memory should always accept the command from CPU.
 
 ## TODO
 
-* pass formal verification
+* implement the trap and interrupt handling
 * merge the memory interface into one memory for one port
-* interrupt handling
-* support RV32C compress extension
 * support FreeRTOS
 * static branch predictor
+* support RV32C compress extension
 
 # License
 
