@@ -199,7 +199,7 @@ always @(posedge clk or negedge resetb) begin
         ex_subtype          <= inst[`SUBTYPE] && !(inst[`OPCODE] == OP_ARITHI && inst[`FUNC3] == OP_ADD);
         ex_memwr            <= inst[`OPCODE] == OP_STORE;
         ex_alu              <= (inst[`OPCODE] == OP_ARITHI) ||
-                               (inst[`OPCODE] == OP_ARITHR);
+                               ((inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20));
         ex_csr              <= (inst[`OPCODE] == OP_SYSTEM) && !(inst[`IMM12] == 'h0 || inst[`IMM12] == 'h1);
         ex_lui              <= inst[`OPCODE] == OP_LUI;
         ex_auipc            <= inst[`OPCODE] == OP_AUIPC;
@@ -312,6 +312,10 @@ end
     wire            [63: 0] result_mul;
     wire            [63: 0] result_mulsu;
     wire            [63: 0] result_mulu;
+    wire            [31: 0] result_div;
+    wire            [31: 0] result_divu;
+    wire            [31: 0] result_rem;
+    wire            [31: 0] result_remu;
 
 assign result_mul[63: 0]    = $signed({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
                               $signed({{32{alu_op2[31]}}, alu_op2[31: 0]});
@@ -319,6 +323,10 @@ assign result_mulu[63: 0]   = $unsigned({{32{1'b0}}, alu_op1[31: 0]}) *
                               $unsigned({{32{1'b0}}, alu_op2[31: 0]});
 assign result_mulsu[63: 0]  = $signed({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
                               $unsigned({{32{1'b0}}, alu_op2[31: 0]});
+assign result_div[31: 0]    = $signed(alu_op1) / $signed(alu_op2);
+assign result_divu[31: 0]   = $unsigned(alu_op1) / $unsigned(alu_op2);
+assign result_rem[31: 0]    = $signed(alu_op1) % $signed(alu_op2);
+assign result_remu[31: 0]   = $unsigned(alu_op1) % $unsigned(alu_op2);
 `endif // RV32M_ENABLED
 
 always @* begin
@@ -336,10 +344,10 @@ always @* begin
                 OP_MULH  : result   = result_mul[63:32];
                 OP_MULSU : result   = result_mulsu[63:32];
                 OP_MULU  : result   = result_mulu[63:32];
-                OP_DIV   : result   = (alu_op2 == 'd0) ? 32'hffffffff : $signed(alu_op1) / $signed(alu_op2);
-                OP_DIVU  : result   = (alu_op2 == 'd0) ? 32'hffffffff : $unsigned(alu_op1) / $unsigned(alu_op2);
-                OP_REM   : result   = (alu_op2 == 'd0) ? alu_op1 : $signed(alu_op1) % $signed(alu_op2);
-                OP_REMU  : result   = (alu_op2 == 'd0) ? alu_op1 : $unsigned(alu_op1) % $unsigned(alu_op2);
+                OP_DIV   : result   = (alu_op2 == 'd0) ? 32'hffffffff : result_div;
+                OP_DIVU  : result   = (alu_op2 == 'd0) ? 32'hffffffff : result_divu;
+                OP_REM   : result   = (alu_op2 == 'd0) ? alu_op1 : result_rem;
+                OP_REMU  : result   = (alu_op2 == 'd0) ? alu_op1 : result_remu;
                 default  : result   = {32{1'bx}};
             endcase
         `endif // RV32M_ENABLED
@@ -389,7 +397,12 @@ always @(posedge clk or negedge resetb) begin
         `endif // HAVE_SYSCALL
     end else if (!ex_stall) begin
         wb_result           <= result;
-        wb_alu2reg          <= ex_alu | ex_lui | ex_auipc | ex_jal | ex_jalr | ex_csr | ex_mem2reg;
+        wb_alu2reg          <= ex_alu | ex_lui | ex_auipc | ex_jal | ex_jalr |
+                               ex_csr
+                               `ifdef RV32M_ENABLED
+                               | ex_mul
+                               `endif
+                               | ex_mem2reg;
         wb_dst_sel          <= ex_dst_sel;
         wb_branch           <= branch_taken;
         wb_branch_nxt       <= wb_branch;

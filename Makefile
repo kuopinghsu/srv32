@@ -1,4 +1,4 @@
-SUBDIRS = hello dhrystone coremark qsort div
+SUBDIRS = hello dhrystone coremark qsort
 
 .PHONY: $(SUBDIRS) tools tests
 

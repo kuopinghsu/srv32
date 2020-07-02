@@ -163,14 +163,11 @@ the repository into tests folder and do the compliance test.
 
     make tests-all
 
-### Known issues on compliance tests
-
-* The test I-MISALIGN_JMP-01, I-MISALIGN_LDST-01, I-EBREAK-01 and I-ECALL-01 on RV32I are not yet implemted.
-* RTL failed to test DIV and REM on RV32M.
+> The test I-MISALIGN_JMP-01, I-MISALIGN_LDST-01, I-EBREAK-01 and I-ECALL-01 on RV32I are not yet implemted.
 
 ## Known issues
 
-* Not fully pass the compliance test for RV32I and RV32M instruction sets.
+* Does not completely pass the compliance test for RV32I instruction sets.
 * Memory can not respond non-valid, i.e., the memory should always accept the command from CPU.
 
 ## TODO
