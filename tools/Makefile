@@ -30,11 +30,10 @@ $(TARGET): $(OBJECTS)
 	$(CC) -o $(TARGET) $(OBJECTS) $(LDFLAGS)
 
 %.run: $(TARGET)
-	@if [ -f ../sw/$*/$* ]; then \
-		./$(TARGET) -l trace.log ../sw/$*/$*; \
-	else \
-		echo "file ../sw/$*/$* not found"; \
+	@if [ ! -f ../sw/$*/$*.elf ]; then \
+		make -C ../sw $*; \
 	fi
+	./$(TARGET) -l trace.log ../sw/$*/$*.elf
 
 clean:
 	@$(RM) $(OBJECTS) trace.log $(TARGET)

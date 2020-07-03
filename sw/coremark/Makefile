@@ -23,8 +23,8 @@ all: compile
 	$(OBJCOPY) -j .text -O binary $(OUTFILE) imem.bin
 	$(OBJCOPY) -j .data -O binary $(OUTFILE) dmem.bin
 	$(OBJCOPY) -O binary $(OUTFILE) memory.bin
-	$(OBJDUMP) -d $(OUTFILE) > $(OUTFILE).dis
-	$(READELF) -a $(OUTFILE) > $(OUTFILE).symbol
+	$(OBJDUMP) -d $(OUTFILE) > coremark.dis
+	$(READELF) -a $(OUTFILE) > coremark.symbol
 
 .PHONY: run score
 run: $(OUTFILE) rerun score
@@ -134,7 +134,7 @@ load: $(OUTFILE)
 .PHONY: clean
 clean:
 	rm -f $(OUTFILE) $(OPATH)*.log *.info $(OPATH)index.html $(PORT_CLEAN)
-	rm -f $(OUTFILE).dis $(OUTFILE).symbol [id]mem.bin memory.bin
+	rm -f coremark.dis coremark.symbol [id]mem.bin memory.bin
 
 .PHONY: force_rebuild
 force_rebuild:

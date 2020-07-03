@@ -4,6 +4,7 @@ SUBDIRS = hello dhrystone coremark qsort
 
 help:
 	@echo "make all         build all diags and run the RTL sim"
+	@echo "make all-sw      build all diags and run the software sim"
 	@echo "make tests-all   run the RTL and simulator compliance test"
 	@echo "make build       build all diags and the RTL"
 	@echo "make dhrystone   build Dhrystone diag and run the RTL sim"
@@ -14,6 +15,11 @@ help:
 all:
 	for i in $(SUBDIRS); do \
 		$(MAKE) $$i; \
+	done
+
+all-sw:
+	for i in $(SUBDIRS); do \
+		$(MAKE) -C tools $$i.run; \
 	done
 
 tests:

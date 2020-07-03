@@ -2,8 +2,8 @@
 // Written by Kuoping Hsu, 2020, MIT license
 
 //`define SINGLE_RAM  1
-`define MEM_PUTC    32'h8000001c
-`define MEM_EXIT    32'h8000002c
+`define MEM_PUTC    32'h9000001c
+`define MEM_EXIT    32'h9000002c
 
 `ifdef SINGLE_RAM
 `define TOP         top.riscv

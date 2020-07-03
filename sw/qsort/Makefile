@@ -1,22 +1,24 @@
 
 include ../common/Makefile.common
 
+EXE      = .elf
 SRC      = qsort.c
 CFLAGS  += -L../common
 LDFLAGS += -T ../common/default.ld
 TARGET   = qsort
+OUTPUT   = $(TARGET)$(EXE)
 
 .PHONY: all clean
 
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRC) $(LDFLAGS)
-	$(OBJCOPY) -j .text -O binary $(TARGET) imem.bin
-	$(OBJCOPY) -j .data -O binary $(TARGET) dmem.bin
-	$(OBJCOPY) -O binary $(TARGET) memory.bin
-	$(OBJDUMP) -d $(TARGET) > $(TARGET).dis
-	$(READELF) -a $(TARGET) > $(TARGET).symbol
+	$(CC) $(CFLAGS) -o $(OUTPUT) $(SRC) $(LDFLAGS)
+	$(OBJCOPY) -j .text -O binary $(OUTPUT) imem.bin
+	$(OBJCOPY) -j .data -O binary $(OUTPUT) dmem.bin
+	$(OBJCOPY) -O binary $(OUTPUT) memory.bin
+	$(OBJDUMP) -d $(OUTPUT) > $(TARGET).dis
+	$(READELF) -a $(OUTPUT) > $(TARGET).symbol
 
 clean:
-	$(RM) *.o $(TARGET) $(TARGET).dis $(TARGET).symbol [id]mem.bin memory.bin
+	$(RM) *.o $(OUTPUT) $(TARGET).dis $(TARGET).symbol [id]mem.bin memory.bin

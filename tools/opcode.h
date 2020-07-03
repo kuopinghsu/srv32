@@ -135,7 +135,7 @@ enum {
     CSR_VENDERID    = 0xF11,    // Vender ID
     CSR_MARCHID     = 0xF13,    // Architecture ID
     CSR_IMPLID      = 0xF14,    // Implementation ID
-    CSR_MHARDID     = 0xF15,    // Hardware thread ID
+    CSR_MHARTID     = 0xF15,    // Hardware thread ID
 
     CSR_MSTATUS     = 0x300,    // Machine status register
     CSR_MISA        = 0x301,    // ISA and extensions
@@ -167,6 +167,19 @@ enum {
     SYS_EXIT    = 0x5d,
     SYS_SBRK    = 0xd6,
     SYS_DUMP    = 0x88
+};
+
+// Exception code
+enum {
+    TRAP_INST_ALIGN = 0,        // Instruction address misaligned
+    TRAP_INST_FAIL  = 1,        // Instruction access fault
+    TRAP_INST_ILL   = 2,        // Illegal instruction
+    TRAP_BREAK      = 3,        // Breakpoint
+    TRAP_LD_ALIGN   = 4,        // Load address misaligned
+    TRAP_LD_FAIL    = 5,        // Load access fault
+    TRAP_ST_ALIGN   = 6,        // Store/AMO address misaligned
+    TRAP_ST_FAIL    = 7,        // Store/AMO access fault
+    TRAP_ECALL      = 11        // Environment call from M-mode
 };
 
 typedef union _counter {

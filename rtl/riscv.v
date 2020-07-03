@@ -106,8 +106,16 @@ module riscv (
 
     reg                     illegal_csr;
 
-    reg             [63: 0] rdcycle;
-    reg             [63: 0] rdinstret;
+    reg             [63: 0] csr_cycle;
+    reg             [63: 0] csr_instret;
+    reg             [31: 0] csr_mhartid;
+    reg             [31: 0] csr_mstatus;
+    reg             [31: 0] csr_misa;
+    reg             [31: 0] csr_mie;
+    reg             [31: 0] csr_mtvec;
+    reg             [31: 0] csr_mepc;
+    reg             [31: 0] csr_mcause;
+    reg             [31: 0] csr_mtval;
 
     integer                 i;
 
@@ -296,7 +304,9 @@ always @* begin
                          next_pc    = fetch_pc;
                          `ifndef SYNTHESIS
                          $display("Unknown branch instruction");
+                         /* verilator lint_off STMTDLY */
                          #10 $finish(2);
+                         /* verilator lint_on STMTDLY */
                          `endif
                          end
             endcase
@@ -377,7 +387,7 @@ always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         fetch_pc            <= RESETVEC;
     end else if (!ex_stall) begin
-        fetch_pc            <= (ex_flush) ? fetch_pc + 4 : next_pc;
+        fetch_pc            <= (ex_flush) ? fetch_pc + 4 : {next_pc[31:1], 1'b0};
     end
 end
 
@@ -522,9 +532,11 @@ always @(posedge clk) begin
         end else begin      // ecall
             case(regs[REG_A7][7:0])  // function arguments A7/X17
                 SYS_EXIT: begin
-                    $display("\nExcuting %0d instructions, %0d cycles", rdinstret, rdcycle);
+                    $display("\nExcuting %0d instructions, %0d cycles", csr_instret, csr_cycle);
                     $display("Program terminate");
+                    /* verilator lint_off STMTDLY */
                     #10 $finish(2);
+                    /* verilator lint_on STMTDLY */
                 end
                 SYS_FSTAT: ;
                 SYS_WRITE: begin
@@ -547,18 +559,18 @@ end
 
 ////////////////////////////////////////////////////////////
 // CSR file (only support read-only registers)
-//  rdcycle
-//  rdinstret
+//  csr_cycle
+//  csr_instret
 ////////////////////////////////////////////////////////////
 always @* begin
     illegal_csr = 1'b0;
     ex_csr_read = 32'h0;
     if (ex_csr) begin
         case (ex_imm[11:0])
-            CSR_RDCYCLE    : ex_csr_read = rdcycle[31:0];
-            CSR_RDCYCLEH   : ex_csr_read = rdcycle[63:32];
-            CSR_RDINSTRET  : ex_csr_read = rdinstret[31:0];
-            CSR_RDINSTRETH : ex_csr_read = rdinstret[63:32];
+            CSR_RDCYCLE    : ex_csr_read = csr_cycle[31:0];
+            CSR_RDCYCLEH   : ex_csr_read = csr_cycle[63:32];
+            CSR_RDINSTRET  : ex_csr_read = csr_instret[31:0];
+            CSR_RDINSTRETH : ex_csr_read = csr_instret[63:32];
             default: begin
                 illegal_csr = 1'b1;
                 `ifndef SYNTHESIS
@@ -571,16 +583,16 @@ end
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
-        rdcycle             <= 64'h0;
-        rdinstret           <= 64'h0;
+        csr_cycle           <= 64'h0;
+        csr_nstret          <= 64'h0;
         pipefill            <= 2'b00;
     end else if (!stall_r) begin
         if (pipefill != 2'b10)
             pipefill        <= pipefill + 1'b1;
         else begin
-            rdcycle         <= rdcycle + 1'b1;
+            csr_cycle       <= csr_cycle + 1'b1;
             if (!ex_stall && !ex_flush) begin
-                rdinstret   <= rdinstret + 1'b1;
+                csr_instret <= csr_instret + 1'b1;
             end
         end
     end
@@ -610,7 +622,9 @@ always @(posedge clk or negedge resetb) begin
     end
 end
 
+////////////////////////////////////////////////////////////
 // for debugging
+////////////////////////////////////////////////////////////
 `ifndef SYNTHESIS
     wire        [31: 0] x0_zero     = 'd0;
     wire        [31: 0] x1_ra       = regs[ 1][31: 0];

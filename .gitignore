@@ -50,3 +50,19 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# dumpfile
+imem.bin
+dmem.bin
+memory.bin
+trace.log
+dump.txt
+
+# repo compliance test
+tests/riscv-compliance
+
+tools/gentrace
+sim/riscsim
+*.dis
+*.symbol
+*.elf

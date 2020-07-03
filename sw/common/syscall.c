@@ -5,8 +5,8 @@
 #include <errno.h>
 
 #define HAVE_SYSCALL        1
-#define MEMIO_PUTC          0x8000001c
-#define MEMIO_EXIT          0x8000002c
+#define MEMIO_PUTC          0x9000001c
+#define MEMIO_EXIT          0x9000002c
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
 enum {

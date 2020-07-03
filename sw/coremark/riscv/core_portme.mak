@@ -51,7 +51,7 @@ LOAD = echo Loading done
 RUN = riscv32-unknown-elf-run
 
 OEXT = .o
-EXE =
+EXE = .elf
 
 # Target : port_pre% and port_post%
 # For the purpose of this simple port, no pre or post steps needed.
