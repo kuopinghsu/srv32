@@ -135,8 +135,8 @@ end
             $write("%c", mem_wdata[7:0]);
         end
         else if (mem_ready && mem_we && mem_addr == `MEM_EXIT) begin
-            $display("\nExcuting %0d instructions, %0d cycles", `TOP.rdinstret,
-                     `TOP.rdcycle);
+            $display("\nExcuting %0d instructions, %0d cycles", `TOP.csr_instret,
+                     `TOP.csr_cycle);
             $display("Program terminate");
             #10 $finish(1);
         end
@@ -247,8 +247,8 @@ end
             $write("%c", dmem_wdata[7:0]);
         end
         else if (dmem_wready && dmem_waddr == `MEM_EXIT) begin
-            $display("\nExcuting %0d instructions, %0d cycles", `TOP.rdinstret,
-                     `TOP.rdcycle);
+            $display("\nExcuting %0d instructions, %0d cycles", `TOP.csr_instret,
+                     `TOP.csr_cycle);
             $display("Program terminate");
             #10 $finish(1);
         end

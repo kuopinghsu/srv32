@@ -584,7 +584,7 @@ end
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         csr_cycle           <= 64'h0;
-        csr_nstret          <= 64'h0;
+        csr_instret         <= 64'h0;
         pipefill            <= 2'b00;
     end else if (!stall_r) begin
         if (pipefill != 2'b10)
