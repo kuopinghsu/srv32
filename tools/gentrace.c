@@ -480,6 +480,7 @@ int main(int argc, char **argv) {
             case OP_LOAD  : { // I-Type
                 int data;
                 int address = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
+                if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
                 if (address < DMEM_BASE || address > DMEM_BASE+DMEM_SIZE) {
                     switch(address) {
                         case MMIO_PUTC:
@@ -503,6 +504,7 @@ int main(int argc, char **argv) {
                             data = csr.mtime.d.hi;
                             break;
                         default:
+                            if (ft) fprintf(ft, "\n");
                             printf("Unknown address 0x%08x to read at 0x%08x\n",
                                    address, pc);
                             TRAP(TRAP_LD_FAIL, address);
@@ -517,6 +519,7 @@ int main(int argc, char **argv) {
                                   if (data&0x80) data |= 0xffffff00;
                                   break;
                     case OP_LH  : if (address&1) {
+                                    if (ft) fprintf(ft, "\n");
                                     printf("Unalignment address 0x%08x to read at 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_LD_ALIGN, DPA2VA(address));
@@ -526,6 +529,7 @@ int main(int argc, char **argv) {
                                   if (data&0x8000) data |= 0xffff0000;
                                   break;
                     case OP_LW  : if (address&3) {
+                                    if (ft) fprintf(ft, "\n");
                                     printf("Unalignment address 0x%08x to read at 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_LD_ALIGN, DPA2VA(address));
@@ -535,6 +539,7 @@ int main(int argc, char **argv) {
                     case OP_LBU : data = (data >> ((address&3)*8))&0xff;
                                   break;
                     case OP_LHU : if (address&1) {
+                                    if (ft) fprintf(ft, "\n");
                                     printf("Unalignment address 0x%08x to read at 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_LD_ALIGN, DPA2VA(address));
@@ -542,13 +547,14 @@ int main(int argc, char **argv) {
                                   }
                                   data = (address&2) ? ((data>>16)&0xffff) : (data &0xffff);
                                   break;
-                    default: printf("Unknown load instruction at 0x%08x\n", pc);
+                    default: if (ft) fprintf(ft, "\n");
+                             printf("Unknown load instruction at 0x%08x\n", pc);
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
                 }
                 regs[inst.i.rd] = data;
-                if (ft) fprintf(ft, "%08x %08x read 0x%08x => 0x%08x, x%02d (%s) <= 0x%08x\n",
-                                    pc, inst.inst, DPA2VA(address),
+                if (ft) fprintf(ft, " read 0x%08x => 0x%08x, x%02d (%s) <= 0x%08x\n",
+                                    DPA2VA(address),
                                     dmem[address/4], inst.i.rd,
                                     regname[inst.i.rd], regs[inst.i.rd]);
                 break;
@@ -561,15 +567,16 @@ int main(int argc, char **argv) {
                            (inst.s.func3 == OP_SH) ? 0xffff :
                            (inst.s.func3 == OP_SW) ? 0xffffffff :
                            0xffffffff;
-                if (ft) fprintf(ft, "%08x %08x write 0x%08x <= 0x%08x\n",
-                                    pc, inst.inst, address, (data & mask));
                 if (address < DMEM_BASE || address > DMEM_BASE+DMEM_SIZE) {
+                    if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
                     switch(address) {
                         case MMIO_PUTC:
                             putchar((char)data);
                             fflush(stdout);
                             break;
                         case MMIO_EXIT:
+                            if (ft) fprintf(ft, " write 0x%08x <= 0x%08x\n",
+                                                 address, (data & mask));
                             prog_exit(data);
                             break;
                         case MMIO_MTIME:
@@ -585,14 +592,18 @@ int main(int argc, char **argv) {
                             csr.mtime.d.hi = (csr.mtime.d.hi & ~mask) | data;
                             break;
                         default:
+                            if (ft) fprintf(ft, "\n");
                             printf("Unknown address 0x%08x to write at 0x%08x\n",
                                    address, pc);
                             TRAP(TRAP_ST_FAIL, address);
                             continue;
                     }
+                    if (ft) fprintf(ft, " write 0x%08x <= 0x%08x\n",
+                                          address, (data & mask));
                     pc += 4;
                     continue;
                 }
+                if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
                 address = DVA2PA(address);
                 switch(inst.s.func3) {
                     case OP_SB : dmem[address/4] =
@@ -600,6 +611,7 @@ int main(int argc, char **argv) {
                                     ((data & 0xff)<<((address&3)*8));
                                  break;
                     case OP_SH : if (address&1) {
+                                    if (ft) fprintf(ft, "\n");
                                     printf("Unalignment address 0x%08x to write at 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_ST_ALIGN, DPA2VA(address));
@@ -610,6 +622,7 @@ int main(int argc, char **argv) {
                                     ((dmem[address/4]&0xffff0000)|(data&0xffff));
                                  break;
                     case OP_SW : if (address&3) {
+                                    if (ft) fprintf(ft, "\n");
                                     printf("Unalignment address 0x%08x to write at 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_ST_ALIGN, DPA2VA(address));
@@ -618,9 +631,11 @@ int main(int argc, char **argv) {
                                  dmem[address/4] = data;
                                  break;
                     default: printf("Unknown store instruction at 0x%08x\n", pc);
+                             if (ft) fprintf(ft, "\n");
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
                 }
+                if (ft) fprintf(ft, " write 0x%08x <= 0x%08x\n", DPA2VA(address), (data & mask));
                 break;
             }
             case OP_ARITHI: { // I-Type

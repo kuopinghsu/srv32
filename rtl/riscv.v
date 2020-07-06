@@ -460,12 +460,12 @@ always @(posedge clk or negedge resetb) begin
         wb_trap             <= 1'b0;
     end else if (!ex_stall) begin
         wb_result           <= result;
-        wb_alu2reg          <= ex_alu | ex_lui | ex_auipc | ex_jal | ex_jalr |
-                               ex_csr
+        wb_alu2reg          <= ex_alu || ex_lui || ex_auipc || ex_jal || ex_jalr ||
+                               ex_csr ||
                                `ifdef RV32M_ENABLED
-                               | ex_mul
+                               ex_mul ||
                                `endif
-                               | ex_mem2reg;
+                               (ex_mem2reg && !ex_ld_align_excp);
         wb_dst_sel          <= ex_dst_sel;
         wb_branch           <= branch_taken || ex_trap;
         wb_branch_nxt       <= wb_branch;

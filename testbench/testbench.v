@@ -352,11 +352,15 @@ always @(posedge clk) begin
     if ($test$plusargs("trace") && !`TOP.wb_stall && !`TOP.stall_r &&
         !`TOP.wb_flush && fillcount == 2'b11) begin
         $fwrite(fp, "%08x %08x", `TOP.wb_pc, `TOP.wb_insn);
-        if (`TOP.wb_mem2reg) begin
-            $fwrite(fp, " read 0x%08x => 0x%08x,", `TOP.wb_raddress,
+        if (`TOP.wb_mem2reg && !`TOP.wb_trap) begin
+            $fwrite(fp, " read 0x%08x => 0x%08x", `TOP.wb_raddress,
                                                    `TOP.dmem_rdata);
-            $fwrite(fp, " x%02d (%0s) <= 0x%08x\n", `TOP.wb_dst_sel,
-                                                    regname, `TOP.wb_rdata);
+            if (`TOP.wb_alu2reg) begin
+                $fwrite(fp, ", x%02d (%0s) <= 0x%08x\n", `TOP.wb_dst_sel,
+                                                       regname, `TOP.wb_rdata);
+            end else begin
+                $fwrite(fp, "\n");
+            end
         end else if (`TOP.wb_alu2reg) begin
             $fwrite(fp, " x%02d (%0s) <= 0x%08x\n", `TOP.wb_dst_sel, regname,
                                                     `TOP.wb_result);
