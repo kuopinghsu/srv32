@@ -4,9 +4,6 @@
 // Define it to enable RV32M multiply extension
 `define RV32M_ENABLED       1
 
-// Define it to enable syscall
-`define HAVE_SYSCALL        1
-
 // ============================================================
 // RISCV for imem and dmem seperate port
 // ============================================================
@@ -60,6 +57,7 @@ module riscv (
     wire            [31: 0] alu_op1;
     wire            [31: 0] alu_op2;
 
+    reg             [31: 0] ex_insn;
     reg             [31: 0] ex_imm;
     reg                     ex_imm_sel;
     reg             [ 4: 0] ex_src1_sel;
@@ -69,23 +67,31 @@ module riscv (
     reg                     ex_subtype;
     reg                     ex_memwr;
     reg                     ex_mem2reg;
+    wire            [31: 0] ex_memaddr;
     reg                     ex_alu;
     reg                     ex_csr;
+    reg                     ex_csr_wr;
     reg                     ex_lui;
     reg                     ex_auipc;
     reg                     ex_jal;
     reg                     ex_jalr;
     reg                     ex_branch;
     reg                     ex_system;
+    wire                    ex_flush;
     wire                    ex_csr_rd;
     reg             [31: 0] ex_csr_read;
+    wire                    ex_trap;
+    wire            [31: 0] ex_trap_pc;
     reg                     ex_illegal;
+    wire                    ex_ld_align_excp;
+    wire                    ex_st_align_excp;
+    wire                    ex_inst_ill_excp;
+    wire                    ex_inst_align_excp;
 
 `ifdef RV32M_ENABLED
     reg                     ex_mul;
 `endif // RV32M_ENABLED
 
-    reg                     wb_break;
     reg                     wb_alu2reg;
     reg             [31: 0] wb_result;
     reg             [ 2: 0] wb_alu_op;
@@ -103,11 +109,13 @@ module riscv (
     reg             [31: 0] wb_wdata;
     reg             [31: 0] wb_rdata;
     wire                    wb_flush;
+    reg                     wb_trap;
 
     reg                     illegal_csr;
 
     reg             [63: 0] csr_cycle;
     reg             [63: 0] csr_instret;
+
     reg             [31: 0] csr_mhartid;
     reg             [31: 0] csr_mstatus;
     reg             [31: 0] csr_misa;
@@ -122,7 +130,7 @@ module riscv (
 assign inst                 = flush ? NOP : imem_rdata;
 assign if_stall             = stall_r || !imem_valid;
 assign dmem_waddr           = wb_waddr;
-assign dmem_raddr           = alu_op1 + ex_imm;
+assign dmem_raddr           = ex_memaddr;
 assign dmem_rready          = ex_mem2reg;
 assign dmem_wready          = wb_memwr;
 assign dmem_wdata           = wb_wdata;
@@ -164,7 +172,8 @@ always @* begin
         OP_BRANCH: imm      = {{20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0}; // B-type
         OP_LOAD  : imm      = {{20{inst[31]}}, inst[31:20]}; // I-type
         OP_STORE : imm      = {{20{inst[31]}}, inst[31:25], inst[11:7]}; // S-type
-        OP_ARITHI: imm      = (inst[`FUNC3] == OP_SLL || inst[`FUNC3] == OP_SR) ? {27'h0, inst[24:20]} : {{20{inst[31]}}, inst[31:20]}; // I-type
+        OP_ARITHI: imm      = (inst[`FUNC3] == OP_SLL || inst[`FUNC3] == OP_SR) ?
+                              {27'h0, inst[24:20]} : {{20{inst[31]}}, inst[31:20]}; // I-type
         OP_ARITHR: imm      = 'd0; // R-type
         OP_FENCE : imm      = 'd0;
         OP_SYSTEM: imm      = {20'h0, inst[31:20]};
@@ -184,12 +193,13 @@ always @(posedge clk or negedge resetb) begin
         ex_memwr            <= 1'b0;
         ex_alu              <= 1'b0;
         ex_csr              <= 1'b0;
+        ex_csr_wr           <= 1'b0;
+        ex_lui              <= 1'b0;
+        ex_auipc            <= 1'b0;
         ex_jal              <= 1'b0;
         ex_jalr             <= 1'b0;
         ex_branch           <= 1'b0;
-        `ifdef HAVE_SYSCALL
         ex_system           <= 1'b0;
-        `endif // HAVE_SYSCALL
         ex_pc               <= RESETVEC;
         ex_illegal          <= 1'b0;
         `ifdef RV32M_ENABLED
@@ -204,19 +214,27 @@ always @(posedge clk or negedge resetb) begin
         ex_src2_sel         <= inst[`RS2];
         ex_dst_sel          <= inst[`RD];
         ex_alu_op           <= inst[`FUNC3];
-        ex_subtype          <= inst[`SUBTYPE] && !(inst[`OPCODE] == OP_ARITHI && inst[`FUNC3] == OP_ADD);
+        ex_subtype          <= inst[`SUBTYPE] &&
+                               !(inst[`OPCODE] == OP_ARITHI && inst[`FUNC3] == OP_ADD);
         ex_memwr            <= inst[`OPCODE] == OP_STORE;
         ex_alu              <= (inst[`OPCODE] == OP_ARITHI) ||
-                               ((inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20));
-        ex_csr              <= (inst[`OPCODE] == OP_SYSTEM) && !(inst[`IMM12] == 'h0 || inst[`IMM12] == 'h1);
+                               ((inst[`OPCODE] == OP_ARITHR) &&
+                                (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20));
+        ex_csr              <= (inst[`OPCODE] == OP_SYSTEM) &&
+                               (inst[`FUNC3] != OP_ECALL);
+                               // CSRRS and CSRRC, if rs1==0, then the instruction
+                               // will not write to the CSR at all
+        ex_csr_wr           <= (inst[`OPCODE] == OP_SYSTEM) &&
+                               (inst[`FUNC3] != OP_ECALL) &&
+                               !(inst[`FUNC3] != OP_CSRRW && inst[`FUNC3] != OP_CSRRWI &&
+                                 inst[`RS1] == 5'h0);
         ex_lui              <= inst[`OPCODE] == OP_LUI;
         ex_auipc            <= inst[`OPCODE] == OP_AUIPC;
         ex_jal              <= inst[`OPCODE] == OP_JAL;
         ex_jalr             <= inst[`OPCODE] == OP_JALR;
         ex_branch           <= inst[`OPCODE] == OP_BRANCH;
-        `ifdef HAVE_SYSCALL
-        ex_system           <= inst[`OPCODE] == OP_SYSTEM;
-        `endif // HAVE_SYSCALL
+        ex_system           <= (inst[`OPCODE] == OP_SYSTEM) &&
+                               (inst[`FUNC3] == 3'b000) && !ex_flush;
         ex_pc               <= if_pc;
         ex_illegal          <= !((inst[`OPCODE] == OP_AUIPC )||
                                  (inst[`OPCODE] == OP_LUI   )||
@@ -226,7 +244,8 @@ always @(posedge clk or negedge resetb) begin
                                  (inst[`OPCODE] == OP_LOAD  )||
                                  (inst[`OPCODE] == OP_STORE )||
                                  (inst[`OPCODE] == OP_ARITHI)||
-                                 ((inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20)) ||
+                                 ((inst[`OPCODE] == OP_ARITHR) &&
+                                  (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20)) ||
                                  `ifdef RV32M_ENABLED
                                  ((inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h01)) ||
                                  `endif // RV32M_ENABLED
@@ -247,6 +266,14 @@ always @(posedge clk or negedge resetb) begin
         ex_mem2reg          <= 1'b0;
 end
 
+always @(posedge clk or negedge resetb) begin
+    if (!resetb) begin
+        ex_insn             <= NOP;
+    end else if (!if_stall) begin
+        ex_insn             <= inst;
+    end
+end
+
 ////////////////////////////////////////////////////////////
 // stage 2: execute
 ////////////////////////////////////////////////////////////
@@ -255,21 +282,36 @@ end
     reg             [31: 0] result;
     reg             [31: 0] next_pc;
     reg                     branch_taken;
-    wire            [31: 0] wr_addr;
-    wire                    ex_flush;
+    reg                     ill_branch;
+    reg                     ill_alu;
 
-assign ex_stall             = stall_r || if_stall || (ex_mem2reg && !dmem_rvalid);
+// Trap Exception
+assign ex_ld_align_excp     = ex_mem2reg && !ex_flush && (
+                                (ex_alu_op == OP_LH && ex_memaddr[0]) ||
+                                (ex_alu_op == OP_LW && |ex_memaddr[1:0]) ||
+                                (ex_alu_op == OP_LHU && ex_memaddr[0])
+                              );
+assign ex_st_align_excp     = ex_memwr && !ex_flush && (
+                                (ex_alu_op == OP_SH && ex_memaddr[0]) ||
+                                (ex_alu_op == OP_SW && |ex_memaddr[1:0])
+                              );
+assign ex_inst_ill_excp     = !ex_flush && (ill_branch || ill_alu || ex_illegal);
+assign ex_inst_align_excp   = !ex_flush && next_pc[1];
+
+assign ex_stall             = stall_r || if_stall ||
+                              (ex_mem2reg && !dmem_rvalid);
 assign alu_op1[31: 0]       = reg_rdata1;
 assign alu_op2[31: 0]       = (ex_imm_sel) ? ex_imm : reg_rdata2;
 
 assign result_subs[32: 0]   = {alu_op1[31], alu_op1} - {alu_op2[31], alu_op2};
 assign result_subu[32: 0]   = {1'b0, alu_op1} - {1'b0, alu_op2};
-assign wr_addr              = alu_op1 + ex_imm;
+assign ex_memaddr           = alu_op1 + ex_imm;
 assign ex_flush             = wb_branch || wb_branch_nxt;
 
 always @* begin
     branch_taken = !ex_flush;
     next_pc      = fetch_pc + 4;
+    ill_branch   = 1'b0;
 
     case(1'b1)
         ex_jal   : next_pc = ex_pc + ex_imm;
@@ -277,37 +319,38 @@ always @* begin
         ex_branch: begin
             case(ex_alu_op)
                 OP_BEQ : begin
-                            next_pc = (result_subs[32: 0] == 'd0) ? ex_pc + ex_imm : fetch_pc + 4;
+                            next_pc = (result_subs[32: 0] == 'd0) ?
+                                      ex_pc + ex_imm : fetch_pc + 4;
                             if (result_subs[32: 0] != 'd0) branch_taken = 1'b0;
                          end
                 OP_BNE : begin
-                            next_pc = (result_subs[32: 0] != 'd0) ? ex_pc + ex_imm : fetch_pc + 4;
+                            next_pc = (result_subs[32: 0] != 'd0) ?
+                                      ex_pc + ex_imm : fetch_pc + 4;
                             if (result_subs[32: 0] == 'd0) branch_taken = 1'b0;
                          end
                 OP_BLT : begin
-                            next_pc = result_subs[32] ? ex_pc + ex_imm : fetch_pc + 4;
+                            next_pc = result_subs[32] ?
+                                      ex_pc + ex_imm : fetch_pc + 4;
                             if (!result_subs[32]) branch_taken = 1'b0;
                          end
                 OP_BGE : begin
-                            next_pc = !result_subs[32] ? ex_pc + ex_imm : fetch_pc + 4;
+                            next_pc = !result_subs[32] ?
+                                      ex_pc + ex_imm : fetch_pc + 4;
                             if (result_subs[32]) branch_taken = 1'b0;
                          end
                 OP_BLTU: begin
-                            next_pc = result_subu[32] ? ex_pc + ex_imm : fetch_pc + 4;
+                            next_pc = result_subu[32] ?
+                                      ex_pc + ex_imm : fetch_pc + 4;
                             if (!result_subu[32]) branch_taken = 1'b0;
                          end
                 OP_BGEU: begin
-                            next_pc = !result_subu[32] ? ex_pc + ex_imm : fetch_pc + 4;
+                            next_pc = !result_subu[32] ?
+                                      ex_pc + ex_imm : fetch_pc + 4;
                             if (result_subu[32]) branch_taken = 1'b0;
                          end
                 default: begin
                          next_pc    = fetch_pc;
-                         `ifndef SYNTHESIS
-                         $display("Unknown branch instruction");
-                         /* verilator lint_off STMTDLY */
-                         #10 $finish(2);
-                         /* verilator lint_on STMTDLY */
-                         `endif
+                         ill_branch = 1'b1;
                          end
             endcase
         end
@@ -340,6 +383,7 @@ assign result_remu[31: 0]   = $unsigned(alu_op1) % $unsigned(alu_op2);
 `endif // RV32M_ENABLED
 
 always @* begin
+    ill_alu = 1'b0;
     case(1'b1)
         ex_memwr:   result          = alu_op2;
         ex_jal:     result          = ex_pc + 4;
@@ -358,7 +402,10 @@ always @* begin
                 OP_DIVU  : result   = (alu_op2 == 'd0) ? 32'hffffffff : result_divu;
                 OP_REM   : result   = (alu_op2 == 'd0) ? alu_op1 : result_rem;
                 OP_REMU  : result   = (alu_op2 == 'd0) ? alu_op1 : result_remu;
-                default  : result   = {32{1'bx}};
+                default  : begin
+                           result   = {32{1'bx}};
+                           ill_alu  = 1'b1;
+                end
             endcase
         `endif // RV32M_ENABLED
         ex_alu:
@@ -377,9 +424,15 @@ always @* begin
                             result  = $signed(alu_op1) >>> alu_op2;
                 OP_OR  : result     = alu_op1 | alu_op2;
                 OP_AND : result     = alu_op1 & alu_op2;
-                default: result     = {32{1'bx}};
+                default: begin
+                         result     = {32{1'bx}};
+                         ill_alu    = 1'b1;
+                end
             endcase
-        default: result = {32{1'bx}};
+        default: begin
+            result                  = 32'h0;
+            ill_alu                 = 1'b0;
+        end
     endcase
 end
 
@@ -387,7 +440,9 @@ always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         fetch_pc            <= RESETVEC;
     end else if (!ex_stall) begin
-        fetch_pc            <= (ex_flush) ? fetch_pc + 4 : {next_pc[31:1], 1'b0};
+        fetch_pc            <= (ex_flush) ? (fetch_pc + 4) :
+                               (ex_trap)  ? (ex_trap_pc)   :
+                               {next_pc[31:1], 1'b0};
     end
 end
 
@@ -401,10 +456,8 @@ always @(posedge clk or negedge resetb) begin
         wb_mem2reg          <= 1'b0;
         wb_raddr            <= 2'h0;
         wb_alu_op           <= 3'h0;
-        `ifdef HAVE_SYSCALL
         wb_system           <= 1'b0;
-        wb_break            <= 1'b0;
-        `endif // HAVE_SYSCALL
+        wb_trap             <= 1'b0;
     end else if (!ex_stall) begin
         wb_result           <= result;
         wb_alu2reg          <= ex_alu | ex_lui | ex_auipc | ex_jal | ex_jalr |
@@ -414,22 +467,20 @@ always @(posedge clk or negedge resetb) begin
                                `endif
                                | ex_mem2reg;
         wb_dst_sel          <= ex_dst_sel;
-        wb_branch           <= branch_taken;
+        wb_branch           <= branch_taken || ex_trap;
         wb_branch_nxt       <= wb_branch;
         wb_mem2reg          <= ex_mem2reg;
         wb_raddr            <= dmem_raddr[1:0];
         wb_alu_op           <= ex_alu_op;
-        `ifdef HAVE_SYSCALL
         wb_system           <= ex_system;
-        wb_break            <= ex_imm[0];
-        `endif // HAVE_SYSCALL
+        wb_trap             <= ex_trap;
     end
 end
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
         wb_memwr            <= 1'b0;
-    else if (ex_memwr && !ex_flush)
+    else if (ex_memwr && !ex_flush && !ex_st_align_excp)
         wb_memwr            <= 1'b1;
     else if (wb_memwr && dmem_wvalid)
         wb_memwr            <= 1'b0;
@@ -441,11 +492,11 @@ always @(posedge clk or negedge resetb) begin
         wb_wstrb            <= 4'h0;
         wb_wdata            <= 32'h0;
     end else if (!ex_stall && ex_memwr) begin
-        wb_waddr            <= wr_addr;
+        wb_waddr            <= ex_memaddr;
         case(ex_alu_op)
             OP_SB: begin
                 wb_wdata    <= {4{alu_op2[7:0]}};
-                case(wr_addr[1:0])
+                case(ex_memaddr[1:0])
                     2'b00:  wb_wstrb <= 4'b0001;
                     2'b01:  wb_wstrb <= 4'b0010;
                     2'b10:  wb_wstrb <= 4'b0100;
@@ -454,7 +505,7 @@ always @(posedge clk or negedge resetb) begin
             end
             OP_SH: begin
                 wb_wdata    <= {2{alu_op2[15:0]}};
-                wb_wstrb    <= wr_addr[1] ? 4'b1100 : 4'b0011;
+                wb_wstrb    <= ex_memaddr[1] ? 4'b1100 : 4'b0011;
             end
             OP_SW: begin
                 wb_wdata    <= alu_op2;
@@ -473,7 +524,9 @@ end
 ////////////////////////////////////////////////////////////
 assign imem_addr            = fetch_pc;
 assign imem_ready           = !stall_r && !wb_stall;
-assign wb_stall             = stall_r || ex_stall || (wb_memwr && !dmem_wvalid) || (wb_mem2reg && !dmem_rresp);
+assign wb_stall             = stall_r || ex_stall ||
+                              (wb_memwr && !dmem_wvalid) ||
+                              (wb_mem2reg && !dmem_rresp);
 assign wb_flush             = wb_nop || wb_nop_more;
 
 always @(posedge clk or negedge resetb) begin
@@ -498,14 +551,24 @@ always @* begin
     case(wb_alu_op)
         OP_LB  : begin
                     case(wb_raddr[1:0])
-                        2'b00: wb_rdata[31: 0] = {{24{dmem_rdata[7]}}, dmem_rdata[7:0]};
-                        2'b01: wb_rdata[31: 0] = {{24{dmem_rdata[15]}}, dmem_rdata[15:8]};
-                        2'b10: wb_rdata[31: 0] = {{24{dmem_rdata[23]}}, dmem_rdata[23:16]};
-                        2'b11: wb_rdata[31: 0] = {{24{dmem_rdata[31]}}, dmem_rdata[31:24]};
+                        2'b00: wb_rdata[31: 0] = {{24{dmem_rdata[7]}},
+                                                  dmem_rdata[ 7: 0]};
+                        2'b01: wb_rdata[31: 0] = {{24{dmem_rdata[15]}},
+                                                  dmem_rdata[15: 8]};
+                        2'b10: wb_rdata[31: 0] = {{24{dmem_rdata[23]}},
+                                                  dmem_rdata[23:16]};
+                        2'b11: wb_rdata[31: 0] = {{24{dmem_rdata[31]}},
+                                                  dmem_rdata[31:24]};
                     endcase
                  end
-        OP_LH  : wb_rdata = (wb_raddr[1]) ? {{16{dmem_rdata[31]}}, dmem_rdata[31:16]} : {{16{dmem_rdata[15]}}, dmem_rdata[15:0]};
-        OP_LW  : wb_rdata = dmem_rdata;
+        OP_LH  : begin
+                     wb_rdata = (wb_raddr[1]) ?
+                               {{16{dmem_rdata[31]}}, dmem_rdata[31:16]} :
+                               {{16{dmem_rdata[15]}}, dmem_rdata[15: 0]};
+                 end
+        OP_LW  : begin
+                    wb_rdata = dmem_rdata;
+                 end
         OP_LBU : begin
                     case(wb_raddr[1:0])
                         2'b00: wb_rdata[31: 0] = {24'h0, dmem_rdata[7:0]};
@@ -514,59 +577,108 @@ always @* begin
                         2'b11: wb_rdata[31: 0] = {24'h0, dmem_rdata[31:24]};
                     endcase
                  end
-        OP_LHU : wb_rdata = (wb_raddr[1]) ? {16'h0, dmem_rdata[31:16]} : {16'h0, dmem_rdata[15:0]};
-        default: wb_rdata = 'hx;
+        OP_LHU : begin
+                    wb_rdata = (wb_raddr[1]) ?
+                               {16'h0, dmem_rdata[31:16]} :
+                               {16'h0, dmem_rdata[15: 0]};
+                 end
+        default: begin
+                    wb_rdata = 'hx;
+                 end
     endcase
 end
 
 ////////////////////////////////////////////////////////////
 // System call
 ////////////////////////////////////////////////////////////
-`ifdef HAVE_SYSCALL
-`ifndef SYNTHESIS
-always @(posedge clk) begin
-    if (wb_system && !wb_stall) begin
-        if (wb_break) begin   // ebreak
-            // TODO
-            //$stop;
-        end else begin      // ecall
-            case(regs[REG_A7][7:0])  // function arguments A7/X17
-                SYS_EXIT: begin
-                    $display("\nExcuting %0d instructions, %0d cycles", csr_instret, csr_cycle);
-                    $display("Program terminate");
-                    /* verilator lint_off STMTDLY */
-                    #10 $finish(2);
-                    /* verilator lint_on STMTDLY */
-                end
-                SYS_FSTAT: ;
-                SYS_WRITE: begin
-                    // TODO: do system call on memory model
-                end
-                SYS_SBRK: ;
-                SYS_DUMP: begin
-                    // TODO: do system call on memory model
-                end
-                default: begin
-                    // TODO
-                    // $display("Unknown syscall call %08x", regs[REG_A7]);
-                end
-            endcase
-        end
+assign ex_trap      = ex_inst_ill_excp || ex_inst_align_excp ||
+                      ex_ld_align_excp || ex_st_align_excp ||
+                      ex_system;
+assign ex_trap_pc   = (ex_system && ex_imm[1:0] == 2'b10) ?
+                      csr_mepc :
+                      csr_mtvec[0] ?
+                      csr_mtvec + {csr_mcause[29:0], 2'b00} : csr_mtvec;
+
+always @(posedge clk or negedge resetb) begin
+    if (!resetb) begin
+        csr_mcause                  <= 32'h0;
+        csr_mepc                    <= 32'h0;
+        csr_mtval                   <= 32'h0;
+    end else if (!ex_stall && !ex_flush) begin
+        case(1'b1)
+            ex_csr_wr : begin
+                case (ex_imm[11: 0])
+                    CSR_MEPC   : csr_mepc   <= reg_rdata1; // TODO
+                    CSR_MCAUSE : csr_mcause <= reg_rdata1; // TODO
+                    CSR_MTVAL  : csr_mtval  <= reg_rdata1; // TODO
+                endcase
+            end
+            ex_inst_ill_excp : begin
+                csr_mcause          <= TRAP_INST_ILL;
+                csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                csr_mtval           <= ex_insn;
+            end
+            ex_inst_align_excp : begin
+                csr_mcause          <= TRAP_INST_ALIGN;
+                csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                csr_mtval           <= {next_pc[31: 1], 1'b0};
+            end
+            ex_ld_align_excp : begin
+                csr_mcause          <= TRAP_LD_ALIGN;
+                csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                csr_mtval           <= ex_memaddr;
+            end
+            ex_st_align_excp : begin
+                csr_mcause          <= TRAP_ST_ALIGN;
+                csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                csr_mtval           <= ex_memaddr;
+            end
+            ex_system     : begin
+                case (ex_imm[1:0])
+                    2'b00: begin // ECALL
+                        csr_mcause  <= TRAP_ECALL;
+                        csr_mepc    <= {ex_pc[31: 1], 1'b0};
+                        csr_mtval   <= csr_mtval;   // FIXME
+                    end
+                    2'b01: begin // EBREAK
+                        csr_mcause  <= TRAP_BREAK;
+                        csr_mepc    <= {ex_pc[31: 1], 1'b0};
+                        csr_mtval   <= csr_mtval;   // FIXME
+                    end
+                    2'b10: begin // URET, SRET, MRET
+                        csr_mcause  <= csr_mcause;  // FIXME
+                        csr_mepc    <= {ex_pc[31: 1], 1'b0}; // FIXME
+                        csr_mtval   <= csr_mtval;   // FIXME
+                    end
+                    default: begin
+                        csr_mcause  <= TRAP_INST_ILL;
+                        csr_mepc    <= {ex_pc[31: 1], 1'b0};
+                        csr_mtval   <= ex_insn;
+                    end
+                endcase
+            end
+        endcase
     end
 end
-`endif //SYNTHESIS
-`endif // HAVE_SYSCALL
 
 ////////////////////////////////////////////////////////////
-// CSR file (only support read-only registers)
-//  csr_cycle
-//  csr_instret
+// CSR file
 ////////////////////////////////////////////////////////////
 always @* begin
     illegal_csr = 1'b0;
     ex_csr_read = 32'h0;
     if (ex_csr) begin
         case (ex_imm[11:0])
+            CSR_VENDERID   : ex_csr_read = VENDERID;
+            CSR_MARCHID    : ex_csr_read = ARCHID;
+            CSR_IMPLID     : ex_csr_read = IMPLID;
+            CSR_MSTATUS    : ex_csr_read = csr_mstatus;
+            CSR_MISA       : ex_csr_read = csr_misa;
+            CSR_MIE        : ex_csr_read = csr_mie;
+            CSR_MTVEC      : ex_csr_read = csr_mtvec;
+            CSR_MEPC       : ex_csr_read = csr_mepc;
+            CSR_MCAUSE     : ex_csr_read = csr_mcause;
+            CSR_MTVAL      : ex_csr_read = csr_mtval;
             CSR_RDCYCLE    : ex_csr_read = csr_cycle[31:0];
             CSR_RDCYCLEH   : ex_csr_read = csr_cycle[63:32];
             CSR_RDINSTRET  : ex_csr_read = csr_instret[31:0];
@@ -574,9 +686,36 @@ always @* begin
             default: begin
                 illegal_csr = 1'b1;
                 `ifndef SYNTHESIS
-                $display("Unsupport CSR register %0x", ex_imm[11:0]);
+                $display("Unsupport CSR register 0x%0x", ex_imm[11:0]);
                 `endif
             end
+        endcase
+    end
+end
+
+always @(posedge clk or negedge resetb) begin
+    if (!resetb) begin
+        csr_mstatus         <= 32'h0;
+        csr_misa            <= 32'h0;
+        csr_mie             <= 32'h0;
+        csr_mtvec           <= 32'h0;
+    end else if (!wb_stall && ex_csr_wr) begin
+        case (ex_imm[11:0])
+            CSR_VENDERID   : ; // Read only
+            CSR_MARCHID    : ; // Read only
+            CSR_IMPLID     : ; // Read only
+            CSR_MSTATUS    : csr_mstatus <= reg_rdata1; // TODO
+            CSR_MISA       : csr_misa    <= reg_rdata1; // TODO
+            CSR_MIE        : csr_mie     <= reg_rdata1; // TODO
+            CSR_MTVEC      : csr_mtvec   <= reg_rdata1; // TODO
+            CSR_MEPC       : ; //
+            CSR_MCAUSE     : ; //
+            CSR_MTVAL      : ; //
+            CSR_RDCYCLE    : ; // Read Only
+            CSR_RDCYCLEH   : ; // Read Only
+            CSR_RDINSTRET  : ; // Read Only
+            CSR_RDINSTRETH : ; // Read Only
+            default: ;
         endcase
     end
 end
@@ -608,11 +747,15 @@ end
 // Write data    : wb_result
 ////////////////////////////////////////////////////////////
 assign reg_rdata1[31: 0]    = (ex_src1_sel == 5'h0) ? 32'h0 :
-                              (!wb_flush && wb_alu2reg && (wb_dst_sel == ex_src1_sel)) ? (wb_mem2reg ? wb_rdata : wb_result) :
-                              regs[ex_src1_sel];
+                              (!wb_flush && wb_alu2reg &&
+                               (wb_dst_sel == ex_src1_sel)) ?
+                                (wb_mem2reg ? wb_rdata : wb_result) :
+                                regs[ex_src1_sel];
 assign reg_rdata2[31: 0]    = (ex_src2_sel == 5'h0) ? 32'h0 :
-                              (!wb_flush && wb_alu2reg && (wb_dst_sel == ex_src2_sel)) ? (wb_mem2reg ? wb_rdata : wb_result) :
-                              regs[ex_src2_sel];
+                              (!wb_flush && wb_alu2reg &&
+                               (wb_dst_sel == ex_src2_sel)) ?
+                                (wb_mem2reg ? wb_rdata : wb_result) :
+                                regs[ex_src2_sel];
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
@@ -658,25 +801,19 @@ end
     wire        [31: 0] x29_t4      = regs[29][31: 0];
     wire        [31: 0] x30_t5      = regs[30][31: 0];
     wire        [31: 0] x31_t6      = regs[31][31: 0];
-    reg         [31: 0] ex_insn;
     reg         [31: 0] wb_insn;
+    reg         [ 1: 0] wb_break;
     reg         [31: 0] wb_raddress;
-
-always @(posedge clk or negedge resetb) begin
-    if (!resetb) begin
-        ex_insn             <= 32'h0;
-    end else if (!if_stall) begin
-        ex_insn             <= inst;
-    end
-end
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         wb_pc               <= RESETVEC;
         wb_insn             <= 32'h0;
+        wb_break            <= 2'b00;
     end else if (!ex_stall) begin
         wb_pc               <= ex_pc;
         wb_insn             <= ex_insn;
+        wb_break            <= ex_imm[1:0];
     end
 end
 

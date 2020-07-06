@@ -133,9 +133,9 @@ enum {
 
 enum {
     CSR_VENDERID    = 0xF11,    // Vender ID
-    CSR_MARCHID     = 0xF13,    // Architecture ID
-    CSR_IMPLID      = 0xF14,    // Implementation ID
-    CSR_MHARTID     = 0xF15,    // Hardware thread ID
+    CSR_MARCHID     = 0xF12,    // Architecture ID
+    CSR_IMPLID      = 0xF13,    // Implementation ID
+    CSR_MHARTID     = 0xF14,    // Hardware thread ID
 
     CSR_MSTATUS     = 0x300,    // Machine status register
     CSR_MISA        = 0x301,    // ISA and extensions
@@ -198,8 +198,42 @@ enum {
     T5 = 30, T6 = 31
 };
 
-#define MMIO_PUTC 0x8000001c
-#define MMIO_EXIT 0x8000002c
+enum {
+    USIE    = 0,        // U-mode Software Interrupt Enable
+    SSIE    = 1,        // S-mode Software Interrupt Enable
+//  WPRI    = 2,        // Reserved
+    MSIE    = 3,        // M-mode Software Interrupt Enable
+    UTIE    = 4,        // U-mode Timer Interrupt Enable
+    STIE    = 5,        // S-mode Timer Interrupt Enable
+//  WPRI    = 6,        // Reserved
+    MTIE    = 7,        // M-mode Timer Interrupt Enable
+    UEIE    = 8,        // U-mode External Interrupt Enable
+    SEIE    = 9,        // S-mode External Interrupt Enable
+//  WPRI    = 10,       // Reserved
+    MEIE    = 11        // M-mode External Interrupt Enable
+//  WPRI    = 12 ... MXLEN-1 // Reserved
+};
+
+enum {
+    USIP    = 0,        // U-mode Software Interrupt Pending
+    SSIP    = 1,        // S-mode Software Interrupt Pending
+//  WPRI    = 2,        // Reserved
+    MSIP    = 3,        // M-mode Software Interrupt Pending
+    UTIP    = 4,        // U-mode Timer Interrupt Pending
+    STIP    = 5,        // S-mode Timer Interrupt Pending
+//  WPRI    = 6,        // Reserved
+    MTIP    = 7,        // M-mode Timer Interrupt Pending
+    UEIP    = 8,        // U-mode External Interrupt Pending
+    SEIP    = 9,        // S-mode External Interrupt Pending
+//  WPRI    = 10,       // Reserved
+    MEIP    = 11        // M-mode External Interrupt Pending
+//  WPRI    = 12 ... MXLEN-1 // Reserved
+};
+
+#define MMIO_PUTC     0x9000001c
+#define MMIO_EXIT     0x9000002c
+#define MMIO_MTIME    0x90000000
+#define MMIO_MTIMECMP 0x90000008
 #define STDOUT 1
 
 #define BRANCH_PENALTY 2

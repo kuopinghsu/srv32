@@ -23,16 +23,25 @@
 
 #define TRAP(cause,val) { \
     csr.mcause = cause; \
-    csr.mepc = pc; \
+    csr.mepc = prev_pc; \
     csr.mtval = val; \
-    pc = csr.mtvec; \
+    pc = (csr.mtvec&1) ? csr.mtvec + cause * 4 : csr.mtvec; \
     STOP_ON_TRAP(); \
+}
+
+#define INT(cause,src) { \
+    csr.mcause = cause; \
+    csr.mip = csr.mip | (1 << src); \
+    csr.mepc = pc; \
+    pc = csr.mtvec; \
 }
 
 typedef struct _CSR {
     COUNTER time;
     COUNTER cycle;
     COUNTER instret;
+    COUNTER mtime;
+    COUNTER mtimecmp;
     int mhartid;
     int mstatus;
     int misa;
@@ -40,11 +49,13 @@ typedef struct _CSR {
     int mtvec;
     int mepc;
     int mcause;
+    int mip;
     int mtval;
 } CSR;
 
 CSR csr;
 int pc = 0;
+int prev_pc = 0;
 int mem_base = 0;
 
 int quiet = 0;
@@ -255,6 +266,7 @@ int main(int argc, char **argv) {
     int dsize;
     int branch_penalty = BRANCH_PENALTY;
     int branch_predict = 0;
+    int prev_pc;
 
     const char *optstring = "hb:pl:qm:";
     int c;
@@ -346,11 +358,16 @@ int main(int argc, char **argv) {
     csr.cycle.c   = 0;
     csr.instret.c = 0;
     pc            = mem_base;
+    prev_pc       = pc;
 
     // Execution loop
     while(1) {
         INST inst;
         
+        //FIXME: to pass the compliance test, the destination PC should
+        //       be aligned at short word.
+        pc &= 0xfffffffe;
+
         csr.time.c++;
         csr.cycle.c++;
         csr.instret.c++;
@@ -359,11 +376,12 @@ int main(int argc, char **argv) {
             printf("PC 0x%08x out of range 0x%08x\n", pc, IPA2VA(isize));
             TRAP(TRAP_INST_FAIL, pc);
         }
-        if ((pc&3) != 0) {
+        if ((pc&2) != 0) {
             printf("PC 0x%08x alignment error\n", pc);
             TRAP(TRAP_INST_ALIGN, pc);
         }
         regs[0] = 0;
+        prev_pc = pc;
         inst.inst = imem[IVA2PA(pc)/4];
         switch(inst.r.op) {
             case OP_AUIPC : { // U-Type
@@ -393,10 +411,7 @@ int main(int argc, char **argv) {
             case OP_JALR  : { // I-Type
                 int new_pc = pc + 4;
                 if (ft) fprintf(ft, "%08x ", pc);
-                //FIXME: to pass the compliance test, the destination PC should
-                //       be aligned.
-                //pc = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
-                pc = (regs[inst.i.rs1] + to_imm_i(inst.i.imm)) & 0xfffffffe;
+                pc = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
                 regs[inst.i.rd] = new_pc;
                 if (ft) fprintf(ft, "%08x x%02d (%s) <= 0x%08x\n", inst.inst, inst.i.rd,
                                     regname[inst.i.rd], regs[inst.i.rd]);
@@ -465,15 +480,38 @@ int main(int argc, char **argv) {
             case OP_LOAD  : { // I-Type
                 int data;
                 int address = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
-                if (address < DMEM_BASE || address >= DMEM_BASE + DMEM_SIZE) {
-                    printf("x%0d = 0x%08x, imm = %d\n", inst.i.rs1,
-                            regs[inst.i.rs1], to_imm_i(inst.i.imm));
-                    printf("memory address 0x%08x out of range\n", address);
-                    TRAP(TRAP_LD_FAIL, address);
-                    continue;
+                if (address < DMEM_BASE || address > DMEM_BASE+DMEM_SIZE) {
+                    switch(address) {
+                        case MMIO_PUTC:
+                            data = 0;
+                            break;
+                        case MMIO_EXIT:
+                            data = 0;
+                            break;
+                        case MMIO_MTIME:
+                            data = csr.mtime.d.lo;
+                            break;
+                        case MMIO_MTIME+4:
+                            data = csr.mtime.d.hi;
+                            break;
+                        case MMIO_MTIMECMP:
+                            csr.mip = csr.mip & ~(1 << MTIP);
+                            data = csr.mtime.d.lo;
+                            break;
+                        case MMIO_MTIMECMP+4:
+                            csr.mip = csr.mip & ~(1 << MTIP);
+                            data = csr.mtime.d.hi;
+                            break;
+                        default:
+                            printf("Unknown address 0x%08x to read at 0x%08x\n",
+                                   address, pc);
+                            TRAP(TRAP_LD_FAIL, address);
+                            continue;
+                    }
+                } else {
+                    address = DVA2PA(address);
+                    data = dmem[address/4];
                 }
-                address = DVA2PA(address);
-                data = dmem[address/4];
                 switch(inst.i.func3) {
                     case OP_LB  : data = (data >> ((address&3)*8))&0xff;
                                   if (data&0x80) data |= 0xffffff00;
@@ -481,7 +519,7 @@ int main(int argc, char **argv) {
                     case OP_LH  : if (address&1) {
                                     printf("Unalignment address 0x%08x to read at 0x%08x\n",
                                             DPA2VA(address), pc);
-                                    TRAP(TRAP_LD_ALIGN, address);
+                                    TRAP(TRAP_LD_ALIGN, DPA2VA(address));
                                     continue;
                                   }
                                   data = (address&2) ? ((data>>16)&0xffff) : (data &0xffff);
@@ -490,7 +528,7 @@ int main(int argc, char **argv) {
                     case OP_LW  : if (address&3) {
                                     printf("Unalignment address 0x%08x to read at 0x%08x\n",
                                             DPA2VA(address), pc);
-                                    TRAP(TRAP_LD_ALIGN, address);
+                                    TRAP(TRAP_LD_ALIGN, DPA2VA(address));
                                     continue;
                                   }
                                   break;
@@ -499,7 +537,7 @@ int main(int argc, char **argv) {
                     case OP_LHU : if (address&1) {
                                     printf("Unalignment address 0x%08x to read at 0x%08x\n",
                                             DPA2VA(address), pc);
-                                    TRAP(TRAP_LD_ALIGN, address);
+                                    TRAP(TRAP_LD_ALIGN, DPA2VA(address));
                                     continue;
                                   }
                                   data = (address&2) ? ((data>>16)&0xffff) : (data &0xffff);
@@ -530,10 +568,21 @@ int main(int argc, char **argv) {
                         case MMIO_PUTC:
                             putchar((char)data);
                             fflush(stdout);
-                            pc += 4;
-                            continue;
+                            break;
                         case MMIO_EXIT:
                             prog_exit(data);
+                            break;
+                        case MMIO_MTIME:
+                            csr.mtime.d.lo = (csr.mtime.d.lo & ~mask) | data;
+                            break;
+                        case MMIO_MTIME+4:
+                            csr.mtime.d.hi = (csr.mtime.d.hi & ~mask) | data;
+                            break;
+                        case MMIO_MTIMECMP:
+                            csr.mtime.d.lo = (csr.mtime.d.lo & ~mask) | data;
+                            break;
+                        case MMIO_MTIMECMP+4:
+                            csr.mtime.d.hi = (csr.mtime.d.hi & ~mask) | data;
                             break;
                         default:
                             printf("Unknown address 0x%08x to write at 0x%08x\n",
@@ -541,6 +590,8 @@ int main(int argc, char **argv) {
                             TRAP(TRAP_ST_FAIL, address);
                             continue;
                     }
+                    pc += 4;
+                    continue;
                 }
                 address = DVA2PA(address);
                 switch(inst.s.func3) {
@@ -551,7 +602,7 @@ int main(int argc, char **argv) {
                     case OP_SH : if (address&1) {
                                     printf("Unalignment address 0x%08x to write at 0x%08x\n",
                                             DPA2VA(address), pc);
-                                    TRAP(TRAP_ST_ALIGN, address);
+                                    TRAP(TRAP_ST_ALIGN, DPA2VA(address));
                                     continue;
                                  }
                                  dmem[address/4] = (address&2) ?
@@ -561,7 +612,7 @@ int main(int argc, char **argv) {
                     case OP_SW : if (address&3) {
                                     printf("Unalignment address 0x%08x to write at 0x%08x\n",
                                             DPA2VA(address), pc);
-                                    TRAP(TRAP_ST_ALIGN, address);
+                                    TRAP(TRAP_ST_ALIGN, DPA2VA(address));
                                     continue;
                                  }
                                  dmem[address/4] = data;
@@ -767,10 +818,8 @@ int main(int argc, char **argv) {
                                             }
                                             break;
                                         default:
-                                            printf("Unsupport system call 0x%08x\n", regs[17]);
                                             TRAP(TRAP_ECALL, 0);
                                             continue;
-                                            //prog_exit(1);
                                      }
                                      break;
                     case OP_CSRRW  : val = regs[inst.i.rs1];

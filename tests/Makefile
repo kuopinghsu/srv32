@@ -15,9 +15,8 @@ tests-sw: riscv-compliance
 	make -C riscv-compliance
 
 riscv-compliance:
-	git clone https://github.com/riscv/riscv-compliance.git
+	git clone git://github.com/riscv/riscv-compliance.git
 	cp -r simple-riscv riscv-compliance/riscv-target/.
-	cp Makefrag riscv-compliance/riscv-test-suite/rv32i/.
 
 clean:
 	rm -rf riscv-compliance/work

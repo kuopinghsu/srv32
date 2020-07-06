@@ -1,9 +1,8 @@
     .section .reset, "ax"
     .global _start
 _start:
-    addi    x2, x0, 10
-    addi    x3, x0, 11
-    addi    x0, x0, 0
+    la      t0, trap_handler
+    csrrw   zero, mtvec, t0
 
     la      t0, _bss_start
     la      t1, _bss_end
@@ -16,4 +15,11 @@ _bss_clear:
     la      sp, _stack
     call    main
     tail    exit
+
+    .section .text.trap, "ax"
+trap_handler:
+    csrr    t5, mepc
+    addi    t5, t5, 4
+    csrw    mepc, t5
+    mret
 

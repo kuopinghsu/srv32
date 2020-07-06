@@ -26,12 +26,18 @@
         RVTEST_RV32M                                                          \
 
 #define RV_COMPLIANCE_CODE_BEGIN                                              \
+        .section .text.trap, "ax";                                            \
+__trap_handler:                                                               \
+        csrr    t5, mepc;                                                     \
+        addi    t5, t5, 4;                                                    \
+        csrw    mepc, t5;                                                     \
+        mret;                                                                 \
+                                                                              \
         .section .reset, "ax";                                                \
         .global _start;                                                       \
 _start:                                                                       \
-        addi    x2, x0, 10;                                                   \
-        addi    x3, x0, 11;                                                   \
-        addi    x0, x0, 0;                                                    \
+        la      t0, __trap_handler;                                           \
+        csrw    mtvec, t0;                                                    \
                                                                               \
         la      t0, _bss_start;                                               \
         la      t1, _bss_end;                                                 \

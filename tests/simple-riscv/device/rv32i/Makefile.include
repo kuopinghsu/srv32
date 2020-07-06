@@ -9,7 +9,8 @@ endif
 RUN_TARGET=\
     cp $(*).elf.imem.bin imem.bin; cp $(*).elf.dmem.bin dmem.bin; cp $(*).elf.memory.bin memory.bin; \
     $(TARGET_SIM) $(TARGET_FLAGS) $< 2> $@; \
-    mv dump.txt $(*).signature.output;
+    mv dump.txt $(*).signature.output; \
+    rm -f imem.bin dmem.bin memory.bin
 
 RISCV_PREFIX   ?= riscv32-unknown-elf-
 RISCV_GCC      ?= $(RISCV_PREFIX)gcc

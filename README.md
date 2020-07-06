@@ -2,13 +2,16 @@ Simple 3-stage pipeline RISC-V processor
 ========================================
 
 This is a simple RISC-V 3-stage pipeline processor.
-I wrote this code to understand the RV32I instruction set, just for fun.
+I wrote this code to understand the RV32IM instruction set, just for fun.
 The performance is 1.821 DMIPS/MHz and 2.681 Coremark/MHz.
-This is not a RISC-V core available for production
+This is not a RISC-V core available for production.
 
-> RV32M support has been added.
+## Features
 
-> Add compliance test.
+1. Three-stage pipeline processor
+2. RV32IM instruction sets
+3. Pass RV32IM <A Href="https://github.com/riscv/riscv-compliance">Compliance test</A>
+4. Trap exception
 
 ## Building toolchains
 
@@ -157,21 +160,17 @@ Provide the Yosys synthesis script on the syn folder.
 ## Compliance tests
 
 Compliance test for software simulator and RTL. This is the compliance test form RISC-V Foundation Compliance Task Group.
-The github repository is at https://github.com/riscv/riscv-compliance. Running the following command will clone
-the repository into tests folder and do the compliance test.
+The github repository is at https://github.com/riscv/riscv-compliance. Running the following command will clone the repository into tests folder and do the compliance test.
 
     make tests-all
 
-> The test I-MISALIGN_JMP-01, I-MISALIGN_LDST-01, I-EBREAK-01 and I-ECALL-01 on RV32I are not yet implemented.
-
 ## Known issues
 
-* Does not completely pass the compliance test for RV32I instruction sets.
 * Memory can not respond non-valid, that is, the memory should always accept the command from CPU.
 
 ## TO-DO
 
-* implement the trap and interrupt handling
+* implement the interrupt handling
 * merge the memory interface into one memory for one port
 * support FreeRTOS
 * static branch predictor
