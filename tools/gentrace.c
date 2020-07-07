@@ -792,10 +792,12 @@ int main(int argc, char **argv) {
                     case OP_ECALL  : if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
                                      if (inst.i.imm == 1) { // ebreak
                                         TRAP(TRAP_BREAK, 0);
+                                        csr.cycle.c += branch_penalty;
                                         continue;
                                      }
                                      if (inst.i.imm == 0x302) { // mret
                                         pc = csr.mepc;
+                                        csr.cycle.c += branch_penalty;
                                         continue;
                                      }
                                      // ecall
@@ -835,6 +837,7 @@ int main(int argc, char **argv) {
                                         default:
                                             break;
                                      }
+                                     csr.cycle.c += branch_penalty;
                                      TRAP(TRAP_ECALL, 0);
                                      continue;
                     case OP_CSRRW  : val = regs[inst.i.rs1];

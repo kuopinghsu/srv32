@@ -82,6 +82,8 @@ module riscv (
     reg             [31: 0] ex_csr_read;
     wire                    ex_trap;
     wire            [31: 0] ex_trap_pc;
+    wire            [31: 0] ex_csr_mask;
+    reg             [ 3: 0] ex_mcause;
     reg                     ex_illegal;
     wire                    ex_ld_align_excp;
     wire                    ex_st_align_excp;
@@ -597,10 +599,31 @@ end
 assign ex_trap      = ex_inst_ill_excp || ex_inst_align_excp ||
                       ex_ld_align_excp || ex_st_align_excp ||
                       ex_system;
-assign ex_trap_pc   = (ex_system && ex_imm[1:0] == 2'b10) ?
+assign ex_trap_pc   = (ex_system && ex_imm[1:0] == 2'b10) ? // mret
                       csr_mepc :
                       csr_mtvec[0] ?
-                      csr_mtvec + {26'h0, csr_mcause[3:0], 2'b00} : csr_mtvec;
+                      {csr_mtvec[31:2], 2'b00} + {26'h0, ex_mcause[3:0], 2'b00} :
+                      {csr_mtvec[31:2], 2'b00};
+
+assign ex_csr_mask  = ex_alu_op[2] ? {27'h0, ex_src1_sel[4:0]} : reg_rdata1;
+
+always @* begin
+    ex_mcause = 4'h0;
+    case(1'b1)
+        ex_inst_ill_excp   : ex_mcause = TRAP_INST_ILL;
+        ex_inst_align_excp : ex_mcause = TRAP_INST_ALIGN;
+        ex_ld_align_excp   : ex_mcause = TRAP_LD_ALIGN;
+        ex_st_align_excp   : ex_mcause = TRAP_ST_ALIGN;
+        ex_system : begin
+            case (ex_imm[1:0])
+                2'b00: ex_mcause   = TRAP_ECALL;
+                2'b01: ex_mcause   = TRAP_BREAK;
+                2'b10: ex_mcause   = csr_mcause; // uret, sret, mret
+                default: ex_mcause = TRAP_INST_ILL;
+            endcase
+        end
+    endcase
+end
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
@@ -611,9 +634,21 @@ always @(posedge clk or negedge resetb) begin
         case(1'b1)
             ex_csr_wr : begin
                 case (ex_imm[11: 0])
-                    CSR_MEPC   : csr_mepc   <= reg_rdata1; // TODO
-                    CSR_MCAUSE : csr_mcause <= reg_rdata1[3:0]; // TODO
-                    CSR_MTVAL  : csr_mtval  <= reg_rdata1; // TODO
+                    CSR_MEPC   : begin
+                        csr_mepc    <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mepc | ex_csr_mask) : // CSRRS
+                                       (csr_mepc & ~ex_csr_mask); // CSRRC
+                    end
+                    CSR_MCAUSE : begin
+                        csr_mcause  <= !ex_alu_op[1] ? reg_rdata1[3:0] : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mcause | ex_csr_mask[3:0]) : // CSRRS
+                                       (csr_mcause & ~ex_csr_mask[3:0]); // CSRRC
+                    end
+                    CSR_MTVAL  : begin
+                        csr_mtval   <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mtval | ex_csr_mask) : // CSRRS
+                                       (csr_mtval & ~ex_csr_mask); // CSRRC
+                    end
                     default    : ;
                 endcase
             end
@@ -709,13 +744,29 @@ always @(posedge clk or negedge resetb) begin
             CSR_VENDERID   : ; // Read only
             CSR_MARCHID    : ; // Read only
             CSR_IMPLID     : ; // Read only
-            CSR_MSTATUS    : csr_mstatus <= reg_rdata1; // TODO
-            CSR_MISA       : csr_misa    <= reg_rdata1; // TODO
-            CSR_MIE        : csr_mie     <= reg_rdata1; // TODO
-            CSR_MTVEC      : csr_mtvec   <= reg_rdata1; // TODO
-            CSR_MEPC       : ; //
-            CSR_MCAUSE     : ; //
-            CSR_MTVAL      : ; //
+            CSR_MSTATUS    : begin
+                csr_mstatus <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
+                               !ex_alu_op[0] ? (csr_mstatus | ex_csr_mask) : // CSRRS
+                               (csr_mstatus & ~ex_csr_mask); // CSRRC
+            end
+            CSR_MISA       : begin
+                csr_misa    <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
+                               !ex_alu_op[0] ? (csr_misa | ex_csr_mask) : // CSRRS
+                               (csr_misa & ~ex_csr_mask); // CSRRC
+            end
+            CSR_MIE        : begin
+                csr_mie     <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
+                               !ex_alu_op[0] ? (csr_mie | ex_csr_mask) : // CSRRS
+                               (csr_mie & ~ex_csr_mask); // CSRRC
+            end
+            CSR_MTVEC      : begin
+                csr_mtvec   <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
+                               !ex_alu_op[0] ? (csr_mtvec | ex_csr_mask) : // CSRRS
+                               (csr_mtvec & ~ex_csr_mask); // CSRRC
+            end
+            CSR_MEPC       : ; // write @ trap handler
+            CSR_MCAUSE     : ; // write @ trap handler
+            CSR_MTVAL      : ; // write @ trap handler
             CSR_RDCYCLE    : ; // Read Only
             CSR_RDCYCLEH   : ; // Read Only
             CSR_RDINSTRET  : ; // Read Only
