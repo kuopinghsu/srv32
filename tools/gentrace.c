@@ -833,10 +833,10 @@ int main(int argc, char **argv) {
                                             }
                                             break;
                                         default:
-                                            TRAP(TRAP_ECALL, 0);
-                                            continue;
+                                            break;
                                      }
-                                     break;
+                                     TRAP(TRAP_ECALL, 0);
+                                     continue;
                     case OP_CSRRW  : val = regs[inst.i.rs1];
                                      update = 1;
                                      regs[inst.i.rd] = csr_rw(inst.i.imm, OP_CSRRW, val, update);

@@ -26,7 +26,7 @@ OBJCOPY = riscv32-unknown-elf-objcopy
 OBJDUMP = riscv32-unknown-elf-objdump
 READELF = riscv32-unknown-elf-readelf
 
-ITERATIONS = 4
+ITERATIONS = 2
 
 # Flag : CFLAGS
 #	Use this flag to define compiler options. Note, you can add compiler options from the command line using XCFLAGS="other flags"

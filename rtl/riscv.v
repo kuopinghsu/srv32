@@ -122,7 +122,7 @@ module riscv (
     reg             [31: 0] csr_mie;
     reg             [31: 0] csr_mtvec;
     reg             [31: 0] csr_mepc;
-    reg             [31: 0] csr_mcause;
+    reg             [ 3: 0] csr_mcause;
     reg             [31: 0] csr_mtval;
 
     integer                 i;
@@ -139,7 +139,8 @@ assign dmem_wstrb           = wb_wstrb;
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
         exception           <= 1'b0;
-    else if (ex_illegal || illegal_csr || imem_addr[1:0] != 0)
+    else if (ex_inst_ill_excp || ex_inst_align_excp ||
+             ex_ld_align_excp || ex_st_align_excp)
         exception           <= 1'b1;
 end
 
@@ -378,15 +379,16 @@ end
     wire            [31: 0] result_rem;
     wire            [31: 0] result_remu;
 
-assign result_mul[63: 0]    = $signed({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
-                              $signed({{32{alu_op2[31]}}, alu_op2[31: 0]});
-assign result_mulu[63: 0]   = $unsigned({{32{1'b0}}, alu_op1[31: 0]}) *
-                              $unsigned({{32{1'b0}}, alu_op2[31: 0]});
-assign result_mulsu[63: 0]  = $signed({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
-                              $unsigned({{32{1'b0}}, alu_op2[31: 0]});
-assign result_div[31: 0]    = $signed(alu_op1) / $signed(alu_op2);
+assign result_mul[63: 0]    = $signed  ({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
+                              $signed  ({{32{alu_op2[31]}}, alu_op2[31: 0]});
+assign result_mulu[63: 0]   = $unsigned({{32{1'b0}},        alu_op1[31: 0]}) *
+                              $unsigned({{32{1'b0}},        alu_op2[31: 0]});
+assign result_mulsu[63: 0]  = $signed  ({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
+                              $unsigned({{32{1'b0}},        alu_op2[31: 0]});
+
+assign result_div[31: 0]    = $signed  (alu_op1) / $signed  (alu_op2);
 assign result_divu[31: 0]   = $unsigned(alu_op1) / $unsigned(alu_op2);
-assign result_rem[31: 0]    = $signed(alu_op1) % $signed(alu_op2);
+assign result_rem[31: 0]    = $signed  (alu_op1) % $signed  (alu_op2);
 assign result_remu[31: 0]   = $unsigned(alu_op1) % $unsigned(alu_op2);
 `endif // RV32M_ENABLED
 
@@ -598,11 +600,11 @@ assign ex_trap      = ex_inst_ill_excp || ex_inst_align_excp ||
 assign ex_trap_pc   = (ex_system && ex_imm[1:0] == 2'b10) ?
                       csr_mepc :
                       csr_mtvec[0] ?
-                      csr_mtvec + {csr_mcause[29:0], 2'b00} : csr_mtvec;
+                      csr_mtvec + {26'h0, csr_mcause[3:0], 2'b00} : csr_mtvec;
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
-        csr_mcause                  <= 32'h0;
+        csr_mcause                  <= 4'h0;
         csr_mepc                    <= 32'h0;
         csr_mtval                   <= 32'h0;
     end else if (!ex_stall && !ex_flush) begin
@@ -610,8 +612,9 @@ always @(posedge clk or negedge resetb) begin
             ex_csr_wr : begin
                 case (ex_imm[11: 0])
                     CSR_MEPC   : csr_mepc   <= reg_rdata1; // TODO
-                    CSR_MCAUSE : csr_mcause <= reg_rdata1; // TODO
+                    CSR_MCAUSE : csr_mcause <= reg_rdata1[3:0]; // TODO
                     CSR_MTVAL  : csr_mtval  <= reg_rdata1; // TODO
+                    default    : ;
                 endcase
             end
             ex_inst_ill_excp : begin
@@ -679,7 +682,7 @@ always @* begin
             CSR_MIE        : ex_csr_read = csr_mie;
             CSR_MTVEC      : ex_csr_read = csr_mtvec;
             CSR_MEPC       : ex_csr_read = csr_mepc;
-            CSR_MCAUSE     : ex_csr_read = csr_mcause;
+            CSR_MCAUSE     : ex_csr_read = {28'h0, csr_mcause[3:0]};
             CSR_MTVAL      : ex_csr_read = csr_mtval;
             CSR_RDCYCLE    : ex_csr_read = csr_cycle[31:0];
             CSR_RDCYCLEH   : ex_csr_read = csr_cycle[63:32];
@@ -701,7 +704,7 @@ always @(posedge clk or negedge resetb) begin
         csr_misa            <= 32'h0;
         csr_mie             <= 32'h0;
         csr_mtvec           <= 32'h0;
-    end else if (!wb_stall && ex_csr_wr) begin
+    end else if (!ex_stall && ex_csr_wr && !ex_flush) begin
         case (ex_imm[11:0])
             CSR_VENDERID   : ; // Read only
             CSR_MARCHID    : ; // Read only
@@ -748,6 +751,11 @@ end
 // Write address : wb_dst_sel
 // Write data    : wb_result
 ////////////////////////////////////////////////////////////
+
+// register reading @ execution stage and register forwarding
+// When the execution result accesses the same register,
+// the execution result is directly forwarded from the previous
+// instruction (at write back stage)
 assign reg_rdata1[31: 0]    = (ex_src1_sel == 5'h0) ? 32'h0 :
                               (!wb_flush && wb_alu2reg &&
                                (wb_dst_sel == ex_src1_sel)) ? // register forwarding
@@ -759,6 +767,7 @@ assign reg_rdata2[31: 0]    = (ex_src2_sel == 5'h0) ? 32'h0 :
                                 (wb_mem2reg ? wb_rdata : wb_result) :
                                 regs[ex_src2_sel];
 
+// register writing @ write back stage
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         for(i = 1; i < 32; i = i + 1) regs[i] <= 32'h0;
