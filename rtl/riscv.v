@@ -153,6 +153,14 @@ always @(posedge clk or negedge resetb) begin
     end
 end
 
+always @(posedge clk or negedge resetb) begin
+    if (!resetb) begin
+        if_pc               <= RESETVEC;
+    end else if (!wb_stall) begin
+        if_pc               <= fetch_pc;
+    end
+end
+
 ////////////////////////////////////////////////////////////
 //      F/D  E   W
 //          F/D  E   W
@@ -279,7 +287,7 @@ end
 ////////////////////////////////////////////////////////////
     wire            [32: 0] result_subs;
     wire            [32: 0] result_subu;
-    reg             [31: 0] result;
+    reg             [31: 0] ex_result;
     reg             [31: 0] next_pc;
     reg                     branch_taken;
     reg                     ill_branch;
@@ -385,53 +393,53 @@ assign result_remu[31: 0]   = $unsigned(alu_op1) % $unsigned(alu_op2);
 always @* begin
     ill_alu = 1'b0;
     case(1'b1)
-        ex_memwr:   result          = alu_op2;
-        ex_jal:     result          = ex_pc + 4;
-        ex_jalr:    result          = ex_pc + 4;
-        ex_lui:     result          = ex_imm;
-        ex_auipc:   result          = ex_pc + ex_imm;
-        ex_csr:     result          = ex_csr_read;
+        ex_memwr:   ex_result           = alu_op2;
+        ex_jal:     ex_result           = ex_pc + 4;
+        ex_jalr:    ex_result           = ex_pc + 4;
+        ex_lui:     ex_result           = ex_imm;
+        ex_auipc:   ex_result           = ex_pc + ex_imm;
+        ex_csr:     ex_result           = ex_csr_read;
         `ifdef RV32M_ENABLED
         ex_mul:
             case(ex_alu_op)
-                OP_MUL   : result   = result_mul[31: 0];
-                OP_MULH  : result   = result_mul[63:32];
-                OP_MULSU : result   = result_mulsu[63:32];
-                OP_MULU  : result   = result_mulu[63:32];
-                OP_DIV   : result   = (alu_op2 == 'd0) ? 32'hffffffff : result_div;
-                OP_DIVU  : result   = (alu_op2 == 'd0) ? 32'hffffffff : result_divu;
-                OP_REM   : result   = (alu_op2 == 'd0) ? alu_op1 : result_rem;
-                OP_REMU  : result   = (alu_op2 == 'd0) ? alu_op1 : result_remu;
+                OP_MUL   : ex_result    = result_mul[31: 0];
+                OP_MULH  : ex_result    = result_mul[63:32];
+                OP_MULSU : ex_result    = result_mulsu[63:32];
+                OP_MULU  : ex_result    = result_mulu[63:32];
+                OP_DIV   : ex_result    = (alu_op2 == 'd0) ? 32'hffffffff : result_div;
+                OP_DIVU  : ex_result    = (alu_op2 == 'd0) ? 32'hffffffff : result_divu;
+                OP_REM   : ex_result    = (alu_op2 == 'd0) ? alu_op1 : result_rem;
+                OP_REMU  : ex_result    = (alu_op2 == 'd0) ? alu_op1 : result_remu;
                 default  : begin
-                           result   = {32{1'bx}};
-                           ill_alu  = 1'b1;
+                           ex_result    = {32{1'bx}};
+                           ill_alu      = 1'b1;
                 end
             endcase
         `endif // RV32M_ENABLED
         ex_alu:
             case(ex_alu_op)
                 OP_ADD : if (ex_subtype == 1'b0)
-                            result  = alu_op1 + alu_op2;
+                            ex_result   = alu_op1 + alu_op2;
                          else
-                            result  = alu_op1 - alu_op2;
-                OP_SLL : result     = alu_op1 << alu_op2;
-                OP_SLT : result     = result_subs[32] ? 'd1 : 'd0;
-                OP_SLTU: result     = result_subu[32] ? 'd1 : 'd0;
-                OP_XOR : result     = alu_op1 ^ alu_op2;
+                            ex_result   = alu_op1 - alu_op2;
+                OP_SLL : ex_result      = alu_op1 << alu_op2;
+                OP_SLT : ex_result      = result_subs[32] ? 'd1 : 'd0;
+                OP_SLTU: ex_result      = result_subu[32] ? 'd1 : 'd0;
+                OP_XOR : ex_result      = alu_op1 ^ alu_op2;
                 OP_SR  : if (ex_subtype == 1'b0)
-                            result  = alu_op1 >>> alu_op2;
+                            ex_result   = alu_op1 >>> alu_op2;
                          else
-                            result  = $signed(alu_op1) >>> alu_op2;
-                OP_OR  : result     = alu_op1 | alu_op2;
-                OP_AND : result     = alu_op1 & alu_op2;
+                            ex_result   = $signed(alu_op1) >>> alu_op2;
+                OP_OR  : ex_result      = alu_op1 | alu_op2;
+                OP_AND : ex_result      = alu_op1 & alu_op2;
                 default: begin
-                         result     = {32{1'bx}};
-                         ill_alu    = 1'b1;
+                         ex_result      = {32{1'bx}};
+                         ill_alu        = 1'b1;
                 end
             endcase
         default: begin
-            result                  = 32'h0;
-            ill_alu                 = 1'b0;
+            ex_result                   = 32'h0;
+            ill_alu                     = 1'b0;
         end
     endcase
 end
@@ -459,7 +467,7 @@ always @(posedge clk or negedge resetb) begin
         wb_system           <= 1'b0;
         wb_trap             <= 1'b0;
     end else if (!ex_stall) begin
-        wb_result           <= result;
+        wb_result           <= ex_result;
         wb_alu2reg          <= ex_alu || ex_lui || ex_auipc || ex_jal || ex_jalr ||
                                ex_csr ||
                                `ifdef RV32M_ENABLED
@@ -531,14 +539,6 @@ assign wb_flush             = wb_nop || wb_nop_more;
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
-        if_pc               <= RESETVEC;
-    end else if (!wb_stall) begin
-        if_pc               <= fetch_pc;
-    end
-end
-
-always @(posedge clk or negedge resetb) begin
-    if (!resetb) begin
         wb_nop              <= 1'b0;
         wb_nop_more         <= 1'b0;
     end else if (!ex_stall && !(wb_memwr && !dmem_wvalid)) begin
@@ -589,8 +589,9 @@ always @* begin
 end
 
 ////////////////////////////////////////////////////////////
-// System call
+// Trap CSR
 ////////////////////////////////////////////////////////////
+// Trap CSR @ execution stage
 assign ex_trap      = ex_inst_ill_excp || ex_inst_align_excp ||
                       ex_ld_align_excp || ex_st_align_excp ||
                       ex_system;
@@ -664,6 +665,7 @@ end
 ////////////////////////////////////////////////////////////
 // CSR file
 ////////////////////////////////////////////////////////////
+// CSR read @ execution stage
 always @* begin
     illegal_csr = 1'b0;
     ex_csr_read = 32'h0;
@@ -748,12 +750,12 @@ end
 ////////////////////////////////////////////////////////////
 assign reg_rdata1[31: 0]    = (ex_src1_sel == 5'h0) ? 32'h0 :
                               (!wb_flush && wb_alu2reg &&
-                               (wb_dst_sel == ex_src1_sel)) ?
+                               (wb_dst_sel == ex_src1_sel)) ? // register forwarding
                                 (wb_mem2reg ? wb_rdata : wb_result) :
                                 regs[ex_src1_sel];
 assign reg_rdata2[31: 0]    = (ex_src2_sel == 5'h0) ? 32'h0 :
                               (!wb_flush && wb_alu2reg &&
-                               (wb_dst_sel == ex_src2_sel)) ?
+                               (wb_dst_sel == ex_src2_sel)) ? // register forwarding
                                 (wb_mem2reg ? wb_rdata : wb_result) :
                                 regs[ex_src2_sel];
 
