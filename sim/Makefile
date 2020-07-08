@@ -1,15 +1,25 @@
-# Build flags
-BFLAGS = -f filelist.txt
+# use verilator
+VERILATOR  ?= 0
 
 # Run flags
-RFLAGS = +trace
+RFLAGS      = +trace
 
-TARGET = riscsim
+TARGET      = riscsim
+
+TARGET_SIM  = iverilog
+
+ifeq ($(VERILATOR),1)
+BFLAGS      = -O3 -cc -Wno-STMTDLY --exe --build sim_main.cpp
+TARGET_SIM  = verilator
+endif
+
+# Build flags
+BFLAGS     += -f filelist.txt
 
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	iverilog $(BFLAGS) -o $(TARGET)
+	$(TARGET_SIM) $(BFLAGS) -o $(TARGET)
 
 %.run: $(TARGET) checkcode.awk
 	@if [ ! -f ../sw/$*/memory.bin ]; then \

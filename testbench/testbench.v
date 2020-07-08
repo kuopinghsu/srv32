@@ -32,24 +32,21 @@ initial begin
 
     dump = $fopen("dump.txt", "w");
 
-    if ($test$plusargs("dumpvcd")) begin
+    if ($test$plusargs("dumpvcd") != 0) begin
         $dumpfile("testbench.vcd");
         $dumpvars(0, testbench);
     end
 
-    clk             <= 1'b1;
-    resetb          <= 1'b0;
-    stall           <= 1'b1;
+    clk             = 1'b1;
+    resetb          = 1'b0;
+    stall           = 1'b1;
 
-    repeat (10) @(posedge clk);
-    resetb          <= 1'b1;
-
-    repeat (10) @(posedge clk);
-    stall           <= 1'b0;
+    #100 resetb     = 1'b1;
+    #100 stall      = 1'b0;
 
 end
 
-always #10 clk      <= ~clk;
+always #10 clk      = ~clk;
 
 // check timeout if the PC do not change anymore
 always @(posedge clk or negedge resetb) begin
@@ -276,7 +273,7 @@ always @(posedge clk) begin
             for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
                 $write("%c", dmem.getb(`TOP.regs[REG_A1] - IRAMSIZE + i));
             end
-        end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7][7:0] == SYS_DUMP && dump) begin
+        end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7][7:0] == SYS_DUMP && dump != 0) begin
             for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 4) begin
                 $fdisplay(dump, "%02x%02x%02x%02x", dmem.getb(i - IRAMSIZE + 3),
                                                     dmem.getb(i - IRAMSIZE + 2),
@@ -296,7 +293,7 @@ end
     reg [7*8:1] regname;
 
 initial begin
-    if ($test$plusargs("trace")) begin
+    if ($test$plusargs("trace") != 0) begin
         fp = $fopen("trace.log", "w");
     end
 end
@@ -339,7 +336,7 @@ always @* begin
     endcase
 end
 
-always @(posedge clk) begin
+always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         fillcount       <= 'd0;
     end else if (!`TOP.wb_stall && !`TOP.stall_r && !`TOP.wb_flush &&
@@ -349,7 +346,7 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
-    if ($test$plusargs("trace") && !`TOP.wb_stall && !`TOP.stall_r &&
+    if ($test$plusargs("trace") != 0 && !`TOP.wb_stall && !`TOP.stall_r &&
         !`TOP.wb_flush && fillcount == 2'b11) begin
         $fwrite(fp, "%08x %08x", `TOP.wb_pc, `TOP.wb_insn);
         if (`TOP.wb_mem2reg && !`TOP.wb_trap) begin
@@ -376,6 +373,7 @@ always @(posedge clk) begin
                         `TOP.dmem_waddr, {24'h0, `TOP.dmem_wdata[8*2+7:8*2]});
                         4'b1000: $fwrite(fp, " write 0x%08x <= 0x%08x\n",
                         `TOP.dmem_waddr, {24'h0, `TOP.dmem_wdata[8*3+7:8*3]});
+                        default: ;
                     endcase
                 end
                 3'h1: begin
@@ -388,6 +386,7 @@ always @(posedge clk) begin
                 end
                 3'h2: $fwrite(fp, " write 0x%08x <= 0x%08x\n",
                       `TOP.dmem_waddr, `TOP.dmem_wdata);
+                default: ;
             endcase
         end else begin
             $fwrite(fp, "\n");

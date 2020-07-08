@@ -1,6 +1,9 @@
 // Memory model
 // Wirtten by Kuoping Hsu, 2020, MIT license
 
+`define HAVE_MEM2PORTS 1
+
+`ifdef HAVE_MEM2PORTS
 module mem2ports # (
     parameter SIZE  = 4096,
     parameter FILE  = "memory.bin"
@@ -49,15 +52,15 @@ endfunction
 
 initial begin
     file = $fopen(FILE, "rb");
-    if (file) begin
+    if (file != 0) begin
         for (i=0; i<SIZE/4; i=i+1) begin
             r = $fread(data, file);
-            if (r) begin
+            if (r != 0) begin
                 mem[i][8*0+7:8*0] = data[8*3+7:8*3];
                 mem[i][8*1+7:8*1] = data[8*2+7:8*2];
                 mem[i][8*2+7:8*2] = data[8*1+7:8*1];
                 mem[i][8*3+7:8*3] = data[8*0+7:8*0];
-            end else if (!$test$plusargs("no-meminit")) begin
+            end else if ($test$plusargs("no-meminit") == 0) begin
                 mem[i] = 32'h0;
             end
         end
@@ -95,7 +98,9 @@ always @(posedge clk) begin
 end
 
 endmodule
+`endif // HAVE_MEM2PORTS
 
+`ifdef HAVE_MEM1PORT
 module mem1port # (
     parameter SIZE  = 4096,
     parameter FILE  = "memory.bin"
@@ -141,15 +146,15 @@ endfunction
 
 initial begin
     file = $fopen(FILE, "rb");
-    if (file) begin
+    if (file != 0) begin
         for (i=0; i<SIZE/4; i=i+1) begin
             r = $fread(data, file);
-            if (r) begin
+            if (r != 0) begin
                 mem[i][8*0+7:8*0] = data[8*3+7:8*3];
                 mem[i][8*1+7:8*1] = data[8*2+7:8*2];
                 mem[i][8*2+7:8*2] = data[8*1+7:8*1];
                 mem[i][8*3+7:8*3] = data[8*0+7:8*0];
-            end else if (!$test$plusargs("no-meminit")) begin
+            end else if ($test$plusargs("no-meminit") == 0) begin
                 mem[i] = 32'h0;
             end
         end
@@ -182,4 +187,4 @@ always @(posedge clk) begin
 end
 
 endmodule
-
+`endif // HAVE_MEM1PORT
