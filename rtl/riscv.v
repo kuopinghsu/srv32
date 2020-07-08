@@ -78,7 +78,6 @@ module riscv (
     reg                     ex_branch;
     reg                     ex_system;
     wire                    ex_flush;
-    wire                    ex_csr_rd;
     reg             [31: 0] ex_csr_read;
     wire                    ex_trap;
     wire            [31: 0] ex_trap_pc;
@@ -113,7 +112,7 @@ module riscv (
     wire                    wb_flush;
     reg                     wb_trap;
 
-    reg                     illegal_csr;
+    reg                     ill_csr;
 
     reg             [63: 0] csr_cycle;
     reg             [63: 0] csr_instret;
@@ -306,7 +305,7 @@ assign ex_st_align_excp     = ex_memwr && !ex_flush && (
                                 (ex_alu_op == OP_SH && ex_memaddr[0]) ||
                                 (ex_alu_op == OP_SW && |ex_memaddr[1:0])
                               );
-assign ex_inst_ill_excp     = !ex_flush && (ill_branch || ill_alu || ex_illegal);
+assign ex_inst_ill_excp     = !ex_flush && (ill_branch || ill_alu || ill_csr || ex_illegal);
 assign ex_inst_align_excp   = !ex_flush && next_pc[1];
 
 assign ex_stall             = stall_r || if_stall ||
@@ -705,7 +704,7 @@ end
 ////////////////////////////////////////////////////////////
 // CSR read @ execution stage
 always @* begin
-    illegal_csr = 1'b0;
+    ill_csr     = 1'b0;
     ex_csr_read = 32'h0;
     if (ex_csr) begin
         case (ex_imm[11:0])
@@ -724,7 +723,7 @@ always @* begin
             CSR_RDINSTRET  : ex_csr_read = csr_instret[31:0];
             CSR_RDINSTRETH : ex_csr_read = csr_instret[63:32];
             default: begin
-                illegal_csr = 1'b1;
+                ill_csr = 1'b1;
                 `ifndef SYNTHESIS
                 $display("Unsupport CSR register 0x%0x", ex_imm[11:0]);
                 `endif
@@ -831,6 +830,7 @@ end
 // for debugging
 ////////////////////////////////////////////////////////////
 `ifndef SYNTHESIS
+/* Verilator lint_off UNUSED */
     wire        [31: 0] x0_zero     = 'd0;
     wire        [31: 0] x1_ra       = regs[ 1][31: 0];
     wire        [31: 0] x2_sp       = regs[ 2][31: 0];
@@ -884,6 +884,7 @@ always @(posedge clk) begin
         wb_raddress         <= dmem_raddr[31:0];
     end
 end
+/* Verilator lint_on UNUSED */
 `endif // SYNTHESIS
 
 endmodule

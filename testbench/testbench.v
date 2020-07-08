@@ -11,15 +11,26 @@
 `define TOP         riscv
 `endif
 
+`ifdef verilator
+module testbench(
+    input           clk,
+    input           resetb,
+    input           stall
+);
+`else
 module testbench();
+`endif
     `include "opcode.vh"
 
     localparam      DRAMSIZE    = 128*1024;
     localparam      IRAMSIZE    = 128*1024;
 
+`ifndef verilator
     reg             clk;
     reg             resetb;
     reg             stall;
+`endif
+
     wire            exception;
 
     reg     [31: 0] next_pc;
@@ -29,6 +40,14 @@ module testbench();
     integer         dump;
 
 initial begin
+    if ($test$plusargs("help") != 0) begin
+        $display("");
+        $display("    +no-meminit   memory uninitialized");
+        $display("    +dumpvcd      dump vcd file");
+        $display("    +trace        generate trace log");
+        $display("");
+        $finish(0);
+    end
 
     dump = $fopen("dump.txt", "w");
 
@@ -37,16 +56,20 @@ initial begin
         $dumpvars(0, testbench);
     end
 
+`ifndef verilator
     clk             = 1'b1;
     resetb          = 1'b0;
     stall           = 1'b1;
 
     #100 resetb     = 1'b1;
     #100 stall      = 1'b0;
+`endif
 
 end
 
+`ifndef verilator
 always #10 clk      = ~clk;
+`endif
 
 // check timeout if the PC do not change anymore
 always @(posedge clk or negedge resetb) begin

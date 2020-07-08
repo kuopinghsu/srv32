@@ -21,10 +21,10 @@ Install RV32IM toolchains.
     sudo apt-get install autoconf automake autotools-dev curl libmpc-dev \
         libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo \
         gperf libtool patchutils bc zlib1g-dev git libexpat1-dev
-
+    
     git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
     cd riscv-gnu-toolchain
-
+    
     mkdir build; cd build
     ../configure --with-arch=rv32im --prefix=/opt/riscv32im
     make -j$(nproc)
@@ -44,8 +44,26 @@ Install RV32IM toolchains.
 
 ## RTL Simulation
 
+Support Icarus Verilog and Verilator.
+
+To run Icarus Verilog,
+
     # Ubuntu package needed to run the RTL simulation
     sudo apt install iverilog
+
+To run Verilator,
+
+    # Install SystemC
+    wget https://www.accellera.org/images/downloads/standards/systemc/systemc-2.3.3.tar.gz
+    cd systemc-2.3.3
+    ./configure --prefix=/usr
+    sudo make install
+    
+    # Ubuntu package needed to run the RTL simulation
+    sudo apt install verilate
+    
+    # Modify the Makefile, and set VERILATOR ?= 1
+    vim sim/Makefile
 
 Only running make without parameters will get help.
 

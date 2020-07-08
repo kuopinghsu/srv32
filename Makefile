@@ -37,7 +37,7 @@ build:
 		$(MAKE) -C $$i; \
 	done
 
-$(SUBDIRS): clean
+$(SUBDIRS):
 	@$(MAKE) -C sw $@ && $(MAKE) -C sim $@.run && $(MAKE) -C tools $@.run
 	@echo "Compare the trace between RTL and software simulator"
 	@diff --brief sim/trace.log tools/trace.log

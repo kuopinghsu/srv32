@@ -3,6 +3,7 @@
 
 `define HAVE_MEM2PORTS 1
 
+/* verilator lint_off DECLFILENAME */
 `ifdef HAVE_MEM2PORTS
 module mem2ports # (
     parameter SIZE  = 4096,
@@ -66,7 +67,8 @@ initial begin
         end
         $fclose(file);
     end else begin
-        $display("Warning: an not open file %s", FILE);
+        $display("Warning: can not open file %s", FILE);
+        $finish(0);
     end
 end
 
@@ -160,7 +162,8 @@ initial begin
         end
         $fclose(file);
     end else begin
-        $display("Warning: an not open file %s", FILE);
+        $display("Warning: can not open file %s", FILE);
+        $finish(0);
     end
 end
 
@@ -188,3 +191,4 @@ end
 
 endmodule
 `endif // HAVE_MEM1PORT
+/* verilator lint_on DECLFILENAME */
