@@ -30,6 +30,7 @@ $(TARGET): $(SRC)
 
 clean:
 	@$(RM) $(TARGET) testbench.vcd trace.log *.bin dump.txt
+	@$(RM) -rf obj_dir
 
 distclean: clean
 
