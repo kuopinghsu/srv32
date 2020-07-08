@@ -60,7 +60,7 @@ To run Verilator,
     sudo make install
     
     # Ubuntu package needed to run the RTL simulation
-    sudo apt install verilate
+    sudo apt install verilator
     
     # Modify the Makefile, and set VERILATOR ?= 1
     vim sim/Makefile
