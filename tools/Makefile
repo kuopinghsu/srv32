@@ -1,5 +1,6 @@
-CC       = gcc
-SYS     := $(shell gcc -dumpmachine)
+CC          = gcc
+SYS        := $(shell gcc -dumpmachine)
+SINGLE_RAM ?= 0
 
 ifneq (, $(findstring darwin, $(SYS)))
 # to enable bfd library, install the binutils with
@@ -14,6 +15,10 @@ endif
 
 CFLAGS  += -O2 -g -Wall
 LDFLAGS += -lbfd
+
+ifeq ($(SINGLE_RAM), 1)
+CFLAGS  += -DSINGLE_RAM
+endif
 
 SRC      = gentrace.c
 OBJECTS  = $(SRC:.c=.o)

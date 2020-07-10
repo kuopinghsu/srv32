@@ -1,5 +1,6 @@
 +incdir+../rtl
 +define+TRACE
+//+define+SINGLE_RAM
 ../rtl/riscv.v
 ../testbench/testbench.v
 ../testbench/memmodel.v

@@ -1,7 +1,11 @@
 // Memory model
 // Wirtten by Kuoping Hsu, 2020, MIT license
 
+`ifndef SINGLE_RAM
 `define HAVE_MEM2PORTS 1
+`else
+`define HAVE_MEM1PORT 1
+`endif
 
 /* verilator lint_off DECLFILENAME */
 `ifdef HAVE_MEM2PORTS
@@ -24,7 +28,7 @@ module mem2ports # (
 
     localparam ADDRW = $clog2(SIZE/4);
 
-    reg         [31: 0] mem [(SIZE/4)-1: 0];
+    reg         [31: 0] ram [(SIZE/4)-1: 0];
     reg         [31: 0] data;
     wire   [ADDRW-1: 0] radr;
     wire   [ADDRW-1: 0] wadr;
@@ -36,17 +40,17 @@ assign radr[ADDRW-1: 0] = raddr[ADDRW+1: 2];
 assign wadr[ADDRW-1: 0] = waddr[ADDRW+1: 2];
 
 function [7:0] getb;
-    input [31:0] addr;
+    input [31:0] address;
 begin
-    if (addr[31:ADDRW+2] != 0) begin
-        $display("Address %08x out of range", addr);
+    if (address[31:ADDRW+2] != 0) begin
+        $display("Address %08x out of range", address);
     end
 
-    case(addr[1:0])
-        0: getb = mem[addr[ADDRW+1: 2]][8*0+7:8*0];
-        1: getb = mem[addr[ADDRW+1: 2]][8*1+7:8*1];
-        2: getb = mem[addr[ADDRW+1: 2]][8*2+7:8*2];
-        3: getb = mem[addr[ADDRW+1: 2]][8*3+7:8*3];
+    case(address[1:0])
+        0: getb = ram[address[ADDRW+1: 2]][8*0+7:8*0];
+        1: getb = ram[address[ADDRW+1: 2]][8*1+7:8*1];
+        2: getb = ram[address[ADDRW+1: 2]][8*2+7:8*2];
+        3: getb = ram[address[ADDRW+1: 2]][8*3+7:8*3];
     endcase
 end
 endfunction
@@ -57,12 +61,12 @@ initial begin
         for (i=0; i<SIZE/4; i=i+1) begin
             r = $fread(data, file);
             if (r != 0) begin
-                mem[i][8*0+7:8*0] = data[8*3+7:8*3];
-                mem[i][8*1+7:8*1] = data[8*2+7:8*2];
-                mem[i][8*2+7:8*2] = data[8*1+7:8*1];
-                mem[i][8*3+7:8*3] = data[8*0+7:8*0];
+                ram[i][8*0+7:8*0] = data[8*3+7:8*3];
+                ram[i][8*1+7:8*1] = data[8*2+7:8*2];
+                ram[i][8*2+7:8*2] = data[8*1+7:8*1];
+                ram[i][8*3+7:8*3] = data[8*0+7:8*0];
             end else if ($test$plusargs("no-meminit") == 0) begin
-                mem[i] = 32'h0;
+                ram[i] = 32'h0;
             end
         end
         $fclose(file);
@@ -82,20 +86,20 @@ end
 always @(posedge clk) begin
     if (rready) begin
         if (wready && radr == wadr) begin
-            rdata[8*0+7:8*0] <= (wstrb[0]) ? wdata[8*0+7:8*0] : mem[radr][8*0+7:8*0];
-            rdata[8*1+7:8*1] <= (wstrb[1]) ? wdata[8*1+7:8*1] : mem[radr][8*1+7:8*1];
-            rdata[8*2+7:8*2] <= (wstrb[2]) ? wdata[8*2+7:8*2] : mem[radr][8*2+7:8*2];
-            rdata[8*3+7:8*3] <= (wstrb[3]) ? wdata[8*3+7:8*3] : mem[radr][8*3+7:8*3];
+            rdata[8*0+7:8*0] <= (wstrb[0]) ? wdata[8*0+7:8*0] : ram[radr][8*0+7:8*0];
+            rdata[8*1+7:8*1] <= (wstrb[1]) ? wdata[8*1+7:8*1] : ram[radr][8*1+7:8*1];
+            rdata[8*2+7:8*2] <= (wstrb[2]) ? wdata[8*2+7:8*2] : ram[radr][8*2+7:8*2];
+            rdata[8*3+7:8*3] <= (wstrb[3]) ? wdata[8*3+7:8*3] : ram[radr][8*3+7:8*3];
         end else begin
-            rdata <= mem[radr];
+            rdata <= ram[radr];
         end
     end
 
     if (wready) begin
-        if (wstrb[0]) mem[wadr][8*0+7:8*0] <= wdata[8*0+7:8*0];
-        if (wstrb[1]) mem[wadr][8*1+7:8*1] <= wdata[8*1+7:8*1];
-        if (wstrb[2]) mem[wadr][8*2+7:8*2] <= wdata[8*2+7:8*2];
-        if (wstrb[3]) mem[wadr][8*3+7:8*3] <= wdata[8*3+7:8*3];
+        if (wstrb[0]) ram[wadr][8*0+7:8*0] <= wdata[8*0+7:8*0];
+        if (wstrb[1]) ram[wadr][8*1+7:8*1] <= wdata[8*1+7:8*1];
+        if (wstrb[2]) ram[wadr][8*2+7:8*2] <= wdata[8*2+7:8*2];
+        if (wstrb[3]) ram[wadr][8*3+7:8*3] <= wdata[8*3+7:8*3];
     end
 end
 
@@ -121,7 +125,7 @@ module mem1port # (
 
     localparam ADDRW = $clog2(SIZE/4);
 
-    reg         [31: 0] mem [(SIZE/4)-1: 0];
+    reg         [31: 0] ram [(SIZE/4)-1: 0];
     reg         [31: 0] data;
     wire   [ADDRW-1: 0] adr;
     integer             i;
@@ -131,17 +135,17 @@ module mem1port # (
 assign adr[ADDRW-1: 0] = addr[ADDRW+1: 2];
 
 function [7:0] getb;
-    input [31:0] addr;
+    input [31:0] address;
 begin
-    if (addr[31:ADDRW+2] != 0) begin
-        $display("Address %08x out of range", addr);
+    if (address[31:ADDRW+2] != 0) begin
+        $display("Address %08x out of range", address);
     end
 
-    case(addr[1:0])
-        0: getb = mem[addr[ADDRW+1: 2]][8*0+7:8*0];
-        1: getb = mem[addr[ADDRW+1: 2]][8*1+7:8*1];
-        2: getb = mem[addr[ADDRW+1: 2]][8*2+7:8*2];
-        3: getb = mem[addr[ADDRW+1: 2]][8*3+7:8*3];
+    case(address[1:0])
+        0: getb = ram[address[ADDRW+1: 2]][8*0+7:8*0];
+        1: getb = ram[address[ADDRW+1: 2]][8*1+7:8*1];
+        2: getb = ram[address[ADDRW+1: 2]][8*2+7:8*2];
+        3: getb = ram[address[ADDRW+1: 2]][8*3+7:8*3];
     endcase
 end
 endfunction
@@ -152,12 +156,12 @@ initial begin
         for (i=0; i<SIZE/4; i=i+1) begin
             r = $fread(data, file);
             if (r != 0) begin
-                mem[i][8*0+7:8*0] = data[8*3+7:8*3];
-                mem[i][8*1+7:8*1] = data[8*2+7:8*2];
-                mem[i][8*2+7:8*2] = data[8*1+7:8*1];
-                mem[i][8*3+7:8*3] = data[8*0+7:8*0];
+                ram[i][8*0+7:8*0] = data[8*3+7:8*3];
+                ram[i][8*1+7:8*1] = data[8*2+7:8*2];
+                ram[i][8*2+7:8*2] = data[8*1+7:8*1];
+                ram[i][8*3+7:8*3] = data[8*0+7:8*0];
             end else if ($test$plusargs("no-meminit") == 0) begin
-                mem[i] = 32'h0;
+                ram[i] = 32'h0;
             end
         end
         $fclose(file);
@@ -179,12 +183,12 @@ end
 always @(posedge clk) begin
     if (ready) begin
         if (we) begin
-            if (wstrb[0]) mem[adr][8*0+7:8*0] <= wdata[8*0+7:8*0];
-            if (wstrb[1]) mem[adr][8*1+7:8*1] <= wdata[8*1+7:8*1];
-            if (wstrb[2]) mem[adr][8*2+7:8*2] <= wdata[8*2+7:8*2];
-            if (wstrb[3]) mem[adr][8*3+7:8*3] <= wdata[8*3+7:8*3];
+            if (wstrb[0]) ram[adr][8*0+7:8*0] <= wdata[8*0+7:8*0];
+            if (wstrb[1]) ram[adr][8*1+7:8*1] <= wdata[8*1+7:8*1];
+            if (wstrb[2]) ram[adr][8*2+7:8*2] <= wdata[8*2+7:8*2];
+            if (wstrb[3]) ram[adr][8*3+7:8*3] <= wdata[8*3+7:8*3];
         end else begin
-            rdata <= mem[adr];
+            rdata <= ram[adr];
         end
     end
 end

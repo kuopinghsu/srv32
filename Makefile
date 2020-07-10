@@ -1,4 +1,15 @@
-SUBDIRS = hello dhrystone coremark qsort
+SUBDIRS     = hello dhrystone coremark qsort
+
+VERILATOR  ?= 0
+SINGLE_RAM ?= 0
+
+ifeq ($(VERILATOR), 1)
+    verilator := 1
+endif
+
+ifeq ($(SINGLE_RAM), 1)
+    single_ram := 1
+endif
 
 .PHONY: $(SUBDIRS) tools tests
 
@@ -38,7 +49,10 @@ build:
 	done
 
 $(SUBDIRS):
-	@$(MAKE) -C sw $@ && $(MAKE) -C sim $@.run && $(MAKE) -C tools $@.run
+	@$(MAKE) -C sw $@
+	@$(MAKE) $(if $(verilator), VERILATOR=1) \
+			 $(if $(single_ram), SINGLE_RAM=1) -C sim $@.run
+	@$(MAKE) $(if $(single_ram), SINGLE_RAM=1) -C tools $@.run
 	@echo "Compare the trace between RTL and software simulator"
 	@diff --brief sim/trace.log tools/trace.log
 	@echo === Simulation passed ===
