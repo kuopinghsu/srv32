@@ -1,4 +1,4 @@
-verilator  ?= 0
+verilator  ?= 1
 top        ?= 0
 
 # Run flags
