@@ -1,6 +1,5 @@
-# use verilator
-VERILATOR  ?= 0
-SINGLE_RAM ?= 0
+verilator  ?= 0
+top        ?= 0
 
 # Run flags
 RFLAGS      = +trace
@@ -9,26 +8,26 @@ TARGET      = sim
 
 TARGET_SIM  = iverilog
 
-ifeq ($(SINGLE_RAM),1)
-    single_ram := 1
+ifeq ($(top),1)
+    _top := 1
 endif
 
-ifeq ($(VERILATOR),1)
+ifeq ($(verilator),1)
 BFLAGS      = -O3 -cc -Wall -Wno-STMTDLY -Wno-UNUSED \
-              $(if $(single_ram), +define+SINGLE_RAM) \
+              $(if $(_top), +define+SINGLE_RAM) \
               --trace-fst --Mdir sim_cc --build --exe sim_main.cpp
 TARGET_SIM  = verilator
 else
-BFLAGS      = $(if $(single_ram), -D SINGLE_RAM=1)
+BFLAGS      = $(if $(_top), -D SINGLE_RAM=1)
 endif
 
-FILELIST    = -f filelist.txt $(if $(single_ram), ../rtl/top.v)
+FILELIST    = -f filelist.txt $(if $(_top), ../rtl/top.v)
 
 all: $(TARGET)
 
 $(TARGET):
 	$(TARGET_SIM) $(BFLAGS) -o $(TARGET) $(FILELIST)
-	@if [ "$(VERILATOR)" = "1" ]; then \
+	@if [ "$(verilator)" = "1" ]; then \
 		mv sim_cc/sim .; \
 	fi
 

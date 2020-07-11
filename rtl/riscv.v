@@ -387,10 +387,18 @@ assign result_mulu[63: 0]   = $unsigned({{32{1'b0}},        alu_op1[31: 0]}) *
 assign result_mulsu[63: 0]  = $signed  ({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
                               $unsigned({{32{1'b0}},        alu_op2[31: 0]});
 
-assign result_div[31: 0]    = $signed  (alu_op1) / $signed  (alu_op2);
-assign result_divu[31: 0]   = $unsigned(alu_op1) / $unsigned(alu_op2);
-assign result_rem[31: 0]    = $signed  (alu_op1) % $signed  (alu_op2);
-assign result_remu[31: 0]   = $unsigned(alu_op1) % $unsigned(alu_op2);
+// The result of divided by zero and (-MAX / -1) cannot be represented in twos complement.
+// Assign the value to pass RISC-V compliance test.
+assign result_div[31: 0]    = (alu_op2 == 32'h00000000) ? 32'hffffffff :
+                              ((alu_op1 == 32'h80000000) && (alu_op2 == 32'hffffffff)) ? 32'h80000000 :
+                              $signed($signed  (alu_op1) / $signed  (alu_op2));
+assign result_divu[31: 0]   = (alu_op2 == 32'h00000000) ? 32'hffffffff :
+                              $unsigned($unsigned(alu_op1) / $unsigned(alu_op2));
+assign result_rem[31: 0]    = (alu_op2 == 32'h00000000) ? alu_op1 :
+                              ((alu_op1 == 32'h80000000) && (alu_op2 == 32'hffffffff)) ? 32'h00000000 :
+                              $signed($signed  (alu_op1) % $signed  (alu_op2));
+assign result_remu[31: 0]   = (alu_op2 == 32'h00000000) ? alu_op1 :
+                              $unsigned($unsigned(alu_op1) % $unsigned(alu_op2));
 `endif // RV32M_ENABLED
 
 always @* begin
@@ -405,14 +413,14 @@ always @* begin
         `ifdef RV32M_ENABLED
         ex_mul:
             case(ex_alu_op)
-                OP_MUL   : ex_result    = result_mul[31: 0];
-                OP_MULH  : ex_result    = result_mul[63:32];
+                OP_MUL   : ex_result    = result_mul  [31: 0];
+                OP_MULH  : ex_result    = result_mul  [63:32];
                 OP_MULSU : ex_result    = result_mulsu[63:32];
-                OP_MULU  : ex_result    = result_mulu[63:32];
-                OP_DIV   : ex_result    = (alu_op2 == 'd0) ? 32'hffffffff : result_div;
-                OP_DIVU  : ex_result    = (alu_op2 == 'd0) ? 32'hffffffff : result_divu;
-                OP_REM   : ex_result    = (alu_op2 == 'd0) ? alu_op1 : result_rem;
-                OP_REMU  : ex_result    = (alu_op2 == 'd0) ? alu_op1 : result_remu;
+                OP_MULU  : ex_result    = result_mulu [63:32];
+                OP_DIV   : ex_result    = result_div  [31: 0];
+                OP_DIVU  : ex_result    = result_divu [31: 0];
+                OP_REM   : ex_result    = result_rem  [31: 0];
+                OP_REMU  : ex_result    = result_remu [31: 0];
                 default  : begin
                            ex_result    = {32{1'bx}};
                            ill_alu      = 1'b1;
