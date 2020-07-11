@@ -1,6 +1,6 @@
 LDSCRIPT      = $(ROOTDIR)/riscv-target/simple-riscv/device/rv32i/link.ld
 
-TARGET_SIM   ?= $(ROOT_SIMPLE_RISCV)/sim/riscsim
+TARGET_SIM   ?= $(ROOT_SIMPLE_RISCV)/sim/sim
 TARGET_FLAGS ?= $(RISCV_TARGET_FLAGS) -q
 ifeq ($(shell command -v $(TARGET_SIM) 2> /dev/null),)
     $(error Target simulator executable '$(TARGET_SIM)` not found)

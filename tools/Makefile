@@ -41,7 +41,7 @@ $(TARGET): $(OBJECTS)
 	./$(TARGET) -l trace.log ../sw/$*/$*.elf
 
 clean:
-	@$(RM) $(OBJECTS) trace.log $(TARGET)
+	@$(RM) $(OBJECTS) dump.txt trace.log $(TARGET)
 
 distclean: clean
 

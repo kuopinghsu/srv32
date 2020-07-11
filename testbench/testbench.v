@@ -43,7 +43,7 @@ initial begin
     if ($test$plusargs("help") != 0) begin
         $display("");
         $display("    +no-meminit   memory uninitialized");
-        $display("    +dumpvcd      dump vcd file");
+        $display("    +dump         dump vcd file");
         $display("    +trace        generate trace log");
         $display("");
         $finish(0);
@@ -51,8 +51,12 @@ initial begin
 
     dump = $fopen("dump.txt", "w");
 
-    if ($test$plusargs("dumpvcd") != 0) begin
-        $dumpfile("testbench.vcd");
+    if ($test$plusargs("dump") != 0) begin
+        `ifdef verilator
+        $dumpfile("wave.fst");
+        `else
+        $dumpfile("wave.vcd");
+        `endif
         $dumpvars(0, testbench);
     end
 

@@ -62,7 +62,7 @@ dump.txt
 tests/riscv-compliance
 
 tools/gentrace
-sim/riscsim
+sim/sim
 *.dis
 *.symbol
 *.elf

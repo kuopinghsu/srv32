@@ -1,38 +1,43 @@
-#include "systemc.h"
 #include "Vriscv.h"
 #include "verilated.h"
 
-int sc_main(int argc, char** argv) {
+vluint64_t main_time = 0;
+
+double sc_time_stamp(void)
+{
+    return main_time;
+}
+
+int main(int argc, char** argv)
+{
     Verilated::commandArgs(argc,argv);
-
-#ifdef DUMP
     Verilated::traceEverOn(true);
-#endif
 
-    sc_time T(10,SC_NS);
-    sc_clock clk ("clk", T);
-    sc_signal<bool> resetb("resetb");
-    sc_signal<bool> stall("stall");
+    Vriscv *top = new Vriscv;
 
-    Vriscv *dut = new Vriscv("testbench");
-
-    dut->clk(clk);
-    dut->resetb(resetb);
-    dut->stall(stall);
-
-    resetb = 0;
-    stall  = 1;
-    sc_start(10*T);
-
-    resetb = 1;
-    sc_start(10*T);
-
-    stall  = 0;
+    top->stall  = 1;
+    top->resetb = 0;
+    top->clk    = 0;
 
     while (!Verilated::gotFinish()) {
-        sc_start(1, SC_NS);
+        if (main_time > 10) {
+            top->resetb = 1;
+        }
+        if (main_time > 30) {
+            top->stall = 0;
+        }
+        if ((main_time % 10) == 1) {
+            top->clk = 1;
+        }
+        if ((main_time % 10) == 6) {
+            top->clk = 0;
+        }
+        top->eval();
+        main_time++;
     }
-    delete dut;
+
+    top->final();
+    delete top;
 
     return 0;
 }

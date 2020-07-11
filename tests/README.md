@@ -7,7 +7,7 @@
     cd ${ROOT_SIMPLE_RISCV}
     make build
 
-    export TARGET_SIM=${ROOT_SIMPLE_RISCV}/sim/riscsim
+    export TARGET_SIM=${ROOT_SIMPLE_RISCV}/sim/sim
     export RISCV_PREFIX=riscv32-unknown-elf-
     export RISCV_TARGET=simple-riscv
     make

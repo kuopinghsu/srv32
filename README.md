@@ -53,12 +53,6 @@ To run Icarus Verilog,
 
 To run Verilator,
 
-    # Install SystemC
-    wget https://www.accellera.org/images/downloads/standards/systemc/systemc-2.3.3.tar.gz
-    cd systemc-2.3.3
-    ./configure --prefix=/usr
-    sudo make install
-    
     # Ubuntu package needed to run the RTL simulation
     sudo apt install verilator
     
@@ -79,16 +73,16 @@ Only running make without parameters will get help.
 Supports following parameter when running the simulation.
 
     +no-meminit do not memory intialize zero
-    +dumpvcd    dump VCD file
+    +dump       dump VCD file
     +trace      generate tracelog
 
 For example, following command will generate the VCD dump.
 
-    cd sim && ./riscsim +dumpvcd
+    cd sim && ./sim +dump
 
 Use +trace to generate a trace log, which can be compared with the log file of the software simulator to ensure that the RTL simulation is correct.
 
-    cd sim && ./riscsim +trace
+    cd sim && ./sim +trace
 
 ## Software Simulator
 
