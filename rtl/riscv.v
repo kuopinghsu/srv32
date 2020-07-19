@@ -1,4 +1,4 @@
-// Three pipeline stage RV32I RISCV processor
+// Three pipeline stage RV32IM RISCV processor
 // Written by Kuoping Hsu, 2020, MIT license
 
 // Define it to enable RV32M multiply extension
@@ -13,6 +13,11 @@ module riscv (
 
     input                   stall,
     output reg              exception,
+    output                  timer_en,
+
+    // interrupt
+    input                   timer_irq,
+    input                   interrupt,
 
     // interface of instruction RAM
     output                  imem_ready,
@@ -82,12 +87,14 @@ module riscv (
     wire                    ex_trap;
     wire            [31: 0] ex_trap_pc;
     wire            [31: 0] ex_csr_mask;
-    reg             [ 3: 0] ex_mcause;
+    reg             [31: 0] ex_mcause;
     reg                     ex_illegal;
     wire                    ex_ld_align_excp;
     wire                    ex_st_align_excp;
     wire                    ex_inst_ill_excp;
     wire                    ex_inst_align_excp;
+    wire                    ex_timer_irq;
+    wire                    ex_interrupt;
 
 `ifdef RV32M_ENABLED
     reg                     ex_mul;
@@ -121,9 +128,10 @@ module riscv (
     reg             [31: 0] csr_mstatus;
     reg             [31: 0] csr_misa;
     reg             [31: 0] csr_mie;
+    reg             [31: 0] csr_mip;
     reg             [31: 0] csr_mtvec;
     reg             [31: 0] csr_mepc;
-    reg             [ 3: 0] csr_mcause;
+    reg             [31: 0] csr_mcause;
     reg             [31: 0] csr_mtval;
 
     integer                 i;
@@ -307,6 +315,8 @@ assign ex_st_align_excp     = ex_memwr && !ex_flush && (
                               );
 assign ex_inst_ill_excp     = !ex_flush && (ill_branch || ill_alu || ill_csr || ex_illegal);
 assign ex_inst_align_excp   = !ex_flush && next_pc[1];
+assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE];
+assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE];
 
 assign ex_stall             = stall_r || if_stall ||
                               (ex_mem2reg && !dmem_rvalid);
@@ -543,7 +553,7 @@ end
 ////////////////////////////////////////////////////////////
 assign imem_addr            = fetch_pc;
 assign imem_ready           = !stall_r && !wb_stall;
-assign wb_stall             = stall_r || ex_stall ||
+assign wb_stall             = stall_r ||
                               (wb_memwr && !dmem_wvalid) ||
                               (wb_mem2reg && !dmem_rresp);
 assign wb_flush             = wb_nop || wb_nop_more;
@@ -603,9 +613,10 @@ end
 // Trap CSR
 ////////////////////////////////////////////////////////////
 // Trap CSR @ execution stage
-assign ex_trap      = ex_inst_ill_excp || ex_inst_align_excp ||
-                      ex_ld_align_excp || ex_st_align_excp ||
-                      ex_system;
+assign ex_trap      = (ex_inst_ill_excp || ex_inst_align_excp ||
+                       ex_ld_align_excp || ex_st_align_excp ||
+                       ex_timer_irq || ex_interrupt ||
+                       ex_system) && !ex_flush;
 assign ex_trap_pc   = (ex_system && ex_imm[1:0] == 2'b10) ? // mret
                       csr_mepc :
                       csr_mtvec[0] ?
@@ -615,12 +626,14 @@ assign ex_trap_pc   = (ex_system && ex_imm[1:0] == 2'b10) ? // mret
 assign ex_csr_mask  = ex_alu_op[2] ? {27'h0, ex_src1_sel[4:0]} : reg_rdata1;
 
 always @* begin
-    ex_mcause = 4'h0;
+    ex_mcause     = 32'h0;
     case(1'b1)
         ex_inst_ill_excp   : ex_mcause = TRAP_INST_ILL;
         ex_inst_align_excp : ex_mcause = TRAP_INST_ALIGN;
         ex_ld_align_excp   : ex_mcause = TRAP_LD_ALIGN;
         ex_st_align_excp   : ex_mcause = TRAP_ST_ALIGN;
+        ex_timer_irq       : ex_mcause = INT_MTIME;
+        ex_interrupt       : ex_mcause = INT_MEI;
         ex_system : begin
             case (ex_imm[1:0])
                 2'b00: ex_mcause   = TRAP_ECALL;
@@ -634,9 +647,11 @@ end
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
-        csr_mcause                  <= 4'h0;
+        csr_mcause                  <= 32'h0;
         csr_mepc                    <= 32'h0;
         csr_mtval                   <= 32'h0;
+        csr_mstatus                 <= 32'h0;
+        csr_mip                     <= 32'h0;
     end else if (!ex_stall && !ex_flush) begin
         case(1'b1)
             ex_csr_wr : begin
@@ -647,14 +662,24 @@ always @(posedge clk or negedge resetb) begin
                                        (csr_mepc & ~ex_csr_mask); // CSRRC
                     end
                     CSR_MCAUSE : begin
-                        csr_mcause  <= !ex_alu_op[1] ? reg_rdata1[3:0] : // CSRRW
-                                       !ex_alu_op[0] ? (csr_mcause | ex_csr_mask[3:0]) : // CSRRS
-                                       (csr_mcause & ~ex_csr_mask[3:0]); // CSRRC
+                        csr_mcause  <= !ex_alu_op[1] ? reg_rdata1[31:0] : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mcause | ex_csr_mask) : // CSRRS
+                                       (csr_mcause & ~ex_csr_mask); // CSRRC
                     end
                     CSR_MTVAL  : begin
                         csr_mtval   <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
                                        !ex_alu_op[0] ? (csr_mtval | ex_csr_mask) : // CSRRS
                                        (csr_mtval & ~ex_csr_mask); // CSRRC
+                    end
+                    CSR_MSTATUS: begin
+                        csr_mstatus <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mstatus | ex_csr_mask) : // CSRRS
+                                       (csr_mstatus & ~ex_csr_mask); // CSRRC
+                    end
+                    CSR_MIP    : begin
+                        csr_mip     <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mip | ex_csr_mask) : // CSRRS
+                                       (csr_mip & ~ex_csr_mask); // CSRRC
                     end
                     default    : ;
                 endcase
@@ -663,43 +688,81 @@ always @(posedge clk or negedge resetb) begin
                 csr_mcause          <= TRAP_INST_ILL;
                 csr_mepc            <= {ex_pc[31: 1], 1'b0};
                 csr_mtval           <= ex_insn;
+                csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                csr_mstatus[MIE]    <= 1'b0;
+                csr_mip             <= csr_mip;
             end
             ex_inst_align_excp : begin
                 csr_mcause          <= TRAP_INST_ALIGN;
                 csr_mepc            <= {ex_pc[31: 1], 1'b0};
                 csr_mtval           <= {next_pc[31: 1], 1'b0};
+                csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                csr_mstatus[MIE]    <= 1'b0;
+                csr_mip             <= csr_mip;
             end
             ex_ld_align_excp : begin
                 csr_mcause          <= TRAP_LD_ALIGN;
                 csr_mepc            <= {ex_pc[31: 1], 1'b0};
                 csr_mtval           <= ex_memaddr;
+                csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                csr_mstatus[MIE]    <= 1'b0;
+                csr_mip             <= csr_mip;
             end
             ex_st_align_excp : begin
                 csr_mcause          <= TRAP_ST_ALIGN;
                 csr_mepc            <= {ex_pc[31: 1], 1'b0};
                 csr_mtval           <= ex_memaddr;
+                csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                csr_mstatus[MIE]    <= 1'b0;
+                csr_mip             <= csr_mip;
+            end
+            ex_timer_irq : begin
+                csr_mcause          <= INT_MTIME;
+                csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                csr_mtval           <= csr_mtval; // FIXME
+                csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                csr_mstatus[MIE]    <= 1'b0;
+                csr_mip[MTIP]       <= 1'b1;
+            end
+            ex_interrupt : begin
+                csr_mcause          <= INT_MEI;
+                csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                csr_mtval           <= csr_mtval; // FIXME
+                csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                csr_mstatus[MIE]    <= 1'b0;
+                csr_mip[MEIP]       <= 1'b1;
             end
             ex_system     : begin
                 case (ex_imm[1:0])
                     2'b00: begin // ECALL
-                        csr_mcause  <= TRAP_ECALL;
-                        csr_mepc    <= {ex_pc[31: 1], 1'b0};
-                        csr_mtval   <= csr_mtval;   // FIXME
+                        csr_mcause          <= TRAP_ECALL;
+                        csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                        csr_mtval           <= csr_mtval;   // FIXME
+                        csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                        csr_mstatus[MIE]    <= 1'b0;
+                        csr_mip             <= csr_mip;
                     end
                     2'b01: begin // EBREAK
-                        csr_mcause  <= TRAP_BREAK;
-                        csr_mepc    <= {ex_pc[31: 1], 1'b0};
-                        csr_mtval   <= csr_mtval;   // FIXME
+                        csr_mcause          <= TRAP_BREAK;
+                        csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                        csr_mtval           <= csr_mtval;   // FIXME
+                        csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                        csr_mstatus[MIE]    <= 1'b0;
+                        csr_mip             <= csr_mip;
                     end
                     2'b10: begin // URET, SRET, MRET
-                        csr_mcause  <= csr_mcause;  // FIXME
-                        csr_mepc    <= {ex_pc[31: 1], 1'b0}; // FIXME
-                        csr_mtval   <= csr_mtval;   // FIXME
+                        csr_mcause          <= csr_mcause;  // FIXME
+                        csr_mepc            <= {ex_pc[31: 1], 1'b0}; // FIXME
+                        csr_mtval           <= csr_mtval;   // FIXME
+                        csr_mstatus[MIE]    <= csr_mstatus[MPIE];
+                        csr_mip             <= csr_mip;
                     end
                     default: begin
-                        csr_mcause  <= TRAP_INST_ILL;
-                        csr_mepc    <= {ex_pc[31: 1], 1'b0};
-                        csr_mtval   <= ex_insn;
+                        csr_mcause          <= TRAP_INST_ILL;
+                        csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                        csr_mtval           <= ex_insn;
+                        csr_mstatus         <= csr_mstatus;
+                        csr_mip             <= csr_mip;
                     end
                 endcase
             end
@@ -719,12 +782,13 @@ always @* begin
             CSR_VENDERID   : ex_csr_read = VENDERID;
             CSR_MARCHID    : ex_csr_read = ARCHID;
             CSR_IMPLID     : ex_csr_read = IMPLID;
+            CSR_MHARTID    : ex_csr_read = HARTID;
             CSR_MSTATUS    : ex_csr_read = csr_mstatus;
             CSR_MISA       : ex_csr_read = csr_misa;
             CSR_MIE        : ex_csr_read = csr_mie;
             CSR_MTVEC      : ex_csr_read = csr_mtvec;
             CSR_MEPC       : ex_csr_read = csr_mepc;
-            CSR_MCAUSE     : ex_csr_read = {28'h0, csr_mcause[3:0]};
+            CSR_MCAUSE     : ex_csr_read = csr_mcause[31:0];
             CSR_MTVAL      : ex_csr_read = csr_mtval;
             CSR_RDCYCLE    : ex_csr_read = csr_cycle[31:0];
             CSR_RDCYCLEH   : ex_csr_read = csr_cycle[63:32];
@@ -742,7 +806,6 @@ end
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
-        csr_mstatus         <= 32'h0;
         csr_misa            <= 32'h0;
         csr_mie             <= 32'h0;
         csr_mtvec           <= 32'h0;
@@ -751,11 +814,8 @@ always @(posedge clk or negedge resetb) begin
             CSR_VENDERID   : ; // Read only
             CSR_MARCHID    : ; // Read only
             CSR_IMPLID     : ; // Read only
-            CSR_MSTATUS    : begin
-                csr_mstatus <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
-                               !ex_alu_op[0] ? (csr_mstatus | ex_csr_mask) : // CSRRS
-                               (csr_mstatus & ~ex_csr_mask); // CSRRC
-            end
+            CSR_MHARTID    : ; // Read only
+            CSR_MSTATUS    : ; // update @ trap/interrupt handler
             CSR_MISA       : begin
                 csr_misa    <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
                                !ex_alu_op[0] ? (csr_misa | ex_csr_mask) : // CSRRS
@@ -771,9 +831,9 @@ always @(posedge clk or negedge resetb) begin
                                !ex_alu_op[0] ? (csr_mtvec | ex_csr_mask) : // CSRRS
                                (csr_mtvec & ~ex_csr_mask); // CSRRC
             end
-            CSR_MEPC       : ; // write @ trap handler
-            CSR_MCAUSE     : ; // write @ trap handler
-            CSR_MTVAL      : ; // write @ trap handler
+            CSR_MEPC       : ; // update @ trap/interrupt handler
+            CSR_MCAUSE     : ; // update @ trap/interrupt handler
+            CSR_MTVAL      : ; // update @ trap/interrupt handler
             CSR_RDCYCLE    : ; // Read Only
             CSR_RDCYCLEH   : ; // Read Only
             CSR_RDINSTRET  : ; // Read Only
@@ -782,6 +842,8 @@ always @(posedge clk or negedge resetb) begin
         endcase
     end
 end
+
+assign timer_en             = (pipefill == 2'b10);
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin

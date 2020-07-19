@@ -1,4 +1,4 @@
-// Three pipeline stage RV32I RISCV processor
+// Three pipeline stage RV32IM RISCV processor
 // Written by Kuoping Hsu, 2020, MIT license
 
 `define OPCODE      6:0
@@ -113,15 +113,64 @@ localparam  [ 7: 0] SYS_CLOSE   = 8'h39,
                     SYS_DUMP    = 8'h88;
 
 // Exception code
-localparam  [ 3: 0] TRAP_INST_ALIGN = 4'h0,      // Instruction address misaligned
-                    TRAP_INST_FAIL  = 4'h1,      // Instruction access fault
-                    TRAP_INST_ILL   = 4'h2,      // Illegal instruction
-                    TRAP_BREAK      = 4'h3,      // Breakpoint
-                    TRAP_LD_ALIGN   = 4'h4,      // Load address misaligned
-                    TRAP_LD_FAIL    = 4'h5,      // Load access fault
-                    TRAP_ST_ALIGN   = 4'h6,      // Store/AMO address misaligned
-                    TRAP_ST_FAIL    = 4'h7,      // Store/AMO access fault
-                    TRAP_ECALL      = 4'hb;      // Environment call from M-mode
+localparam  [31: 0] TRAP_INST_ALIGN = 32'h0,        // Instruction address misaligned
+                    TRAP_INST_FAIL  = 32'h1,        // Instruction access fault
+                    TRAP_INST_ILL   = 32'h2,        // Illegal instruction
+                    TRAP_BREAK      = 32'h3,        // Breakpoint
+                    TRAP_LD_ALIGN   = 32'h4,        // Load address misaligned
+                    TRAP_LD_FAIL    = 32'h5,        // Load access fault
+                    TRAP_ST_ALIGN   = 32'h6,        // Store/AMO address misaligned
+                    TRAP_ST_FAIL    = 32'h7,        // Store/AMO access fault
+                    TRAP_ECALL      = 32'hb,        // Environment call from M-mode
+                    INT_USI         = 1<<31|32'h0,  // User software interrupt
+                    INT_SSI         = 1<<31|32'h1,  // Supervisor software interrupt
+                    INT_MSI         = 1<<31|32'h3,  // Machine software interrupt
+                    INT_UTIME       = 1<<31|32'h4,  // User timer interrupt
+                    INT_STIME       = 1<<31|32'h5,  // Supervisor timer interrupt
+                    INT_MTIME       = 1<<31|32'h7,  // Machine timer interrupt
+                    INT_UEI         = 1<<31|32'h8,  // User external interrupt
+                    INT_SEI         = 1<<31|32'h9,  // Supervisor external interrupt
+                    INT_MEI         = 1<<31|32'hb;  // Machine external interrupt
+
+// mstatus register
+localparam  [ 4: 0] UIE             = 5'd0,     // U-mode global interrupt enable
+                    SIE             = 5'd1,     // S-mode global interrupt enable
+                    MIE             = 5'd3,     // M-mode global interrupt enable
+                    UPIE            = 5'd4,     // U-mode
+                    SPIE            = 5'd5,     // S-mode
+                    MPIE            = 5'd7,     // M-mode
+                    SPP             = 5'd8,     // S-mode hold the previous privilege mode
+                    MPP             = 5'd11,    // MPP[1:0] M-mode hold the previous privilege mode
+                    FS              = 5'd13,    // FS[1:0]
+                    XS              = 5'd15,    // XS[1:0]
+                    MPRV            = 5'd17,    // memory privilege
+                    SUM             = 5'd18,
+                    MXR             = 5'd19,
+                    TVM             = 5'd20,
+                    TW              = 5'd21,
+                    TSR             = 5'd22;
+
+// mie register
+localparam  [ 4: 0] USIE            = 5'd0,     // U-mode Software Interrupt Enable
+                    SSIE            = 5'd1,     // S-mode Software Interrupt Enable
+                    MSIE            = 5'd3,     // M-mode Software Interrupt Enable
+                    UTIE            = 5'd4,     // U-mode Timer Interrupt Enable
+                    STIE            = 5'd5,     // S-mode Timer Interrupt Enable
+                    MTIE            = 5'd7,     // M-mode Timer Interrupt Enable
+                    UEIE            = 5'd8,     // U-mode External Interrupt Enable
+                    SEIE            = 5'd9,     // S-mode External Interrupt Enable
+                    MEIE            = 5'd11;    // M-mode External Interrupt Enable
+
+// mip register
+localparam  [ 4: 0] USIP            = 5'd0,     // U-mode Software Interrupt Pending
+                    SSIP            = 5'd1,     // S-mode Software Interrupt Pending
+                    MSIP            = 5'd3,     // M-mode Software Interrupt Pending
+                    UTIP            = 5'd4,     // U-mode Timer Interrupt Pending
+                    STIP            = 5'd5,     // S-mode Timer Interrupt Pending
+                    MTIP            = 5'd7,     // M-mode Timer Interrupt Pending
+                    UEIP            = 5'd8,     // U-mode External Interrupt Pending
+                    SEIP            = 5'd9,     // S-mode External Interrupt Pending
+                    MEIP            = 5'd11;    // M-mode External Interrupt Pending
 
 // Register/ABI mapping
 localparam  [ 4: 0] REG_ZERO =  0, REG_RA =  1, REG_SP  =  2, REG_GP  =  3,
@@ -135,5 +184,12 @@ localparam  [ 4: 0] REG_ZERO =  0, REG_RA =  1, REG_SP  =  2, REG_GP  =  3,
 
 localparam  [31: 0] VENDERID = 32'h0,
                     ARCHID   = 32'h0,
-                    IMPLID   = 32'h0;
+                    IMPLID   = 32'h0,
+                    HARTID   = 32'h0;
+
+localparam  [ 3: 0] MMIO_BASE     = 4'h9;
+localparam  [31: 0] MTIME_BASE    = 32'h9000_0000,
+                    MTIMECMP_BASE = 32'h9000_0008,
+                    MMIO_PUTC     = 32'h9000_001c,
+                    MMIO_EXIT     = 32'h9000_002c;
 

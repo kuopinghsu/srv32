@@ -2,16 +2,10 @@
 // Written by Kuoping Hsu, 2020, MIT license
 
 //`define SINGLE_RAM  1
-`define MEM_PUTC    32'h9000001c
-`define MEM_EXIT    32'h9000002c
 
-`ifdef SINGLE_RAM
 `define TOP         top.riscv
-`else
-`define TOP         riscv
-`endif
 
-`ifdef verilator
+`ifdef VERILATOR
 module testbench(
     input           clk,
     input           resetb,
@@ -25,13 +19,15 @@ module testbench();
     localparam      DRAMSIZE    = 128*1024;
     localparam      IRAMSIZE    = 128*1024;
 
-`ifndef verilator
+`ifndef VERILATOR
     reg             clk;
     reg             resetb;
     reg             stall;
 `endif
 
     wire            exception;
+    wire            timer_irq;
+    wire            interrupt;
 
     reg     [31: 0] next_pc;
     reg     [ 7: 0] count;
@@ -52,7 +48,7 @@ initial begin
     dump = $fopen("dump.txt", "w");
 
     if ($test$plusargs("dump") != 0) begin
-        `ifdef verilator
+        `ifdef VERILATOR
         $dumpfile("wave.fst");
         `else
         $dumpfile("wave.vcd");
@@ -60,7 +56,7 @@ initial begin
         $dumpvars(0, testbench);
     end
 
-`ifndef verilator
+`ifndef VERILATOR
     clk             = 1'b1;
     resetb          = 1'b0;
     stall           = 1'b1;
@@ -71,7 +67,7 @@ initial begin
 
 end
 
-`ifndef verilator
+`ifndef VERILATOR
 always #10 clk      = ~clk;
 `endif
 
@@ -118,16 +114,22 @@ end
     wire            ready;
 
     assign mem_valid = 1'b1;
+    assign timer_irq = 1'b0;
+    assign interrupt = 1'b0;
 
     assign ready =
         (mem_ready && mem_we &&
-         (mem_addr == `MEM_PUTC || mem_addr == `MEM_EXIT)) ? 1'b0 : mem_ready;
+         (mem_addr == MMIO_PUTC || mem_addr == MMIO_EXIT)) ? 1'b0 : mem_ready;
 
     top top (
         .clk        (clk),
         .resetb     (resetb),
+
         .stall      (stall),
         .exception  (exception),
+
+        .timer_irq  (timer_irq),
+        .interrupt  (interrupt),
 
         .mem_ready  (mem_ready),
         .mem_valid  (mem_valid),
@@ -157,10 +159,10 @@ end
 
     // check memory range
     always @(posedge clk) begin
-        if (mem_ready && mem_we && mem_addr == `MEM_PUTC) begin
+        if (mem_ready && mem_we && mem_addr == MMIO_PUTC) begin
             $write("%c", mem_wdata[7:0]);
         end
-        else if (mem_ready && mem_we && mem_addr == `MEM_EXIT) begin
+        else if (mem_ready && mem_we && mem_addr == MMIO_EXIT) begin
             $display("\nExcuting %0d instructions, %0d cycles", `TOP.csr_instret,
                      `TOP.csr_cycle);
             $display("Program terminate");
@@ -218,20 +220,27 @@ end
     wire    [31: 0] dmem_rdata;
 
     wire            wready;
+    wire            timer_irq;
+    wire            interrupt;
 
     assign imem_valid   = 1'b1;
     assign dmem_rvalid  = 1'b1;
     assign dmem_wvalid  = 1'b1;
 
+    assign interrupt    = 1'b0;
+
     assign wready =
         (dmem_wready &&
-         (dmem_waddr == `MEM_PUTC || dmem_waddr == `MEM_EXIT)) ? 1'b0 : dmem_wready;
+         (dmem_waddr == MMIO_PUTC || dmem_waddr == MMIO_EXIT)) ? 1'b0 : dmem_wready;
 
-    riscv riscv(
+    top top(
         .clk        (clk),
         .resetb     (resetb),
+
         .stall      (stall),
         .exception  (exception),
+
+        .interrupt  (interrupt),
 
         .imem_ready (imem_ready),
         .imem_valid (imem_valid),
@@ -293,10 +302,10 @@ end
             #10 $finish(2);
         end
 
-        if (dmem_wready && dmem_waddr == `MEM_PUTC) begin
+        if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_PUTC) begin
             $write("%c", dmem_wdata[7:0]);
         end
-        else if (dmem_wready && dmem_waddr == `MEM_EXIT) begin
+        else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_EXIT) begin
             $display("\nExcuting %0d instructions, %0d cycles", `TOP.csr_instret,
                      `TOP.csr_cycle);
             $display("Program terminate");

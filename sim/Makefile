@@ -21,7 +21,7 @@ else
 BFLAGS      = $(if $(_top), -D SINGLE_RAM=1)
 endif
 
-FILELIST    = -f filelist.txt $(if $(_top), ../rtl/top.v)
+FILELIST    = -f filelist.txt $(if $(_top), ../rtl/top_s.v, ../rtl/top.v)
 
 all: $(TARGET)
 
