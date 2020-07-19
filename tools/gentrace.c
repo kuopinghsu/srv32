@@ -23,17 +23,28 @@
 
 #define TRAP(cause,val) { \
     csr.mcause = cause; \
+    csr.mstatus = (csr.mstatus&(1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
+    csr.mstatus = (csr.mstatus & ~(1<<MIE)); \
     csr.mepc = prev_pc; \
     csr.mtval = val; \
     pc = (csr.mtvec&1) ? csr.mtvec + cause * 4 : csr.mtvec; \
+    if (0) printf("%08x: trap %08x\n", pc, cause); \
     STOP_ON_TRAP(); \
 }
 
 #define INT(cause,src) { \
     csr.mcause = cause; \
+    csr.mstatus = (csr.mstatus&(1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
+    csr.mstatus = (csr.mstatus & ~(1<<MIE)); \
     csr.mip = csr.mip | (1 << src); \
     csr.mepc = pc; \
-    pc = csr.mtvec; \
+    pc = (csr.mtvec&1) ? csr.mtvec + (cause & (~(1<<31))) * 4 : csr.mtvec; \
+    if (0) printf("%08x: int %08x, mtime: %d, mtimcmp: %d\n", pc, cause, csr.mtime.d.lo, csr.mtimecmp.d.lo); \
+}
+
+#define CYCLE_ADD(count) { \
+    csr.cycle.c = csr.cycle.c + count; \
+    csr.mtime.c = csr.mtime.c + count; \
 }
 
 typedef struct _CSR {
@@ -57,6 +68,7 @@ CSR csr;
 int pc = 0;
 int prev_pc = 0;
 int mem_base = 0;
+int singleram = 0;
 
 int quiet = 0;
 
@@ -78,6 +90,7 @@ void usage(void) {
 "       --help, -h              help\n"
 "       --membase n, -m n       memory base (in hex)\n"
 "       --branch n, -b n        branch penalty (default 2)\n"
+"       --single, -s            single RAM\n"
 "       --predict, -p           static branch prediction\n"
 "       --log file, -l file     generate log file\n"
 "\n"
@@ -216,18 +229,25 @@ static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {
 
 int csr_rw(int regs, int mode, int val, int update) {
     int result = 0;
+    COUNTER counter;
     switch(regs) {
-        case CSR_RDCYCLE   : result = csr.cycle.d.lo-1; // UPDATE_CSR(update, mode, csr.cycle.d.lo, val);
+        case CSR_RDCYCLE   : counter.c = csr.cycle.c - 1;
+                             result = counter.d.lo; // UPDATE_CSR(update, mode, csr.cycle.d.lo, val);
                              break;
-        case CSR_RDCYCLEH  : result = csr.cycle.d.hi-1; // UPDATE_CSR(update, mode, csr.cycle.d.hi, val);
+        case CSR_RDCYCLEH  : counter.c = csr.cycle.c - 1;
+                             result = counter.d.hi; // UPDATE_CSR(update, mode, csr.cycle.d.hi, val);
                              break;
-        case CSR_RDTIME    : result = csr.time.d.lo-1; // UPDATE_CSR(update, mode, csr.time.d.lo, val);
+        case CSR_RDTIME    : counter.c = csr.time.c - 1;
+                             result = counter.d.lo; // UPDATE_CSR(update, mode, csr.time.d.lo, val);
                              break;
-        case CSR_RDTIMEH   : result = csr.time.d.hi-1; // UPDATE_CSR(update, mode, csr.time.d.hi, val);
+        case CSR_RDTIMEH   : counter.c = csr.time.c - 1;
+                             result = counter.d.hi; // UPDATE_CSR(update, mode, csr.time.d.hi, val);
                              break;
-        case CSR_RDINSTRET : result = csr.instret.d.lo-1; // UPDATE_CSR(update, mode, csr.instret.d.lo, val);
+        case CSR_RDINSTRET : counter.c = csr.instret.c - 1;
+                             result = counter.d.lo; // UPDATE_CSR(update, mode, csr.instret.d.lo, val);
                              break;
-        case CSR_RDINSTRETH: result = csr.instret.d.hi-1; // UPDATE_CSR(update, mode, csr.instret.d.hi, val);
+        case CSR_RDINSTRETH: counter.c = csr.instret.c - 1;
+                             result = counter.d.hi; // UPDATE_CSR(update, mode, csr.instret.d.hi, val);
                              break;
         case CSR_MHARTID   : result = csr.mhartid; UPDATE_CSR(update, mode, csr.mhartid, val);
                              break;
@@ -268,7 +288,7 @@ int main(int argc, char **argv) {
     int branch_predict = 0;
     int prev_pc;
 
-    const char *optstring = "hb:pl:qm:";
+    const char *optstring = "hb:pl:qm:s";
     int c;
     struct option opts[] = {
         {"help", 0, NULL, 'h'},
@@ -276,7 +296,8 @@ int main(int argc, char **argv) {
         {"predict", 0, NULL, 'p'},
         {"log", 1, NULL, 'l'},
         {"quiet", 0, NULL, 'q'},
-        {"membase", 0, NULL, 'm'}
+        {"membase", 0, NULL, 'm'},
+        {"single", 0, NULL, 's'}
     };
 
     while((c = getopt_long(argc, argv, optstring, opts, NULL)) != -1) {
@@ -302,6 +323,9 @@ int main(int argc, char **argv) {
                 break;
             case 'm':
                 sscanf(optarg, "%x", &mem_base);
+                break;
+            case 's':
+                singleram = 1;
                 break;
             default:
                 usage();
@@ -354,11 +378,13 @@ int main(int argc, char **argv) {
         regs[i] = 0;
     }
 
-    csr.time.c    = 0;
-    csr.cycle.c   = 0;
-    csr.instret.c = 0;
-    pc            = mem_base;
-    prev_pc       = pc;
+    csr.time.c     = 0;
+    csr.cycle.c    = 0;
+    csr.instret.c  = 0;
+    csr.mtime.c    = 0;
+    csr.mtimecmp.c = 0;
+    pc             = mem_base;
+    prev_pc        = pc;
 
     // Execution loop
     while(1) {
@@ -368,9 +394,13 @@ int main(int argc, char **argv) {
         //       be aligned at short word.
         pc &= 0xfffffffe;
 
+        if (csr.mtime.c >= csr.mtimecmp.c) {
+            if ((csr.mstatus & (1 << MIE)) && (csr.mie & (1 << MTIE))) INT(INT_MTIME, MTIP);
+        }
+
         csr.time.c++;
-        csr.cycle.c++;
         csr.instret.c++;
+        CYCLE_ADD(1);
 
         if (IVA2PA(pc) >= isize || IVA2PA(pc) < 0) {
             printf("PC 0x%08x out of range 0x%08x\n", pc, IPA2VA(isize));
@@ -405,7 +435,7 @@ int main(int argc, char **argv) {
                     printf("Warnning: forever loop detected at PC 0x%08x\n", pc);
                     prog_exit(1);
                 }
-                csr.cycle.c += branch_penalty;
+                CYCLE_ADD(branch_penalty);
                 continue;
             }
             case OP_JALR  : { // I-Type
@@ -415,7 +445,7 @@ int main(int argc, char **argv) {
                 regs[inst.i.rd] = new_pc;
                 if (ft) fprintf(ft, "%08x x%02d (%s) <= 0x%08x\n", inst.inst, inst.i.rd,
                                     regname[inst.i.rd], regs[inst.i.rd]);
-                csr.cycle.c += branch_penalty;
+                CYCLE_ADD(branch_penalty);
                 continue;
             }
             case OP_BRANCH: { // B-Type
@@ -426,7 +456,7 @@ int main(int argc, char **argv) {
                         if (regs[inst.b.rs1] == regs[inst.b.rs2]) {
                             pc += offset;
                             if (!branch_predict || offset > 0)
-                                csr.cycle.c += branch_penalty;
+                                CYCLE_ADD(branch_penalty);
                             continue;
                         }
                         break;
@@ -434,7 +464,7 @@ int main(int argc, char **argv) {
                         if (regs[inst.b.rs1] != regs[inst.b.rs2]) {
                             pc += offset;
                             if (!branch_predict || offset > 0)
-                                csr.cycle.c += branch_penalty;
+                                CYCLE_ADD(branch_penalty);
                             continue;
                         }
                         break;
@@ -442,7 +472,7 @@ int main(int argc, char **argv) {
                         if (regs[inst.b.rs1] < regs[inst.b.rs2]) {
                             pc += offset;
                             if (!branch_predict || offset > 0)
-                                csr.cycle.c += branch_penalty;
+                                CYCLE_ADD(branch_penalty);
                             continue;
                         }
                         break;
@@ -450,7 +480,7 @@ int main(int argc, char **argv) {
                         if (regs[inst.b.rs1] >= regs[inst.b.rs2]) {
                             pc += offset;
                             if (!branch_predict || offset > 0)
-                                csr.cycle.c += branch_penalty;
+                                CYCLE_ADD(branch_penalty);
                             continue;
                         }
                         break;
@@ -458,7 +488,7 @@ int main(int argc, char **argv) {
                         if (((unsigned int)regs[inst.b.rs1]) < ((unsigned int)regs[inst.b.rs2])) {
                             pc += offset;
                             if (!branch_predict || offset > 0)
-                                csr.cycle.c += branch_penalty;
+                                CYCLE_ADD(branch_penalty);
                             continue;
                         }
                         break;
@@ -466,7 +496,7 @@ int main(int argc, char **argv) {
                         if (((unsigned int)regs[inst.b.rs1]) >= ((unsigned int)regs[inst.b.rs2])) {
                             pc += offset;
                             if (!branch_predict || offset > 0)
-                                csr.cycle.c += branch_penalty;
+                                CYCLE_ADD(branch_penalty);
                             continue;
                         }
                         break;
@@ -478,8 +508,13 @@ int main(int argc, char **argv) {
                 break;
             }
             case OP_LOAD  : { // I-Type
+                COUNTER counter;
+                int memdata;
+                int memaddr;
                 int data;
                 int address = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
+                memaddr = address;
+                if (singleram) CYCLE_ADD(1);
                 if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
                 if (address < DMEM_BASE || address > DMEM_BASE+DMEM_SIZE) {
                     switch(address) {
@@ -490,18 +525,20 @@ int main(int argc, char **argv) {
                             data = 0;
                             break;
                         case MMIO_MTIME:
-                            data = csr.mtime.d.lo;
+                            counter.c = csr.mtime.c - 1;
+                            data = counter.d.lo;
                             break;
                         case MMIO_MTIME+4:
-                            data = csr.mtime.d.hi;
+                            counter.c = csr.mtime.c - 1;
+                            data = counter.d.hi;
                             break;
                         case MMIO_MTIMECMP:
-                            csr.mip = csr.mip & ~(1 << MTIP);
-                            data = csr.mtime.d.lo;
+                            //csr.mip = csr.mip & ~(1 << MTIP);
+                            data = csr.mtimecmp.d.lo;
                             break;
                         case MMIO_MTIMECMP+4:
-                            csr.mip = csr.mip & ~(1 << MTIP);
-                            data = csr.mtime.d.hi;
+                            //csr.mip = csr.mip & ~(1 << MTIP);
+                            data = csr.mtimecmp.d.hi;
                             break;
                         default:
                             if (ft) fprintf(ft, "\n");
@@ -514,6 +551,7 @@ int main(int argc, char **argv) {
                     address = DVA2PA(address);
                     data = dmem[address/4];
                 }
+                memdata = data;
                 switch(inst.i.func3) {
                     case OP_LB  : data = (data >> ((address&3)*8))&0xff;
                                   if (data&0x80) data |= 0xffffff00;
@@ -554,8 +592,7 @@ int main(int argc, char **argv) {
                 }
                 regs[inst.i.rd] = data;
                 if (ft) fprintf(ft, " read 0x%08x => 0x%08x, x%02d (%s) <= 0x%08x\n",
-                                    DPA2VA(address),
-                                    dmem[address/4], inst.i.rd,
+                                    memaddr, memdata, inst.i.rd,
                                     regname[inst.i.rd], regs[inst.i.rd]);
                 break;
             }
@@ -567,6 +604,7 @@ int main(int argc, char **argv) {
                            (inst.s.func3 == OP_SH) ? 0xffff :
                            (inst.s.func3 == OP_SW) ? 0xffffffff :
                            0xffffffff;
+                if (singleram) CYCLE_ADD(1);
                 if (address < DMEM_BASE || address > DMEM_BASE+DMEM_SIZE) {
                     if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
                     switch(address) {
@@ -586,10 +624,10 @@ int main(int argc, char **argv) {
                             csr.mtime.d.hi = (csr.mtime.d.hi & ~mask) | data;
                             break;
                         case MMIO_MTIMECMP:
-                            csr.mtime.d.lo = (csr.mtime.d.lo & ~mask) | data;
+                            csr.mtimecmp.d.lo = (csr.mtimecmp.d.lo & ~mask) | data;
                             break;
                         case MMIO_MTIMECMP+4:
-                            csr.mtime.d.hi = (csr.mtime.d.hi & ~mask) | data;
+                            csr.mtimecmp.d.hi = (csr.mtimecmp.d.hi & ~mask) | data;
                             break;
                         default:
                             if (ft) fprintf(ft, "\n");
@@ -792,12 +830,18 @@ int main(int argc, char **argv) {
                     case OP_ECALL  : if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
                                      if (inst.i.imm == 1) { // ebreak
                                         TRAP(TRAP_BREAK, 0);
-                                        csr.cycle.c += branch_penalty;
+                                        CYCLE_ADD(branch_penalty);
                                         continue;
                                      }
                                      if (inst.i.imm == 0x302) { // mret
                                         pc = csr.mepc;
-                                        csr.cycle.c += branch_penalty;
+                                        // mstatus.mie = mstatus.mpie
+                                        csr.mstatus = (csr.mstatus & (1 << MPIE)) ?
+                                                      (csr.mstatus | (1 << MIE)) :
+                                                      (csr.mstatus & ~(1 << MIE));
+                                        // mstatus.mpie = 1
+                                        csr.mstatus = csr.mstatus | (1 << MPIE);
+                                        CYCLE_ADD(branch_penalty);
                                         continue;
                                      }
                                      // ecall
@@ -837,7 +881,7 @@ int main(int argc, char **argv) {
                                         default:
                                             break;
                                      }
-                                     csr.cycle.c += branch_penalty;
+                                     CYCLE_ADD(branch_penalty);
                                      TRAP(TRAP_ECALL, 0);
                                      continue;
                     case OP_CSRRW  : val = regs[inst.i.rs1];

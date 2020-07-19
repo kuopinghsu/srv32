@@ -171,15 +171,25 @@ enum {
 
 // Exception code
 enum {
-    TRAP_INST_ALIGN = 0,        // Instruction address misaligned
-    TRAP_INST_FAIL  = 1,        // Instruction access fault
-    TRAP_INST_ILL   = 2,        // Illegal instruction
-    TRAP_BREAK      = 3,        // Breakpoint
-    TRAP_LD_ALIGN   = 4,        // Load address misaligned
-    TRAP_LD_FAIL    = 5,        // Load access fault
-    TRAP_ST_ALIGN   = 6,        // Store/AMO address misaligned
-    TRAP_ST_FAIL    = 7,        // Store/AMO access fault
-    TRAP_ECALL      = 11        // Environment call from M-mode
+    TRAP_INST_ALIGN = 0,            // Instruction address misaligned
+    TRAP_INST_FAIL  = 1,            // Instruction access fault
+    TRAP_INST_ILL   = 2,            // Illegal instruction
+    TRAP_BREAK      = 3,            // Breakpoint
+    TRAP_LD_ALIGN   = 4,            // Load address misaligned
+    TRAP_LD_FAIL    = 5,            // Load access fault
+    TRAP_ST_ALIGN   = 6,            // Store/AMO address misaligned
+    TRAP_ST_FAIL    = 7,            // Store/AMO access fault
+    TRAP_ECALL      = 11,           // Environment call from M-mode
+
+    INT_USI         = (1<<31)|0,    // User software interrupt
+    INT_SSI         = (1<<31)|1,    // Supervisor software interrupt
+    INT_MSI         = (1<<31)|3,    // Machine software interrupt
+    INT_UTIME       = (1<<31)|4,    // User timer interrupt
+    INT_STIME       = (1<<31)|5,    // Supervisor timer interrupt
+    INT_MTIME       = (1<<31)|7,    // Machine timer interrupt
+    INT_UEI         = (1<<31)|8,    // User external interrupt
+    INT_SEI         = (1<<31)|9,    // Supervisor external interrupt
+    INT_MEI         = (1<<31)|11    // Machine external interrupt
 };
 
 typedef union _counter {
@@ -198,6 +208,31 @@ enum {
     T5 = 30, T6 = 31
 };
 
+// mstatus register
+enum {
+    UIE     = 0,        // U-mode global interrupt enable
+    SIE     = 1,        // S-mode global interrupt enable
+//  WPRI    = 2,
+    MIE     = 3,        // M-mode global interrupt enable
+    UPIE    = 4,        // U-mode
+    SPIE    = 5,        // S-mode
+//  WPRI    = 6,
+    MPIE    = 7,        // M-mode
+    SPP     = 8,        // S-mode hold the previous privilege mode
+//  WPRI    = 9, 10
+    MPP     = 11,       // MPP[1:0] M-mode hold the previous privilege mode
+    FS      = 13,       // FS[1:0]
+    XS      = 15,       // XS[1:0]
+    MPRV    = 17,       // memory privilege
+    SUM     = 18,
+    MXR     = 19,
+    TVM     = 20,
+    TW      = 21,
+    TSR     = 22,
+//  WPRI    = 31:23
+};
+
+// mie register
 enum {
     USIE    = 0,        // U-mode Software Interrupt Enable
     SSIE    = 1,        // S-mode Software Interrupt Enable
@@ -214,6 +249,7 @@ enum {
 //  WPRI    = 12 ... MXLEN-1 // Reserved
 };
 
+// mip register
 enum {
     USIP    = 0,        // U-mode Software Interrupt Pending
     SSIP    = 1,        // S-mode Software Interrupt Pending
