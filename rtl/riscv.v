@@ -82,6 +82,7 @@ module riscv (
     reg                     ex_jalr;
     reg                     ex_branch;
     reg                     ex_system;
+    wire                    ex_systemcall;
     wire                    ex_flush;
     reg             [31: 0] ex_csr_read;
     wire                    ex_trap;
@@ -108,7 +109,6 @@ module riscv (
     reg             [ 4: 0] wb_dst_sel;
     reg                     wb_branch;
     reg                     wb_branch_nxt;
-    reg                     wb_system;
     reg                     wb_nop;
     reg                     wb_nop_more;
     reg             [31: 0] wb_waddr;
@@ -252,7 +252,7 @@ always @(posedge clk or negedge resetb) begin
         ex_jalr             <= inst[`OPCODE] == OP_JALR;
         ex_branch           <= inst[`OPCODE] == OP_BRANCH;
         ex_system           <= (inst[`OPCODE] == OP_SYSTEM) &&
-                               (inst[`FUNC3] == 3'b000) && !ex_flush;
+                               (inst[`FUNC3] == 3'b000);
         ex_pc               <= if_pc;
         ex_illegal          <= !((inst[`OPCODE] == OP_AUIPC )||
                                  (inst[`OPCODE] == OP_LUI   )||
@@ -327,6 +327,7 @@ assign result_subs[32: 0]   = {alu_op1[31], alu_op1} - {alu_op2[31], alu_op2};
 assign result_subu[32: 0]   = {1'b0, alu_op1} - {1'b0, alu_op2};
 assign ex_memaddr           = alu_op1 + ex_imm;
 assign ex_flush             = wb_branch || wb_branch_nxt;
+assign ex_systemcall        = ex_system && !ex_flush;
 
 always @* begin
     branch_taken = !ex_flush;
@@ -485,7 +486,6 @@ always @(posedge clk or negedge resetb) begin
         wb_mem2reg          <= 1'b0;
         wb_raddr            <= 2'h0;
         wb_alu_op           <= 3'h0;
-        wb_system           <= 1'b0;
         wb_trap             <= 1'b0;
     end else if (!ex_stall) begin
         wb_result           <= ex_result;
@@ -501,7 +501,6 @@ always @(posedge clk or negedge resetb) begin
         wb_mem2reg          <= ex_mem2reg;
         wb_raddr            <= dmem_raddr[1:0];
         wb_alu_op           <= ex_alu_op;
-        wb_system           <= ex_system;
         wb_trap             <= ex_trap;
     end
 end
@@ -616,8 +615,8 @@ end
 assign ex_trap      = (ex_inst_ill_excp || ex_inst_align_excp ||
                        ex_ld_align_excp || ex_st_align_excp ||
                        ex_timer_irq || ex_interrupt ||
-                       ex_system) && !ex_flush;
-assign ex_trap_pc   = (ex_system && ex_imm[1:0] == 2'b10) ? // mret
+                       ex_systemcall) && !ex_flush;
+assign ex_trap_pc   = (ex_systemcall && ex_imm[1:0] == 2'b10) ? // mret
                       csr_mepc :
                       csr_mtvec[0] ?
                       {csr_mtvec[31:2], 2'b00} + {26'h0, ex_mcause[3:0], 2'b00} :
@@ -634,7 +633,7 @@ always @* begin
         ex_st_align_excp   : ex_mcause = TRAP_ST_ALIGN;
         ex_timer_irq       : ex_mcause = INT_MTIME;
         ex_interrupt       : ex_mcause = INT_MEI;
-        ex_system : begin
+        ex_systemcall      : begin
             case (ex_imm[1:0])
                 2'b00: ex_mcause   = TRAP_ECALL;
                 2'b01: ex_mcause   = TRAP_BREAK;
@@ -732,7 +731,7 @@ always @(posedge clk or negedge resetb) begin
                 csr_mstatus[MIE]    <= 1'b0;
                 csr_mip[MEIP]       <= 1'b1;
             end
-            ex_system     : begin
+            ex_systemcall : begin
                 case (ex_imm[1:0])
                     2'b00: begin // ECALL
                         csr_mcause          <= TRAP_ECALL;
@@ -936,16 +935,19 @@ end
     reg         [31: 0] wb_insn;
     reg         [ 1: 0] wb_break;
     reg         [31: 0] wb_raddress;
+    reg                 wb_system;
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         wb_pc               <= RESETVEC;
         wb_insn             <= 32'h0;
         wb_break            <= 2'b00;
+        wb_system           <= 1'b0;
     end else if (!ex_stall) begin
         wb_pc               <= ex_pc;
         wb_insn             <= ex_insn;
         wb_break            <= ex_imm[1:0];
+        wb_system           <= ex_systemcall;
     end
 end
 
