@@ -25,16 +25,18 @@ module timer(
 
     reg             [63: 0] mtime;
     reg             [63: 0] mtimecmp;
+    wire            [63: 0] mtime_nxt;
 
 assign rvalid = 1'b1;
 assign wvalid = 1'b1;
+assign mtime_nxt = mtime + 1;
 
 // IRQ generation
 always @(posedge clk or negedge resetb)
 begin
     if (!resetb)
         timer_irq           <= 1'b0;
-    else if (mtime >= mtimecmp)
+    else if (mtime_nxt >= mtimecmp)
         timer_irq           <= 1'b1;
     else
         timer_irq           <= 1'b0;
@@ -50,7 +52,7 @@ begin
     else if (wready && waddr == (MTIME_BASE+4))
         mtime[63:32]        <= wdata[31: 0];
     else if (timer_en)
-        mtime[63: 0]        <= mtime[63: 0] + 1'b1;
+        mtime[63: 0]        <= mtime_nxt[63: 0];
 end
 
 // timer compare, ignore strb.
