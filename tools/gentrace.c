@@ -16,23 +16,23 @@
 #define DMEM_SIZE   RAMSIZE
 
 #define TRAP(cause,val) { \
+    CYCLE_ADD(branch_penalty); \
     csr.mcause = cause; \
     csr.mstatus = (csr.mstatus&(1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
     csr.mstatus = (csr.mstatus & ~(1<<MIE)); \
     csr.mepc = prev_pc; \
     csr.mtval = val; \
     pc = (csr.mtvec&1) ? csr.mtvec + cause * 4 : csr.mtvec; \
-    CYCLE_ADD(branch_penalty); \
 }
 
 #define INT(cause,src) { \
+    if (pc == prev_pc+4) CYCLE_ADD(branch_penalty); \
     csr.mcause = cause; \
     csr.mstatus = (csr.mstatus&(1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
     csr.mstatus = (csr.mstatus & ~(1<<MIE)); \
     csr.mip = csr.mip | (1 << src); \
     csr.mepc = pc; \
     pc = (csr.mtvec&1) ? csr.mtvec + (cause & (~(1<<31))) * 4 : csr.mtvec; \
-    CYCLE_ADD(branch_penalty); \
 }
 
 #define CYCLE_ADD(count) { \
