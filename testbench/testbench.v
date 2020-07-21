@@ -2,6 +2,7 @@
 // Written by Kuoping Hsu, 2020, MIT license
 
 //`define SINGLE_RAM  1
+//`define PRINT_TIMELOG
 
 `define TOP         top.riscv
 
@@ -408,7 +409,9 @@ end
 always @(posedge clk) begin
     if ($test$plusargs("trace") != 0 && !`TOP.wb_stall && !`TOP.stall_r &&
         !`TOP.wb_flush && fillcount == 2'b11) begin
+        `ifdef PRINT_TIMELOG
         $fwrite(fp, "%d ", top.riscv.csr_cycle[31:0]);
+        `endif
         $fwrite(fp, "%08x %08x", `TOP.wb_pc, `TOP.wb_insn);
         if (`TOP.wb_mem2reg && !`TOP.wb_ld_align_excp) begin
             $fwrite(fp, " read 0x%08x => 0x%08x", `TOP.wb_raddress,

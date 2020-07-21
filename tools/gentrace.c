@@ -7,6 +7,7 @@
 #include <bfd.h>
 #include "opcode.h"
 
+#define PRINT_TIMELOG 0
 #define MAXLEN      1024
 #define RAMSIZE     128*1024
 
@@ -411,21 +412,21 @@ int main(int argc, char **argv) {
         switch(inst.r.op) {
             case OP_AUIPC : { // U-Type
                 regs[inst.u.rd] = pc + to_imm_u(inst.u.imm);
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
                                     inst.u.rd, regname[inst.u.rd], regs[inst.u.rd]);
                 break;
             }
             case OP_LUI   : { // U-Type
                 regs[inst.u.rd] = to_imm_u(inst.u.imm);
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
                                     inst.u.rd, regname[inst.u.rd], regs[inst.u.rd]);
                 break;
             }
             case OP_JAL   : { // J-Type
                 regs[inst.j.rd] = pc + 4;
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
                                     inst.j.rd, regname[inst.j.rd], regs[inst.j.rd]);
                 pc += to_imm_j(inst.j.imm);
@@ -439,7 +440,7 @@ int main(int argc, char **argv) {
             }
             case OP_JALR  : { // I-Type
                 int new_pc = pc + 4;
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 if (ft) fprintf(ft, "%08x ", pc);
                 pc = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
                 regs[inst.i.rd] = new_pc;
@@ -450,7 +451,7 @@ int main(int argc, char **argv) {
                 continue;
             }
             case OP_BRANCH: { // B-Type
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
                 int offset = to_imm_b(inst.b.imm2, inst.b.imm1);
                 switch(inst.b.func3) {
@@ -517,7 +518,7 @@ int main(int argc, char **argv) {
                 int address = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
                 memaddr = address;
                 if (singleram) CYCLE_ADD(1);
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
                 if (address < DMEM_BASE || address > DMEM_BASE+DMEM_SIZE) {
                     switch(address) {
@@ -609,7 +610,7 @@ int main(int argc, char **argv) {
                            0xffffffff;
                 if (singleram) CYCLE_ADD(1);
                 if (address < DMEM_BASE || address > DMEM_BASE+DMEM_SIZE) {
-                    if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                    if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                     if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
                     switch(address) {
                         case MMIO_PUTC:
@@ -645,7 +646,7 @@ int main(int argc, char **argv) {
                     pc += 4;
                     continue;
                 }
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
                 address = DVA2PA(address);
                 switch(inst.s.func3) {
@@ -712,7 +713,7 @@ int main(int argc, char **argv) {
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
                 }
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
                                 pc, inst.inst, inst.i.rd, regname[inst.i.rd],
                                 regs[inst.i.rd]);
@@ -819,21 +820,21 @@ int main(int argc, char **argv) {
                                  continue;
                     }
                 }
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
                                     pc, inst.inst, inst.r.rd, regname[inst.r.rd],
                                     regs[inst.r.rd]);
                 break;
             }
             case OP_FENCE : {
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 if (ft) fprintf(ft, "%08x %08x %s\n", pc, inst.inst, "FENCE");
                 break;
             }
             case OP_SYSTEM: { // I-Type
                 int val;
                 int update;
-                if (ft) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
                 // RDCYCLE, RDTIME and RDINSTRET are read only
                 switch(inst.i.func3) {
                     case OP_ECALL  : if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
