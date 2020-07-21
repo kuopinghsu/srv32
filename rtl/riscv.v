@@ -73,6 +73,7 @@ module riscv (
     reg                     ex_memwr;
     reg                     ex_mem2reg;
     wire            [31: 0] ex_memaddr;
+    wire            [31: 1] ex_ret_pc;
     reg                     ex_alu;
     reg                     ex_csr;
     reg                     ex_csr_wr;
@@ -315,8 +316,8 @@ assign ex_st_align_excp     = ex_memwr && !ex_flush && (
                               );
 assign ex_inst_ill_excp     = !ex_flush && (ill_branch || ill_alu || ill_csr || ex_illegal);
 assign ex_inst_align_excp   = !ex_flush && next_pc[1];
-assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE];
-assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE];
+assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE] && !ex_systemcall;
+assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE] && !ex_systemcall;
 
 assign ex_stall             = stall_r || if_stall ||
                               (ex_mem2reg && !dmem_rvalid);
@@ -644,6 +645,8 @@ always @* begin
     endcase
 end
 
+assign ex_ret_pc = (ex_jal || ex_jalr || ex_branch) ? next_pc[31: 1] : ex_pc[31: 1] + 31'd2;
+
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         csr_mcause                  <= 32'h0;
@@ -717,7 +720,7 @@ always @(posedge clk or negedge resetb) begin
             end
             ex_timer_irq : begin
                 csr_mcause          <= INT_MTIME;
-                csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                csr_mepc            <= {ex_ret_pc[31: 1], 1'b0};
                 csr_mtval           <= csr_mtval; // FIXME
                 csr_mstatus[MPIE]   <= csr_mstatus[MIE];
                 csr_mstatus[MIE]    <= 1'b0;
@@ -725,7 +728,7 @@ always @(posedge clk or negedge resetb) begin
             end
             ex_interrupt : begin
                 csr_mcause          <= INT_MEI;
-                csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                csr_mepc            <= {ex_ret_pc[31: 1], 1'b0};
                 csr_mtval           <= csr_mtval; // FIXME
                 csr_mstatus[MPIE]   <= csr_mstatus[MIE];
                 csr_mstatus[MIE]    <= 1'b0;
@@ -936,6 +939,7 @@ end
     reg         [ 1: 0] wb_break;
     reg         [31: 0] wb_raddress;
     reg                 wb_system;
+    reg                 wb_ld_align_excp;
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
@@ -943,11 +947,13 @@ always @(posedge clk or negedge resetb) begin
         wb_insn             <= 32'h0;
         wb_break            <= 2'b00;
         wb_system           <= 1'b0;
+        wb_ld_align_excp    <= 1'b0;
     end else if (!ex_stall) begin
         wb_pc               <= ex_pc;
         wb_insn             <= ex_insn;
         wb_break            <= ex_imm[1:0];
         wb_system           <= ex_systemcall;
+        wb_ld_align_excp    <= ex_ld_align_excp;
     end
 end
 

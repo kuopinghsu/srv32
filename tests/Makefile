@@ -2,14 +2,14 @@ ROOT_SIMPLE_RISCV ?= $(shell cd .. && pwd)
 
 tests: riscv-compliance
 	export ROOT_SIMPLE_RISCV=$(ROOT_SIMPLE_RISCV); \
-	export TARGET_SIM=$(ROOT_SIMPLE_RISCV)/sim/sim; \
+	export TARGET_SIM="$(ROOT_SIMPLE_RISCV)/sim/sim +trace"; \
 	export RISCV_PREFIX=riscv32-unknown-elf-; \
 	export RISCV_TARGET=simple-riscv; \
 	make -C riscv-compliance
 
 tests-sw: riscv-compliance
 	export ROOT_SIMPLE_RISCV=$(ROOT_SIMPLE_RISCV); \
-	export TARGET_SIM=$(ROOT_SIMPLE_RISCV)/tools/gentrace; \
+	export TARGET_SIM="$(ROOT_SIMPLE_RISCV)/tools/gentrace -l trace.log"; \
 	export RISCV_PREFIX=riscv32-unknown-elf-; \
 	export RISCV_TARGET=simple-riscv; \
 	make -C riscv-compliance

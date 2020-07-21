@@ -160,7 +160,7 @@ end
     // check memory range
     always @(posedge clk) begin
         if (mem_ready && mem_we && mem_addr == MMIO_PUTC) begin
-            $write("%c", mem_wdata[7:0]);
+            $write("%c", mem_wdata[7:0]); $fflush();
         end
         else if (mem_ready && mem_we && mem_addr == MMIO_EXIT) begin
             $display("\nExcuting %0d instructions, %0d cycles", `TOP.csr_instret,
@@ -408,10 +408,11 @@ end
 always @(posedge clk) begin
     if ($test$plusargs("trace") != 0 && !`TOP.wb_stall && !`TOP.stall_r &&
         !`TOP.wb_flush && fillcount == 2'b11) begin
+        $fwrite(fp, "%d ", top.riscv.csr_cycle[31:0]);
         $fwrite(fp, "%08x %08x", `TOP.wb_pc, `TOP.wb_insn);
-        if (`TOP.wb_mem2reg && !`TOP.wb_trap) begin
+        if (`TOP.wb_mem2reg && !`TOP.wb_ld_align_excp) begin
             $fwrite(fp, " read 0x%08x => 0x%08x", `TOP.wb_raddress,
-                                                   `TOP.dmem_rdata);
+                                                  `TOP.dmem_rdata);
             if (`TOP.wb_alu2reg) begin
                 $fwrite(fp, ", x%02d (%0s) <= 0x%08x\n", `TOP.wb_dst_sel,
                                                        regname, `TOP.wb_rdata);

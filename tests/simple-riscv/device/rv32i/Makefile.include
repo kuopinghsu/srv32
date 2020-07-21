@@ -1,16 +1,18 @@
 LDSCRIPT      = $(ROOTDIR)/riscv-target/simple-riscv/device/rv32i/link.ld
 
-TARGET_SIM   ?= $(ROOT_SIMPLE_RISCV)/sim/sim
+TARGET_SIM   ?= "$(ROOT_SIMPLE_RISCV)/sim/sim +trace"
+TARGET_SWSIM ?= $(ROOT_SIMPLE_RISCV)/tools/gentrace
 TARGET_FLAGS ?= $(RISCV_TARGET_FLAGS) -q
 ifeq ($(shell command -v $(TARGET_SIM) 2> /dev/null),)
     $(error Target simulator executable '$(TARGET_SIM)` not found)
 endif
 
-RUN_TARGET=\
+RUN_TARGET    = \
     cp $(*).elf.imem.bin imem.bin; cp $(*).elf.dmem.bin dmem.bin; cp $(*).elf.memory.bin memory.bin; \
     $(TARGET_SIM) $(TARGET_FLAGS) $< 2> $@; \
     mv dump.txt $(*).signature.output; \
-    rm -f imem.bin dmem.bin memory.bin
+    $(TARGET_SWSIM) -l trace_sw.log $(TARGET_FLAGS) $< 2> $@; \
+    diff --brief trace.log trace_sw.log && rm -f imem.bin dmem.bin memory.bin trace.log trace.sw.log
 
 RISCV_PREFIX   ?= riscv32-unknown-elf-
 RISCV_GCC      ?= $(RISCV_PREFIX)gcc
