@@ -2,7 +2,7 @@
 // Written by Kuoping Hsu, 2020, MIT license
 
 //`define SINGLE_RAM  1
-//`define PRINT_TIMELOG
+`define PRINT_TIMELOG
 
 `define TOP         top.riscv
 

@@ -16,12 +16,14 @@ endif
 help:
 	@echo "make all         build all diags and run the RTL sim"
 	@echo "make all-sw      build all diags and run the software sim"
-	@echo "make tests-all   run the RTL and simulator compliance test"
+	@echo "make tests-all   run all diags and compliance test"
 	@echo "make build       build all diags and the RTL"
 	@echo "make dhrystone   build Dhrystone diag and run the RTL sim"
 	@echo "make coremark    build Coremark diag and run the RTL sim"
 	@echo "make clean       clean"
 	@echo "make distclean   clean all"
+
+tests-all: tests-sw tests all all-sw
 
 all:
 	for i in $(SUBDIRS); do \
@@ -40,8 +42,6 @@ tests:
 tests-sw:
 	make clean && make -C sim; make -C tools
 	make -C tests tests-sw
-
-tests-all: tests-sw tests
 
 build:
 	for i in sw sim tools; do \

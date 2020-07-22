@@ -70,7 +70,8 @@ Only running make without parameters will get help.
 
     $ make
     make all         build all diags and run the RTL sim
-    make tests-all   run the simulator and RTL compliance test
+    make all-sw      build all diags and run the software sim
+    make tests-all   run all diags and compliance test
     make build       build all diags and the RTL
     make dhrystone   build Dhrystone diag and run the RTL sim
     make coremark    build Coremark diag and run the RTL sim
@@ -181,7 +182,8 @@ Provide the Yosys synthesis script on the syn folder.
 Compliance test for software simulator and RTL. This is the compliance test form RISC-V Foundation Compliance Task Group.
 The github repository is at https://github.com/riscv/riscv-compliance. Running the following command will clone the repository into tests folder and do the compliance test.
 
-    make tests-all
+    make tests          # run the compliance test for RTL
+    make tests-sw       # run the compliance test for software simulator
 
 ## Known issues
 

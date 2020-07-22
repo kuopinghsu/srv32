@@ -7,7 +7,7 @@
 #include <bfd.h>
 #include "opcode.h"
 
-#define PRINT_TIMELOG 0
+#define PRINT_TIMELOG 1
 #define MAXLEN      1024
 #define RAMSIZE     128*1024
 
@@ -27,6 +27,8 @@
 }
 
 #define INT(cause,src) { \
+    /* When the branch instruction is interrupted, do not accumulate cycles, */ \
+    /* which has been added when the branch instruction is executed. */ \
     if (pc == prev_pc+4) CYCLE_ADD(branch_penalty); \
     csr.mcause = cause; \
     csr.mstatus = (csr.mstatus&(1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
@@ -281,6 +283,7 @@ int main(int argc, char **argv) {
     int dsize;
     int branch_predict = 0;
     int prev_pc;
+    int interrupt;
 
     const char *optstring = "hb:pl:qm:s";
     int c;
@@ -379,6 +382,7 @@ int main(int argc, char **argv) {
     csr.mtimecmp.c = 0;
     pc             = mem_base;
     prev_pc        = pc;
+    interrupt      = 0;
 
     // Execution loop
     while(1) {
@@ -388,15 +392,9 @@ int main(int argc, char **argv) {
         //       be aligned at short word.
         pc &= 0xfffffffe;
 
-        // In RTL simulation, there's an instruction delay when interrupt occurs
-        if ((csr.mtime.c >= csr.mtimecmp.c+1) &&
-            (csr.mstatus & (1 << MIE)) && (csr.mie & (1 << MTIE))) {
+        if (interrupt) {
             INT(INT_MTIME, MTIP);
         }
-
-        csr.time.c++;
-        csr.instret.c++;
-        CYCLE_ADD(1);
 
         if (IVA2PA(pc) >= isize || IVA2PA(pc) < 0) {
             printf("PC 0x%08x out of range 0x%08x\n", pc, IPA2VA(isize));
@@ -409,6 +407,19 @@ int main(int argc, char **argv) {
         regs[0] = 0;
         prev_pc = pc;
         inst.inst = imem[IVA2PA(pc)/4];
+
+        if ((csr.mtime.c >= csr.mtimecmp.c) &&
+            (csr.mstatus & (1 << MIE)) && (csr.mie & (1 << MTIE)) &&
+            (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call
+            interrupt = 1;
+        } else {
+            interrupt = 0;
+        }
+
+        csr.time.c++;
+        csr.instret.c++;
+        CYCLE_ADD(1);
+
         switch(inst.r.op) {
             case OP_AUIPC : { // U-Type
                 regs[inst.u.rd] = pc + to_imm_u(inst.u.imm);
@@ -849,7 +860,6 @@ int main(int argc, char **argv) {
                                                       (csr.mstatus | (1 << MIE)) :
                                                       (csr.mstatus & ~(1 << MIE));
                                         // mstatus.mpie = 1
-                                        csr.mstatus = csr.mstatus | (1 << MPIE);
                                         if ((pc&2) == 0)
                                             CYCLE_ADD(branch_penalty);
                                         continue;
