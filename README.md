@@ -1,7 +1,7 @@
 Simple 3-stage pipeline RISC-V processor
 ========================================
 
-This is a simple RISC-V 3-stage pipeline processor.
+This is a simple RISC-V 3-stage pipeline processor and supports FreeRTOS.
 I wrote this code to understand the RV32IM instruction set, just for fun.
 The performance is 1.821 DMIPS/MHz and 2.681 Coremark/MHz.
 This is not a RISC-V core available for production.
@@ -12,6 +12,8 @@ This is not a RISC-V core available for production.
 2. RV32IM instruction sets
 3. Pass RV32IM <A Href="https://github.com/riscv/riscv-compliance">compliance test</A>
 4. Trap exception
+5. Interrupt handler
+6. <A Href="https://github.com/kuopinghsu/FreeRTOS-RISCV">FreeRTOS</A> suppprt
 
 ## Building toolchains
 
@@ -185,15 +187,17 @@ The github repository is at https://github.com/riscv/riscv-compliance. Running t
     make tests          # run the compliance test for RTL
     make tests-sw       # run the compliance test for software simulator
 
+## FreeRTOS support
+
+Reference code on https://github.com/kuopinghsu/FreeRTOS-RISCV.
+
 ## Known issues
 
 * Memory can not respond non-valid, that is, the memory should always accept the command from CPU.
 
 ## TO-DO
 
-* implement the interrupt handling
 * merge the memory interface into one memory for one port
-* support FreeRTOS
 * static branch predictor
 * support RV32C compress extension
 

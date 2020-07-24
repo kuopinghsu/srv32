@@ -161,7 +161,8 @@ end
     // check memory range
     always @(posedge clk) begin
         if (mem_ready && mem_we && mem_addr == MMIO_PUTC) begin
-            $write("%c", mem_wdata[7:0]); $fflush();
+            $write("%c", mem_wdata[7:0]);
+            $fflush;
         end
         else if (mem_ready && mem_we && mem_addr == MMIO_EXIT) begin
             $display("\nExcuting %0d instructions, %0d cycles", `TOP.csr_instret,

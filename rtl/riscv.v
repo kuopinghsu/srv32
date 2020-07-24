@@ -83,6 +83,7 @@ module riscv (
     reg                     ex_jalr;
     reg                     ex_branch;
     reg                     ex_system;
+    reg                     ex_system_op;
     wire                    ex_systemcall;
     wire                    ex_flush;
     reg             [31: 0] ex_csr_read;
@@ -219,6 +220,7 @@ always @(posedge clk or negedge resetb) begin
         ex_jalr             <= 1'b0;
         ex_branch           <= 1'b0;
         ex_system           <= 1'b0;
+        ex_system_op        <= 1'b0;
         ex_pc               <= RESETVEC;
         ex_illegal          <= 1'b0;
         `ifdef RV32M_ENABLED
@@ -254,6 +256,7 @@ always @(posedge clk or negedge resetb) begin
         ex_branch           <= inst[`OPCODE] == OP_BRANCH;
         ex_system           <= (inst[`OPCODE] == OP_SYSTEM) &&
                                (inst[`FUNC3] == 3'b000);
+        ex_system_op        <= inst[`OPCODE] == OP_SYSTEM;
         ex_pc               <= if_pc;
         ex_illegal          <= !((inst[`OPCODE] == OP_AUIPC )||
                                  (inst[`OPCODE] == OP_LUI   )||
@@ -316,8 +319,8 @@ assign ex_st_align_excp     = ex_memwr && !ex_flush && (
                               );
 assign ex_inst_ill_excp     = !ex_flush && (ill_branch || ill_alu || ill_csr || ex_illegal);
 assign ex_inst_align_excp   = !ex_flush && next_pc[1];
-assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE] && !ex_systemcall;
-assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE] && !ex_systemcall;
+assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE] && !ex_system_op && !ex_flush;
+assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE] && !ex_system_op && !ex_flush;
 
 assign ex_stall             = stall_r || if_stall ||
                               (ex_mem2reg && !dmem_rvalid);
@@ -645,7 +648,7 @@ always @* begin
     endcase
 end
 
-assign ex_ret_pc = (ex_jal || ex_jalr || ex_branch) ? next_pc[31: 1] : ex_pc[31: 1] + 31'd2;
+assign ex_ret_pc = (ex_jal || ex_jalr || (ex_branch && branch_taken)) ? next_pc[31: 1] : ex_pc[31: 1] + 31'd2;
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin

@@ -392,6 +392,9 @@ int main(int argc, char **argv) {
         //       be aligned at short word.
         pc &= 0xfffffffe;
 
+        // keep x0 always zero
+        regs[0] = 0;
+
         if (interrupt) {
             INT(INT_MTIME, MTIP);
         }
@@ -400,17 +403,17 @@ int main(int argc, char **argv) {
             printf("PC 0x%08x out of range 0x%08x\n", pc, IPA2VA(isize));
             TRAP(TRAP_INST_FAIL, pc);
         }
+
         if ((pc&2) != 0) {
             printf("PC 0x%08x alignment error\n", pc);
             TRAP(TRAP_INST_ALIGN, pc);
         }
-        regs[0] = 0;
-        prev_pc = pc;
+
         inst.inst = imem[IVA2PA(pc)/4];
 
         if ((csr.mtime.c >= csr.mtimecmp.c) &&
             (csr.mstatus & (1 << MIE)) && (csr.mie & (1 << MTIE)) &&
-            (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call
+            (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call and CSR R/W
             interrupt = 1;
         } else {
             interrupt = 0;
@@ -420,6 +423,7 @@ int main(int argc, char **argv) {
         csr.instret.c++;
         CYCLE_ADD(1);
 
+        prev_pc = pc;
         switch(inst.r.op) {
             case OP_AUIPC : { // U-Type
                 regs[inst.u.rd] = pc + to_imm_u(inst.u.imm);
