@@ -9,7 +9,7 @@ module top (
     input                   resetb,
 
     input                   stall,
-    output reg              exception,
+    output                  exception,
 
     // interrupt
     input                   interrupt,

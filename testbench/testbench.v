@@ -6,6 +6,13 @@
 
 `define TOP         top.riscv
 
+`ifdef SYNTHESIS
+module fpga_top(
+    input           clk,
+    input           resetb,
+    input           stall
+);
+`else
 `ifdef VERILATOR
 module testbench(
     input           clk,
@@ -14,17 +21,21 @@ module testbench(
 );
 `else
 module testbench();
-`endif
+`endif // VERILATOR
+`endif // SYNTHESIS
+
     `include "opcode.vh"
 
     localparam      DRAMSIZE    = 128*1024;
     localparam      IRAMSIZE    = 128*1024;
 
+`ifndef SYNTHESIS
 `ifndef VERILATOR
     reg             clk;
     reg             resetb;
     reg             stall;
-`endif
+`endif // !VERILATOR
+`endif // !SYNTHESIS
 
     wire            exception;
     wire            timer_irq;
@@ -36,6 +47,7 @@ module testbench();
     integer         i;
     integer         dump;
 
+`ifndef SYNTHESIS
 initial begin
     if ($test$plusargs("help") != 0) begin
         $display("");
@@ -64,13 +76,13 @@ initial begin
 
     #100 resetb     = 1'b1;
     #100 stall      = 1'b0;
-`endif
+`endif // VERILATOR
 
 end
 
 `ifndef VERILATOR
 always #10 clk      = ~clk;
-`endif
+`endif // VERILATOR
 
 // check timeout if the PC do not change anymore
 always @(posedge clk or negedge resetb) begin
@@ -101,6 +113,7 @@ always @(posedge clk) begin
     end
 end
 `endif
+`endif // SYNTHESIS
 
 `ifdef SINGLE_RAM
 
@@ -158,6 +171,7 @@ end
         .wstrb (mem_wstrb)
     );
 
+`ifndef SYNTHESIS
     // check memory range
     always @(posedge clk) begin
         if (mem_ready && mem_we && mem_addr == MMIO_PUTC) begin
@@ -200,6 +214,7 @@ end
             end
         end
     end
+`endif // SYNTHESIS
 
 `else // SINGLE_RAM
 
@@ -222,8 +237,6 @@ end
     wire    [31: 0] dmem_rdata;
 
     wire            wready;
-    wire            timer_irq;
-    wire            interrupt;
 
     assign imem_valid   = 1'b1;
     assign dmem_rvalid  = 1'b1;
@@ -297,6 +310,7 @@ end
         .wstrb (dmem_wstrb)
     );
 
+`ifndef SYNTHESIS
     // check memory range
     always @(posedge clk) begin
         if (imem_ready && imem_addr[31:$clog2(IRAMSIZE)] != 'd0) begin
@@ -343,9 +357,11 @@ end
             end
         end
     end
+`endif // SYNTHESIS
 
 `endif // SINGLE_RAM
 
+`ifndef SYNTHESIS
 `ifdef TRACE
 ////////////////////////////////////////////////////////////
 // Generate trace.log
@@ -458,7 +474,8 @@ always @(posedge clk) begin
         end
     end
 end
-`endif
+`endif // TRACE
+`endif // SYNTHESIS
 
 endmodule
 

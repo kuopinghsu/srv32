@@ -18,7 +18,7 @@ module timer(
     output reg              rresp,
     output reg      [31: 0] rdata,
 
-    output                  timer_irq
+    output reg              timer_irq
 );
 
 `include "opcode.vh"
