@@ -63,6 +63,7 @@ tests/riscv-compliance
 
 tools/gentrace
 sim/sim
+sim/sim_cc
 *.dis
 *.symbol
 *.elf
