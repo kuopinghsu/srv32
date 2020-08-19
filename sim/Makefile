@@ -6,6 +6,12 @@ RFLAGS      = +trace
 
 TARGET      = sim
 
+ifeq (, $(shell which stdbuf))
+STDBUF      =
+else
+STDBUF      = stdbuf -oL -eL
+endif
+
 TARGET_SIM  = iverilog
 
 ifeq ($(top),1)
@@ -35,8 +41,8 @@ $(TARGET):
 	@if [ ! -f ../sw/$*/memory.bin ]; then \
 		make -C ../sw $*; \
 	fi
-	cp ../sw/$*/*.bin .
-	./$(TARGET) $(RFLAGS) | awk -f $(filter %.awk, $^)
+	@cp ../sw/$*/*.bin .
+	@$(STDBUF) ./$(TARGET) $(RFLAGS) | awk -f $(filter %.awk, $^)
 
 clean:
 	@$(RM) $(TARGET) wave.* trace.log *.bin dump.txt
