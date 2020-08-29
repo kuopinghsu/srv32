@@ -197,7 +197,7 @@ Reference code on https://github.com/kuopinghsu/FreeRTOS-RISCV.
     # Ubuntu package needed to generate coverage report
     sudo apt install lcov
 
-Following command will generate the code coverage report at coverage/html
+Following command will generate the code coverage report in coverage/html
 directory.
 
     % make coverage
