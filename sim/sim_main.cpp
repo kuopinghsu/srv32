@@ -36,6 +36,10 @@ int main(int argc, char** argv)
         main_time++;
     }
 
+    #if VM_COVERAGE
+    VerilatedCov::write("coverage.dat");
+    #endif
+
     top->final();
     delete top;
 

@@ -119,7 +119,6 @@ module riscv (
     reg             [31: 0] wb_wdata;
     reg             [31: 0] wb_rdata;
     wire                    wb_flush;
-    reg                     wb_trap;
 
     reg                     ill_csr;
 
@@ -490,7 +489,6 @@ always @(posedge clk or negedge resetb) begin
         wb_mem2reg          <= 1'b0;
         wb_raddr            <= 2'h0;
         wb_alu_op           <= 3'h0;
-        wb_trap             <= 1'b0;
     end else if (!ex_stall) begin
         wb_result           <= ex_result;
         wb_alu2reg          <= ex_alu || ex_lui || ex_auipc || ex_jal || ex_jalr ||
@@ -505,7 +503,6 @@ always @(posedge clk or negedge resetb) begin
         wb_mem2reg          <= ex_mem2reg;
         wb_raddr            <= dmem_raddr[1:0];
         wb_alu_op           <= ex_alu_op;
-        wb_trap             <= ex_trap;
     end
 end
 

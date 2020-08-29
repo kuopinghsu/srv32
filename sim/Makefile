@@ -1,5 +1,6 @@
 verilator  ?= 1
 top        ?= 0
+coverage   ?= 0
 
 # Run flags
 RFLAGS      = +trace
@@ -18,9 +19,14 @@ ifeq ($(top),1)
     _top := 1
 endif
 
+ifeq ($(coverage),1)
+    _coverage := 1
+endif
+
 ifeq ($(verilator),1)
 BFLAGS      = -O3 -cc -Wall -Wno-STMTDLY -Wno-UNUSED \
               $(if $(_top), +define+SINGLE_RAM) \
+              $(if $(_coverage), --coverage) \
               --trace-fst --Mdir sim_cc --build --exe sim_main.cpp
 TARGET_SIM  = verilator
 else
@@ -43,10 +49,13 @@ $(TARGET):
 	fi
 	@cp ../sw/$*/*.bin .
 	@$(STDBUF) ./$(TARGET) $(RFLAGS) | awk -f $(filter %.awk, $^)
+	@if [ -f coverage.dat ]; then \
+		mv coverage.dat $*_cov.dat; \
+	fi
 
 clean:
 	@$(RM) $(TARGET) wave.* trace.log *.bin dump.txt
-	@$(RM) -rf sim_cc
+	@$(RM) -rf sim_cc *_cov.dat
 
 distclean: clean
 

@@ -35,6 +35,7 @@ Install RV32IM toolchains.
 
 | Folder    | Description                                     |
 | --------- | ----------------------------------------------- |
+| coverage  | Code coverage report                            |
 | doc       | Instruction sets document                       |
 | rtl       | RTL files                                       |
 | sim       | Icarus Verilog/Verilator simulation environment |
@@ -190,6 +191,16 @@ The github repository is at https://github.com/riscv/riscv-compliance. Running t
 ## FreeRTOS support
 
 Reference code on https://github.com/kuopinghsu/FreeRTOS-RISCV.
+
+## Coverage Report
+
+    # Ubuntu package needed to generate coverage report
+    sudo apt install lcov
+
+Following command will generate the code coverage report at coverage/html
+directory.
+
+    % make coverage
 
 ## Known issues
 

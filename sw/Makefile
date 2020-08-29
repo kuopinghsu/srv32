@@ -1,7 +1,7 @@
 include common/Makefile.common
 
-SUBDIRS = hello dhrystone coremark qsort
 dirs = $(filter %/, $(wildcard */))
+SUBDIRS = $(subst /,,$(subst common,,$(dirs)))
 
 .PHONY: $(SUBDIRS) common clean
 
@@ -21,6 +21,7 @@ update:
 			$(OBJCOPY) -j .data -O binary $$i.elf dmem.bin; \
 			$(OBJCOPY) -O binary $$i.elf memory.bin; \
 			$(OBJDUMP) -d $$i.elf > $$i.dis; \
+			$(READELF) -a $$i.elf > $$i.symbol; \
 			cd ..; \
 		fi \
 	done

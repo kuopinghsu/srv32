@@ -55,6 +55,7 @@ begin
 end
 endfunction
 
+`ifndef SYNTHESIS
 initial begin
     file = $fopen(FILE, "rb");
     if (file != 0) begin
@@ -75,6 +76,7 @@ initial begin
         $finish(0);
     end
 end
+`endif
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
@@ -150,6 +152,7 @@ begin
 end
 endfunction
 
+`ifndef SYNTHESIS
 initial begin
     file = $fopen(FILE, "rb");
     if (file != 0) begin
@@ -170,6 +173,7 @@ initial begin
         $finish(0);
     end
 end
+`endif
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
