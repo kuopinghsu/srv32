@@ -23,6 +23,7 @@ help:
 	@echo "make all         build all diags and run the RTL sim"
 	@echo "make all-sw      build all diags and run the software sim"
 	@echo "make tests-all   run all diags and compliance test"
+	@echo "make coverage    generate code coverage report"
 	@echo "make build       build all diags and the RTL"
 	@echo "make dhrystone   build Dhrystone diag and run the RTL sim"
 	@echo "make coremark    build Coremark diag and run the RTL sim"

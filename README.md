@@ -75,6 +75,7 @@ Only running make without parameters will get help.
     make all         build all diags and run the RTL sim
     make all-sw      build all diags and run the software sim
     make tests-all   run all diags and compliance test
+    make coverage    generate code coverage report
     make build       build all diags and the RTL
     make dhrystone   build Dhrystone diag and run the RTL sim
     make coremark    build Coremark diag and run the RTL sim
