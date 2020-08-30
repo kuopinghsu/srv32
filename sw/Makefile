@@ -8,7 +8,9 @@ SUBDIRS = $(subst /,,$(subst common,,$(dirs)))
 all: $(SUBDIRS)
 
 $(SUBDIRS): common
-	$(MAKE) -C $@
+	@if [ -f $@/Makefile ]; then \
+		$(MAKE) -C $@; \
+	fi
 
 common:
 	$(MAKE) -C $@
@@ -28,7 +30,9 @@ update:
 
 clean:
 	for i in $(SUBDIRS) common; do \
-		$(MAKE) -C $$i clean; \
+		if [ -f $$i/Makefile ]; then \
+			$(MAKE) -C $$i clean; \
+		fi; \
 	done
 
 distclean: clean
