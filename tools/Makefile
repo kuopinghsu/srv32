@@ -4,11 +4,11 @@ top        ?= 0
 
 ifneq (, $(findstring darwin, $(SYS)))
 # to enable bfd library, install the binutils with
-# "--prefix=/usr/local/Cellar/binutils/2.34 --enable-install-libiberty"
+# "--prefix=/usr/local/Cellar/binutils/2.35 --enable-install-libiberty"
 # on MacOS.
-BFD_PATH = /usr/local/Cellar/binutils/2.34
+BFD_PATH = /usr/local/Cellar/binutils/2.35
 CFLAGS   = -DMACOX -DPACKAGE -I$(BFD_PATH)/include
-LDFLAGS  = -L$(BFD_PATH)/lib -liberty -undefined dynamic_lookup
+LDFLAGS  = -L$(BFD_PATH)/lib -liberty -lintl -lz #-undefined dynamic_lookup
 else
 CFLAGS   = -Wno-stringop-truncation
 endif

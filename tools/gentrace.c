@@ -199,7 +199,7 @@ static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {
 
 	// no section info is loaded unless we call bfd_check_format!:
 	if (!bfd_check_format (abfd, bfd_object)) {
-		printf("Failed to open file %s!\n", file);
+		printf("Failed to check file %s!\n", file);
 		return 0;
     }
 
