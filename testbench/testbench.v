@@ -38,7 +38,7 @@ module testbench();
 `endif // !SYNTHESIS
 
     wire            exception;
-    wire            timer_irq;
+    wire            ex_irq;
     wire            interrupt;
 
     reg     [31: 0] next_pc;
@@ -128,8 +128,7 @@ end
     wire            ready;
 
     assign mem_valid = 1'b1;
-    assign timer_irq = 1'b0;
-    assign interrupt = 1'b0;
+    assign interrupt = ex_irq;
 
     assign ready =
         (mem_ready && mem_we &&
@@ -142,7 +141,7 @@ end
         .stall      (stall),
         .exception  (exception),
 
-        .timer_irq  (timer_irq),
+        .ex_irq     (ex_irq),
         .interrupt  (interrupt),
 
         .mem_ready  (mem_ready),
@@ -242,7 +241,7 @@ end
     assign dmem_rvalid  = 1'b1;
     assign dmem_wvalid  = 1'b1;
 
-    assign interrupt    = 1'b0;
+    assign interrupt    = ex_irq;
 
     assign wready =
         (dmem_wready &&
@@ -255,6 +254,7 @@ end
         .stall      (stall),
         .exception  (exception),
 
+        .ex_irq     (ex_irq),
         .interrupt  (interrupt),
 
         .imem_ready (imem_ready),

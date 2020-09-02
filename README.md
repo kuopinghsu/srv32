@@ -203,6 +203,10 @@ directory.
 
     % make coverage
 
+Here is the coverage report by lcov.
+
+<img src="images/coverage.png" alt="coverage">
+
 ## Known issues
 
 * Memory can not respond non-valid, that is, the memory should always accept the command from CPU.

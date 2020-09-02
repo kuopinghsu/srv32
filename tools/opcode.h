@@ -132,9 +132,9 @@ enum {
 };
 
 enum {
-    CSR_VENDERID    = 0xF11,    // Vender ID
+    CSR_MVENDORID   = 0xF11,    // Vender ID
     CSR_MARCHID     = 0xF12,    // Architecture ID
-    CSR_IMPLID      = 0xF13,    // Implementation ID
+    CSR_MIMPID      = 0xF13,    // Implementation ID
     CSR_MHARTID     = 0xF14,    // Hardware thread ID
 
     CSR_MSTATUS     = 0x300,    // Machine status register
@@ -266,10 +266,15 @@ enum {
 //  WPRI    = 12 ... MXLEN-1 // Reserved
 };
 
+#define MVENDORID     0
+#define MARCHID       0
+#define MIMPID        0
+#define MHARTID       0
 #define MMIO_PUTC     0x9000001c
 #define MMIO_EXIT     0x9000002c
 #define MMIO_MTIME    0x90000000
 #define MMIO_MTIMECMP 0x90000008
+#define MMIO_MSIP     0x90000010
 #define STDOUT 1
 
 #define BRANCH_PENALTY 2

@@ -17,6 +17,7 @@ module riscv (
 
     // interrupt
     input                   timer_irq,
+    input                   sw_irq,
     input                   interrupt,
 
     // interface of instruction RAM
@@ -97,6 +98,7 @@ module riscv (
     wire                    ex_inst_ill_excp;
     wire                    ex_inst_align_excp;
     wire                    ex_timer_irq;
+    wire                    ex_sw_irq;
     wire                    ex_interrupt;
 
 `ifdef RV32M_ENABLED
@@ -319,6 +321,7 @@ assign ex_st_align_excp     = ex_memwr && !ex_flush && (
 assign ex_inst_ill_excp     = !ex_flush && (ill_branch || ill_alu || ill_csr || ex_illegal);
 assign ex_inst_align_excp   = !ex_flush && next_pc[1];
 assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE] && !ex_system_op && !ex_flush;
+assign ex_sw_irq            = sw_irq && csr_mstatus[MIE] && csr_mie[MSIE] && !ex_system_op && !ex_flush;
 assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE] && !ex_system_op && !ex_flush;
 
 assign ex_stall             = stall_r || if_stall ||
@@ -615,7 +618,7 @@ end
 // Trap CSR @ execution stage
 assign ex_trap      = (ex_inst_ill_excp || ex_inst_align_excp ||
                        ex_ld_align_excp || ex_st_align_excp ||
-                       ex_timer_irq || ex_interrupt ||
+                       ex_timer_irq || ex_sw_irq || ex_interrupt ||
                        ex_systemcall) && !ex_flush;
 assign ex_trap_pc   = (ex_systemcall && ex_imm[1:0] == 2'b10) ? // mret
                       csr_mepc :
@@ -633,6 +636,7 @@ always @* begin
         ex_ld_align_excp   : ex_mcause = TRAP_LD_ALIGN;
         ex_st_align_excp   : ex_mcause = TRAP_ST_ALIGN;
         ex_timer_irq       : ex_mcause = INT_MTIME;
+        ex_sw_irq          : ex_mcause = INT_MSI;
         ex_interrupt       : ex_mcause = INT_MEI;
         ex_systemcall      : begin
             case (ex_imm[1:0])
@@ -726,6 +730,14 @@ always @(posedge clk or negedge resetb) begin
                 csr_mstatus[MIE]    <= 1'b0;
                 csr_mip[MTIP]       <= 1'b1;
             end
+            ex_sw_irq : begin
+                csr_mcause          <= INT_MSI;
+                csr_mepc            <= {ex_ret_pc[31: 1], 1'b0};
+                csr_mtval           <= csr_mtval; // FIXME
+                csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                csr_mstatus[MIE]    <= 1'b0;
+                csr_mip[MSIP]       <= 1'b1;
+            end
             ex_interrupt : begin
                 csr_mcause          <= INT_MEI;
                 csr_mepc            <= {ex_ret_pc[31: 1], 1'b0};
@@ -781,13 +793,14 @@ always @* begin
     ex_csr_read = 32'h0;
     if (ex_csr) begin
         case (ex_imm[11:0])
-            CSR_VENDERID   : ex_csr_read = VENDERID;
-            CSR_MARCHID    : ex_csr_read = ARCHID;
-            CSR_IMPLID     : ex_csr_read = IMPLID;
-            CSR_MHARTID    : ex_csr_read = HARTID;
+            CSR_MVENDORID  : ex_csr_read = MVENDORID;
+            CSR_MARCHID    : ex_csr_read = MARCHID;
+            CSR_MIMPID     : ex_csr_read = MIMPID;
+            CSR_MHARTID    : ex_csr_read = MHARTID;
             CSR_MSTATUS    : ex_csr_read = csr_mstatus;
             CSR_MISA       : ex_csr_read = csr_misa;
             CSR_MIE        : ex_csr_read = csr_mie;
+            CSR_MIP        : ex_csr_read = csr_mip;
             CSR_MTVEC      : ex_csr_read = csr_mtvec;
             CSR_MEPC       : ex_csr_read = csr_mepc;
             CSR_MCAUSE     : ex_csr_read = csr_mcause[31:0];
@@ -813,9 +826,9 @@ always @(posedge clk or negedge resetb) begin
         csr_mtvec           <= 32'h0;
     end else if (!ex_stall && ex_csr_wr && !ex_flush) begin
         case (ex_imm[11:0])
-            CSR_VENDERID   : ; // Read only
+            CSR_MVENDORID  : ; // Read only
             CSR_MARCHID    : ; // Read only
-            CSR_IMPLID     : ; // Read only
+            CSR_MIMPID     : ; // Read only
             CSR_MHARTID    : ; // Read only
             CSR_MSTATUS    : ; // update @ trap/interrupt handler
             CSR_MISA       : begin

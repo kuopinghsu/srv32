@@ -32,7 +32,9 @@ module top (
     input                   dmem_rvalid,
     output          [31: 0] dmem_raddr,
     input                   dmem_rresp,
-    input           [31: 0] dmem_rdata
+    input           [31: 0] dmem_rdata,
+
+    output                  ex_irq
 );
 
     `include                "opcode.vh"
@@ -64,6 +66,7 @@ module top (
     wire                    drresp;
     wire            [31: 0] drdata;
     reg                     data_sel;
+    wire                    sw_irq;
 
     assign dmem_wready      = dwready && (dwaddr[31:28] != MMIO_BASE);
     assign dwvalid          = (dwaddr[31:28] == MMIO_BASE) ? twvalid : dmem_wvalid;
@@ -94,6 +97,7 @@ end
         .timer_en           (timer_en),
 
         .timer_irq          (timer_irq),
+        .sw_irq             (sw_irq),
         .interrupt          (interrupt),
 
         .imem_ready         (imem_ready),
@@ -140,7 +144,9 @@ end
         .rresp              (trresp),
         .rdata              (trdata),
 
-        .timer_irq          (timer_irq)
+        .timer_irq          (timer_irq),
+        .sw_irq             (sw_irq),
+        .ex_irq             (ex_irq)
     );
 
 endmodule

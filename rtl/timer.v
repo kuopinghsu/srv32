@@ -18,7 +18,9 @@ module timer(
     output reg              rresp,
     output reg      [31: 0] rdata,
 
-    output reg              timer_irq
+    output reg              timer_irq,
+    output reg              sw_irq,
+    output reg              ex_irq
 );
 
 `include "opcode.vh"
@@ -66,6 +68,20 @@ begin
         mtimecmp[63:32] <= wdata[31: 0];
 end
 
+// MSIP is used to trigger an interrupt. The external interrupt is at D[16],
+// defined by simple-rsicv. This is used for software selftest, it connects
+// ex_irq to the interrupt pin at top level of RTL code.
+always @(posedge clk or negedge resetb)
+begin
+    if (!resetb) begin
+        sw_irq          <= 1'b0;
+        ex_irq          <= 1'b0;
+    end else if (wready && waddr == MSIP_BASE) begin
+        sw_irq          <= wdata[0];        // software interrupt
+        ex_irq          <= wdata[16];       // external interrupt
+    end
+end
+
 // register read
 always @(posedge clk or negedge resetb)
 begin
@@ -85,6 +101,7 @@ begin
             MTIME_BASE+4    : rdata[31: 0] <= mtime[63:32];
             MTIMECMP_BASE   : rdata[31: 0] <= mtimecmp[31: 0];
             MTIMECMP_BASE+4 : rdata[31: 0] <= mtimecmp[63:32];
+            MSIP_BASE       : rdata[31: 0] <= {15'h0, ex_irq, 15'h0, sw_irq};
             default         : rdata[31: 0] <= rdata[31: 0];
         endcase
     end

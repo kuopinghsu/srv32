@@ -10,7 +10,7 @@ TARGET      = sim
 ifeq (, $(shell which stdbuf))
 STDBUF      =
 else
-STDBUF      = stdbuf -oL -eL
+STDBUF      = stdbuf -o0 -e0
 endif
 
 TARGET_SIM  = iverilog

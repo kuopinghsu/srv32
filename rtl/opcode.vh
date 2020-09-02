@@ -78,9 +78,9 @@ localparam  [ 2: 0] OP_ECALL   = 3'b000,    // inst[20] == 0: ECALL, inst[20] ==
                     OP_CSRRCI  = 3'b111;
 
 // CSR registers
-localparam  [11: 0] CSR_VENDERID    = 12'hF11,    // Vender ID
+localparam  [11: 0] CSR_MVENDORID   = 12'hF11,    // Vender ID
                     CSR_MARCHID     = 12'hF12,    // Architecture ID
-                    CSR_IMPLID      = 12'hF13,    // Implementation ID
+                    CSR_MIMPID      = 12'hF13,    // Implementation ID
                     CSR_MHARTID     = 12'hF14,    // Hardware thread ID
 
                     CSR_MSTATUS     = 12'h300,    // Machine status register
@@ -182,14 +182,15 @@ localparam  [ 4: 0] REG_ZERO =  0, REG_RA =  1, REG_SP  =  2, REG_GP  =  3,
                     REG_S8   = 24, REG_S9 = 25, REG_S10 = 26, REG_S11 = 27,
                     REG_T3   = 28, REG_T4 = 29, REG_T5  = 30, REG_T6  = 31;
 
-localparam  [31: 0] VENDERID = 32'h0,
-                    ARCHID   = 32'h0,
-                    IMPLID   = 32'h0,
-                    HARTID   = 32'h0;
+localparam  [31: 0] MVENDORID = 32'h0,
+                    MARCHID   = 32'h0,
+                    MIMPID    = 32'h0,
+                    MHARTID   = 32'h0;
 
 localparam  [ 3: 0] MMIO_BASE     = 4'h9;
 localparam  [31: 0] MTIME_BASE    = 32'h9000_0000,
                     MTIMECMP_BASE = 32'h9000_0008,
+                    MSIP_BASE     = 32'h9000_0010,
                     MMIO_PUTC     = 32'h9000_001c,
                     MMIO_EXIT     = 32'h9000_002c;
 

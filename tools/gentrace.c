@@ -19,11 +19,11 @@
 #define TRAP(cause,val) { \
     CYCLE_ADD(branch_penalty); \
     csr.mcause = cause; \
-    csr.mstatus = (csr.mstatus&(1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
+    csr.mstatus = (csr.mstatus &  (1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
     csr.mstatus = (csr.mstatus & ~(1<<MIE)); \
     csr.mepc = prev_pc; \
     csr.mtval = val; \
-    pc = (csr.mtvec&1) ? csr.mtvec + cause * 4 : csr.mtvec; \
+    pc = (csr.mtvec & 1) ? (csr.mtvec & 0xfffffffe) + cause * 4 : csr.mtvec; \
 }
 
 #define INT(cause,src) { \
@@ -31,16 +31,16 @@
     /* which has been added when the branch instruction is executed. */ \
     if (pc == prev_pc+4) CYCLE_ADD(branch_penalty); \
     csr.mcause = cause; \
-    csr.mstatus = (csr.mstatus&(1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
+    csr.mstatus = (csr.mstatus &  (1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
     csr.mstatus = (csr.mstatus & ~(1<<MIE)); \
     csr.mip = csr.mip | (1 << src); \
     csr.mepc = pc; \
-    pc = (csr.mtvec&1) ? csr.mtvec + (cause & (~(1<<31))) * 4 : csr.mtvec; \
+    pc = (csr.mtvec & 1) ? (csr.mtvec & 0xfffffffe) + (cause & (~(1<<31))) * 4 : csr.mtvec; \
 }
 
 #define CYCLE_ADD(count) { \
     csr.cycle.c = csr.cycle.c + count; \
-    csr.mtime.c = csr.mtime.c + count; \
+    if (!mtime_update) csr.mtime.c = csr.mtime.c + count; \
 }
 
 typedef struct _CSR {
@@ -49,6 +49,9 @@ typedef struct _CSR {
     COUNTER instret;
     COUNTER mtime;
     COUNTER mtimecmp;
+    int mvendorid;
+    int marchid;
+    int mimpid;
     int mhartid;
     int mstatus;
     int misa;
@@ -58,6 +61,7 @@ typedef struct _CSR {
     int mcause;
     int mip;
     int mtval;
+    int msip;
 } CSR;
 
 CSR csr;
@@ -66,6 +70,7 @@ int prev_pc = 0;
 int mem_base = 0;
 int singleram = 0;
 int branch_penalty = BRANCH_PENALTY;
+int mtime_update = 0;
 
 int quiet = 0;
 
@@ -246,13 +251,21 @@ int csr_rw(int regs, int mode, int val, int update) {
         case CSR_RDINSTRETH: counter.c = csr.instret.c - 1;
                              result = counter.d.hi; // UPDATE_CSR(update, mode, csr.instret.d.hi, val);
                              break;
-        case CSR_MHARTID   : result = csr.mhartid; UPDATE_CSR(update, mode, csr.mhartid, val);
+        case CSR_MVENDORID : result = csr.mvendorid; // UPDATE_CSR(update, mode, csr.mvendorid, val);
+                             break;
+        case CSR_MARCHID   : result = csr.marchid; // UPDATE_CSR(update, mode, csr.marchid, val);
+                             break;
+        case CSR_MIMPID    : result = csr.mimpid; // UPDATE_CSR(update, mode, csr.mimpid, val);
+                             break;
+        case CSR_MHARTID   : result = csr.mhartid; // UPDATE_CSR(update, mode, csr.mhartid, val);
                              break;
         case CSR_MSTATUS   : result = csr.mstatus; UPDATE_CSR(update, mode, csr.mstatus, val);
                              break;
         case CSR_MISA      : result = csr.misa; UPDATE_CSR(update, mode, csr.misa, val);
                              break;
         case CSR_MIE       : result = csr.mie; UPDATE_CSR(update, mode, csr.mie, val);
+                             break;
+        case CSR_MIP       : result = csr.mip; UPDATE_CSR(update, mode, csr.mip, val);
                              break;
         case CSR_MTVEC     : result = csr.mtvec; UPDATE_CSR(update, mode, csr.mtvec, val);
                              break;
@@ -283,7 +296,11 @@ int main(int argc, char **argv) {
     int dsize;
     int branch_predict = 0;
     int prev_pc;
-    int interrupt;
+    int timer_irq;
+    int sw_irq;
+    int sw_irq_next;
+    int ext_irq;
+    int ext_irq_next;
 
     const char *optstring = "hb:pl:qm:s";
     int c;
@@ -375,6 +392,10 @@ int main(int argc, char **argv) {
         regs[i] = 0;
     }
 
+    csr.mvendorid  = MVENDORID;
+    csr.marchid    = MARCHID;
+    csr.mimpid     = MIMPID;
+    csr.mhartid    = MHARTID;
     csr.time.c     = 0;
     csr.cycle.c    = 0;
     csr.instret.c  = 0;
@@ -382,12 +403,18 @@ int main(int argc, char **argv) {
     csr.mtimecmp.c = 0;
     pc             = mem_base;
     prev_pc        = pc;
-    interrupt      = 0;
+    timer_irq      = 0;
+    sw_irq         = 0;
+    sw_irq_next    = 0;
+    ext_irq        = 0;
+    ext_irq_next   = 0;
 
     // Execution loop
     while(1) {
         INST inst;
-        
+
+        mtime_update = 0;
+
         //FIXME: to pass the compliance test, the destination PC should
         //       be aligned at short word.
         pc &= 0xfffffffe;
@@ -395,8 +422,18 @@ int main(int argc, char **argv) {
         // keep x0 always zero
         regs[0] = 0;
 
-        if (interrupt) {
+        if (timer_irq && (csr.mstatus & (1 << MIE))) {
             INT(INT_MTIME, MTIP);
+        }
+
+        // software interrupt
+        if (sw_irq_next && (csr.mstatus & (1 << MIE))) {
+            INT(INT_MSI, MSIP);
+        }
+
+        // external interrupt
+        if (ext_irq_next && (csr.mstatus & (1 << MIE))) {
+            INT(INT_MEI, MEIP);
         }
 
         if (IVA2PA(pc) >= isize || IVA2PA(pc) < 0) {
@@ -414,10 +451,28 @@ int main(int argc, char **argv) {
         if ((csr.mtime.c >= csr.mtimecmp.c) &&
             (csr.mstatus & (1 << MIE)) && (csr.mie & (1 << MTIE)) &&
             (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call and CSR R/W
-            interrupt = 1;
+            timer_irq = 1;
         } else {
-            interrupt = 0;
+            timer_irq = 0;
         }
+
+        if (sw_irq &&
+            (csr.mstatus & (1 << MIE)) && (csr.mie & (1 << MSIE)) &&
+            (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call and CSR R/W
+            sw_irq_next = 1;
+        } else {
+            sw_irq_next = 0;
+        }
+        sw_irq = (csr.msip & (1<<0)) ? 1 : 0;
+
+        if (ext_irq &&
+            (csr.mstatus & (1 << MIE)) && (csr.mie & (1 << MEIE)) &&
+            (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call and CSR R/W
+            ext_irq_next = 1;
+        } else {
+            ext_irq_next = 0;
+        }
+        ext_irq = (csr.msip & (1<<16)) ? 1 : 0;
 
         csr.time.c++;
         csr.instret.c++;
@@ -559,6 +614,9 @@ int main(int argc, char **argv) {
                             //csr.mip = csr.mip & ~(1 << MTIP);
                             data = csr.mtimecmp.d.hi;
                             break;
+                        case MMIO_MSIP:
+                            data = csr.msip;
+                            break;
                         default:
                             if (ft) fprintf(ft, "\n");
                             printf("Unknown address 0x%08x to read at 0x%08x\n",
@@ -639,15 +697,21 @@ int main(int argc, char **argv) {
                             break;
                         case MMIO_MTIME:
                             csr.mtime.d.lo = (csr.mtime.d.lo & ~mask) | data;
+                            csr.mtime.c--;
+                            mtime_update = 1;
                             break;
                         case MMIO_MTIME+4:
                             csr.mtime.d.hi = (csr.mtime.d.hi & ~mask) | data;
+                            mtime_update = 1;
                             break;
                         case MMIO_MTIMECMP:
                             csr.mtimecmp.d.lo = (csr.mtimecmp.d.lo & ~mask) | data;
                             break;
                         case MMIO_MTIMECMP+4:
                             csr.mtimecmp.d.hi = (csr.mtimecmp.d.hi & ~mask) | data;
+                            break;
+                        case MMIO_MSIP:
+                            csr.msip = (csr.msip & ~mask) | data;
                             break;
                         default:
                             if (ft) fprintf(ft, "\n");
@@ -843,7 +907,7 @@ int main(int argc, char **argv) {
             }
             case OP_FENCE : {
                 if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x %08x %s\n", pc, inst.inst, "FENCE");
+                if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
                 break;
             }
             case OP_SYSTEM: { // I-Type

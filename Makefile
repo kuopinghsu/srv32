@@ -34,7 +34,7 @@ tests-all: tests-sw tests all all-sw
 
 all:
 	for i in $(SUBDIRS); do \
-		$(MAKE) $$i; \
+		$(MAKE) $$i || exit 1; \
 	done
 
 all-sw:
