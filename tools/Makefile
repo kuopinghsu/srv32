@@ -13,7 +13,7 @@ else
 CFLAGS   = -Wno-stringop-truncation
 endif
 
-CFLAGS  += -O0 -Og -g -Wall
+CFLAGS  += -O3 -g -Wall
 LDFLAGS += -lbfd
 
 ifeq ($(top), 1)
