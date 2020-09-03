@@ -16,6 +16,10 @@
 #define IMEM_SIZE   RAMSIZE
 #define DMEM_SIZE   RAMSIZE
 
+#define TIME_LOG    if (ft && PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo)
+#define TRACE_LOG   if (ft) fprintf(ft,
+#define TRACE_END   )
+
 #define TRAP(cause,val) { \
     CYCLE_ADD(branch_penalty); \
     csr.mcause = cause; \
@@ -107,7 +111,7 @@ void *aligned_malloc(int align, size_t size )
     void *mem = malloc( size + (align-1) + sizeof(void*) );
 
     char *amem = ((char*)mem) + sizeof(void*);
-    amem += (align - ((uintptr_t)amem & (align - 1)) & (align-1)); 
+    amem += (align - ((uintptr_t)amem & (align - 1)) & (align-1));
 
     ((void**)amem)[-1] = mem;
     return amem;
@@ -229,57 +233,56 @@ static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {
     } \
 }
 
-int csr_rw(int regs, int mode, int val, int update) {
-    int result = 0;
+int csr_rw(int regs, int mode, int val, int update, int *result) {
     COUNTER counter;
     switch(regs) {
         case CSR_RDCYCLE   : counter.c = csr.cycle.c - 1;
-                             result = counter.d.lo; // UPDATE_CSR(update, mode, csr.cycle.d.lo, val);
+                             *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.cycle.d.lo, val);
                              break;
         case CSR_RDCYCLEH  : counter.c = csr.cycle.c - 1;
-                             result = counter.d.hi; // UPDATE_CSR(update, mode, csr.cycle.d.hi, val);
+                             *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.cycle.d.hi, val);
                              break;
         case CSR_RDTIME    : counter.c = csr.time.c - 1;
-                             result = counter.d.lo; // UPDATE_CSR(update, mode, csr.time.d.lo, val);
+                             *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.time.d.lo, val);
                              break;
         case CSR_RDTIMEH   : counter.c = csr.time.c - 1;
-                             result = counter.d.hi; // UPDATE_CSR(update, mode, csr.time.d.hi, val);
+                             *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.time.d.hi, val);
                              break;
         case CSR_RDINSTRET : counter.c = csr.instret.c - 1;
-                             result = counter.d.lo; // UPDATE_CSR(update, mode, csr.instret.d.lo, val);
+                             *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.instret.d.lo, val);
                              break;
         case CSR_RDINSTRETH: counter.c = csr.instret.c - 1;
-                             result = counter.d.hi; // UPDATE_CSR(update, mode, csr.instret.d.hi, val);
+                             *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.instret.d.hi, val);
                              break;
-        case CSR_MVENDORID : result = csr.mvendorid; // UPDATE_CSR(update, mode, csr.mvendorid, val);
+        case CSR_MVENDORID : *result = csr.mvendorid; // UPDATE_CSR(update, mode, csr.mvendorid, val);
                              break;
-        case CSR_MARCHID   : result = csr.marchid; // UPDATE_CSR(update, mode, csr.marchid, val);
+        case CSR_MARCHID   : *result = csr.marchid; // UPDATE_CSR(update, mode, csr.marchid, val);
                              break;
-        case CSR_MIMPID    : result = csr.mimpid; // UPDATE_CSR(update, mode, csr.mimpid, val);
+        case CSR_MIMPID    : *result = csr.mimpid; // UPDATE_CSR(update, mode, csr.mimpid, val);
                              break;
-        case CSR_MHARTID   : result = csr.mhartid; // UPDATE_CSR(update, mode, csr.mhartid, val);
+        case CSR_MHARTID   : *result = csr.mhartid; // UPDATE_CSR(update, mode, csr.mhartid, val);
                              break;
-        case CSR_MSTATUS   : result = csr.mstatus; UPDATE_CSR(update, mode, csr.mstatus, val);
+        case CSR_MSTATUS   : *result = csr.mstatus; UPDATE_CSR(update, mode, csr.mstatus, val);
                              break;
-        case CSR_MISA      : result = csr.misa; UPDATE_CSR(update, mode, csr.misa, val);
+        case CSR_MISA      : *result = csr.misa; UPDATE_CSR(update, mode, csr.misa, val);
                              break;
-        case CSR_MIE       : result = csr.mie; UPDATE_CSR(update, mode, csr.mie, val);
+        case CSR_MIE       : *result = csr.mie; UPDATE_CSR(update, mode, csr.mie, val);
                              break;
-        case CSR_MIP       : result = csr.mip; UPDATE_CSR(update, mode, csr.mip, val);
+        case CSR_MIP       : *result = csr.mip; UPDATE_CSR(update, mode, csr.mip, val);
                              break;
-        case CSR_MTVEC     : result = csr.mtvec; UPDATE_CSR(update, mode, csr.mtvec, val);
+        case CSR_MTVEC     : *result = csr.mtvec; UPDATE_CSR(update, mode, csr.mtvec, val);
                              break;
-        case CSR_MEPC      : result = csr.mepc; UPDATE_CSR(update, mode, csr.mepc, val);
+        case CSR_MEPC      : *result = csr.mepc; UPDATE_CSR(update, mode, csr.mepc, val);
                              break;
-        case CSR_MCAUSE    : result = csr.mcause; UPDATE_CSR(update, mode, csr.mcause, val);
+        case CSR_MCAUSE    : *result = csr.mcause; UPDATE_CSR(update, mode, csr.mcause, val);
                              break;
-        case CSR_MTVAL     : result = csr.mtval; UPDATE_CSR(update, mode, csr.mtval, val);
+        case CSR_MTVAL     : *result = csr.mtval; UPDATE_CSR(update, mode, csr.mtval, val);
                              break;
-        default: printf("Unsupport CSR register 0x%03x\n", regs);
-                 TRAP(TRAP_INST_ILL, 0);
-                 break;
+        default: *result = 0; // FIXME
+                 printf("Unsupport CSR register 0x%03x at PC 0x%08x\n", regs, pc);
+                 return 0;
     }
-    return result;
+    return 1;
 }
 
 int main(int argc, char **argv) {
@@ -482,23 +485,20 @@ int main(int argc, char **argv) {
         switch(inst.r.op) {
             case OP_AUIPC : { // U-Type
                 regs[inst.u.rd] = pc + to_imm_u(inst.u.imm);
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
-                                    inst.u.rd, regname[inst.u.rd], regs[inst.u.rd]);
+                TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
+                           inst.u.rd, regname[inst.u.rd], regs[inst.u.rd] TRACE_END;
                 break;
             }
             case OP_LUI   : { // U-Type
                 regs[inst.u.rd] = to_imm_u(inst.u.imm);
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
-                                    inst.u.rd, regname[inst.u.rd], regs[inst.u.rd]);
+                TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
+                          inst.u.rd, regname[inst.u.rd], regs[inst.u.rd] TRACE_END;
                 break;
             }
             case OP_JAL   : { // J-Type
                 regs[inst.j.rd] = pc + 4;
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
-                                    inst.j.rd, regname[inst.j.rd], regs[inst.j.rd]);
+                TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
+                          inst.j.rd, regname[inst.j.rd], regs[inst.j.rd] TRACE_END;
                 pc += to_imm_j(inst.j.imm);
                 if (to_imm_j(inst.j.imm) == 0) {
                     printf("Warnning: forever loop detected at PC 0x%08x\n", pc);
@@ -510,19 +510,17 @@ int main(int argc, char **argv) {
             }
             case OP_JALR  : { // I-Type
                 int new_pc = pc + 4;
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x ", pc);
+                TIME_LOG; TRACE_LOG "%08x ", pc TRACE_END;
                 pc = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
                 regs[inst.i.rd] = new_pc;
-                if (ft) fprintf(ft, "%08x x%02d (%s) <= 0x%08x\n", inst.inst, inst.i.rd,
-                                    regname[inst.i.rd], regs[inst.i.rd]);
+                TRACE_LOG "%08x x%02d (%s) <= 0x%08x\n", inst.inst, inst.i.rd,
+                          regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
                 if ((pc&2) == 0)
                     CYCLE_ADD(branch_penalty);
                 continue;
             }
             case OP_BRANCH: { // B-Type
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
+                TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
                 int offset = to_imm_b(inst.b.imm2, inst.b.imm1);
                 switch(inst.b.func3) {
                     case OP_BEQ  :
@@ -574,7 +572,7 @@ int main(int argc, char **argv) {
                         }
                         break;
                     default:
-                        printf("Unknown branch instruction at 0x%08x\n", pc);
+                        printf("Illegal branch instruction at PC 0x%08x\n", pc);
                         TRAP(TRAP_INST_ILL, inst.inst);
                         continue;
                 }
@@ -588,8 +586,7 @@ int main(int argc, char **argv) {
                 int address = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
                 memaddr = address;
                 if (singleram) CYCLE_ADD(1);
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
+                TIME_LOG; TRACE_LOG "%08x %08x", pc, inst.inst TRACE_END;
                 if (address < DMEM_BASE || address > DMEM_BASE+DMEM_SIZE) {
                     switch(address) {
                         case MMIO_PUTC:
@@ -618,11 +615,22 @@ int main(int argc, char **argv) {
                             data = csr.msip;
                             break;
                         default:
-                            if (ft) fprintf(ft, "\n");
-                            printf("Unknown address 0x%08x to read at 0x%08x\n",
-                                   address, pc);
-                            TRAP(TRAP_LD_FAIL, address);
-                            continue;
+                            // Check whether it is legal, if not,
+                            // leave it to the later judgment.
+                            if (inst.i.func3 == OP_LB ||
+                                inst.i.func3 == OP_LH ||
+                                inst.i.func3 == OP_LW ||
+                                inst.i.func3 == OP_LBU ||
+                                inst.i.func3 == OP_LHU) {
+                                TRACE_LOG "\n" TRACE_END;
+                                printf("Unknown address 0x%08x to read at PC 0x%08x\n",
+                                       address, pc);
+                                TRAP(TRAP_LD_FAIL, address);
+                                continue;
+                            } else {
+                                address = DVA2PA(address);
+                                data = 0;
+                            }
                     }
                 } else {
                     address = DVA2PA(address);
@@ -634,7 +642,7 @@ int main(int argc, char **argv) {
                                   if (data&0x80) data |= 0xffffff00;
                                   break;
                     case OP_LH  : if (address&1) {
-                                    if (ft) fprintf(ft, "\n");
+                                    TRACE_LOG "\n" TRACE_END;
                                     printf("Unalignment address 0x%08x to read at 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_LD_ALIGN, DPA2VA(address));
@@ -644,7 +652,7 @@ int main(int argc, char **argv) {
                                   if (data&0x8000) data |= 0xffff0000;
                                   break;
                     case OP_LW  : if (address&3) {
-                                    if (ft) fprintf(ft, "\n");
+                                    TRACE_LOG "\n" TRACE_END;
                                     printf("Unalignment address 0x%08x to read at 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_LD_ALIGN, DPA2VA(address));
@@ -654,7 +662,7 @@ int main(int argc, char **argv) {
                     case OP_LBU : data = (data >> ((address&3)*8))&0xff;
                                   break;
                     case OP_LHU : if (address&1) {
-                                    if (ft) fprintf(ft, "\n");
+                                    TRACE_LOG "\n" TRACE_END;
                                     printf("Unalignment address 0x%08x to read at 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_LD_ALIGN, DPA2VA(address));
@@ -662,15 +670,17 @@ int main(int argc, char **argv) {
                                   }
                                   data = (address&2) ? ((data>>16)&0xffff) : (data &0xffff);
                                   break;
-                    default: if (ft) fprintf(ft, "\n");
-                             printf("Unknown load instruction at 0x%08x\n", pc);
+                    default: TRACE_LOG " read 0x%08x => 0x%08x, x%02d (%s) <= 0x%08x\n",
+                                       memaddr, memdata, inst.i.rd,
+                                       regname[inst.i.rd], 0 TRACE_END;
+                             printf("Illegal load instruction at PC 0x%08x\n", pc);
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
                 }
                 regs[inst.i.rd] = data;
-                if (ft) fprintf(ft, " read 0x%08x => 0x%08x, x%02d (%s) <= 0x%08x\n",
-                                    memaddr, memdata, inst.i.rd,
-                                    regname[inst.i.rd], regs[inst.i.rd]);
+                TRACE_LOG " read 0x%08x => 0x%08x, x%02d (%s) <= 0x%08x\n",
+                          memaddr, memdata, inst.i.rd,
+                          regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
                 break;
             }
             case OP_STORE : { // S-Type
@@ -683,16 +693,19 @@ int main(int argc, char **argv) {
                            0xffffffff;
                 if (singleram) CYCLE_ADD(1);
                 if (address < DMEM_BASE || address > DMEM_BASE+DMEM_SIZE) {
-                    if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                    if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
+                    if (inst.i.func3 == OP_SB ||
+                        inst.i.func3 == OP_SH ||
+                        inst.i.func3 == OP_SW) {
+                        TIME_LOG; TRACE_LOG "%08x %08x", pc, inst.inst TRACE_END;
+                    }
                     switch(address) {
                         case MMIO_PUTC:
                             putchar((char)data);
                             fflush(stdout);
                             break;
                         case MMIO_EXIT:
-                            if (ft) fprintf(ft, " write 0x%08x <= 0x%08x\n",
-                                                 address, (data & mask));
+                            TRACE_LOG " write 0x%08x <= 0x%08x\n",
+                                      address, (data & mask) TRACE_END;
                             prog_exit(data);
                             break;
                         case MMIO_MTIME:
@@ -714,19 +727,28 @@ int main(int argc, char **argv) {
                             csr.msip = (csr.msip & ~mask) | data;
                             break;
                         default:
-                            if (ft) fprintf(ft, "\n");
-                            printf("Unknown address 0x%08x to write at 0x%08x\n",
-                                   address, pc);
-                            TRAP(TRAP_ST_FAIL, address);
-                            continue;
+                            // Check whether it is legal, if not,
+                            // leave it to the later judgment.
+                            if (inst.i.func3 == OP_SB ||
+                                inst.i.func3 == OP_SH ||
+                                inst.i.func3 == OP_SW) {
+                                printf("Unknown address 0x%08x to write at 0x%08x\n",
+                                       address, pc);
+                                TRACE_LOG "\n" TRACE_END;
+                                TRAP(TRAP_ST_FAIL, address);
+                                continue;
+                            }
                     }
-                    if (ft) fprintf(ft, " write 0x%08x <= 0x%08x\n",
-                                          address, (data & mask));
-                    pc += 4;
-                    continue;
+                    if (inst.i.func3 == OP_SB ||
+                        inst.i.func3 == OP_SH ||
+                        inst.i.func3 == OP_SW) {
+                        TRACE_LOG " write 0x%08x <= 0x%08x\n",
+                              address, (data & mask) TRACE_END;
+                        pc += 4;
+                        continue;
+                    }
                 }
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x %08x", pc, inst.inst);
+                TIME_LOG; TRACE_LOG "%08x %08x", pc, inst.inst TRACE_END;
                 address = DVA2PA(address);
                 switch(inst.s.func3) {
                     case OP_SB : dmem[address/4] =
@@ -734,7 +756,7 @@ int main(int argc, char **argv) {
                                     ((data & 0xff)<<((address&3)*8));
                                  break;
                     case OP_SH : if (address&1) {
-                                    if (ft) fprintf(ft, "\n");
+                                    TRACE_LOG "\n" TRACE_END;
                                     printf("Unalignment address 0x%08x to write at 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_ST_ALIGN, DPA2VA(address));
@@ -745,7 +767,7 @@ int main(int argc, char **argv) {
                                     ((dmem[address/4]&0xffff0000)|(data&0xffff));
                                  break;
                     case OP_SW : if (address&3) {
-                                    if (ft) fprintf(ft, "\n");
+                                    TRACE_LOG "\n" TRACE_END;
                                     printf("Unalignment address 0x%08x to write at 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_ST_ALIGN, DPA2VA(address));
@@ -753,12 +775,12 @@ int main(int argc, char **argv) {
                                  }
                                  dmem[address/4] = data;
                                  break;
-                    default: printf("Unknown store instruction at 0x%08x\n", pc);
-                             if (ft) fprintf(ft, "\n");
+                    default: printf("Illegal store instruction at PC 0x%08x\n", pc);
+                             TRACE_LOG "\n" TRACE_END;
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
                 }
-                if (ft) fprintf(ft, " write 0x%08x <= 0x%08x\n", DPA2VA(address), (data & mask));
+                TRACE_LOG " write 0x%08x <= 0x%08x\n", DPA2VA(address), (data & mask) TRACE_END;
                 break;
             }
             case OP_ARITHI: { // I-Type
@@ -792,10 +814,9 @@ int main(int argc, char **argv) {
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
                 }
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
-                                pc, inst.inst, inst.i.rd, regname[inst.i.rd],
-                                regs[inst.i.rd]);
+                TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                          pc, inst.inst, inst.i.rd, regname[inst.i.rd],
+                          regs[inst.i.rd] TRACE_END;
                 break;
             }
             case OP_ARITHR: { // R-Type
@@ -899,133 +920,162 @@ int main(int argc, char **argv) {
                                  continue;
                     }
                 }
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
-                                    pc, inst.inst, inst.r.rd, regname[inst.r.rd],
-                                    regs[inst.r.rd]);
+                TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                          pc, inst.inst, inst.r.rd, regname[inst.r.rd],
+                          regs[inst.r.rd] TRACE_END;
                 break;
             }
             case OP_FENCE : {
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
-                if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
+                TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
                 break;
             }
             case OP_SYSTEM: { // I-Type
                 int val;
                 int update;
-                if (ft&&PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo);
+                int result = 0;
                 // RDCYCLE, RDTIME and RDINSTRET are read only
                 switch(inst.i.func3) {
-                    case OP_ECALL  : if (ft) fprintf(ft, "%08x %08x\n", pc, inst.inst);
-                                     if (inst.i.imm == 1) { // ebreak
-                                        TRAP(TRAP_BREAK, 0);
-                                        continue;
-                                     }
-                                     if (inst.i.imm == 0x302) { // mret
-                                        pc = csr.mepc;
-                                        // mstatus.mie = mstatus.mpie
-                                        csr.mstatus = (csr.mstatus & (1 << MPIE)) ?
-                                                      (csr.mstatus | (1 << MIE)) :
-                                                      (csr.mstatus & ~(1 << MIE));
-                                        // mstatus.mpie = 1
-                                        if ((pc&2) == 0)
-                                            CYCLE_ADD(branch_penalty);
-                                        continue;
-                                     }
-                                     // ecall
-                                     switch(regs[A7]) { // function argument A7/X17
-                                        case SYS_EXIT:
-                                            prog_exit(0);
-                                            break;
-                                        case SYS_WRITE:
-                                            if (regs[A0] == STDOUT) {
-                                                char *ptr = (char*)dmem;
-                                                int i;
-                                                for(i=0; i<regs[A2]; i++) {
-                                                    char c = ptr[DVA2PA(regs[A1])+i];
-                                                    putchar(c);
-                                                }
-                                                fflush(stdout);
+                    case OP_ECALL  : TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
+                                     switch (inst.i.imm & 3) {
+                                        case 0: // ecall
+                                            switch(regs[A7]) { // function argument A7/X17
+                                               case SYS_EXIT:
+                                                   prog_exit(0);
+                                                   break;
+                                               case SYS_WRITE:
+                                                   if (regs[A0] == STDOUT) {
+                                                       char *ptr = (char*)dmem;
+                                                       int i;
+                                                       for(i=0; i<regs[A2]; i++) {
+                                                           char c = ptr[DVA2PA(regs[A1])+i];
+                                                           putchar(c);
+                                                       }
+                                                       fflush(stdout);
+                                                   }
+                                                   break;
+                                               case SYS_DUMP: {
+                                                       FILE *fp;
+                                                       int i;
+                                                       if ((fp = fopen("dump.txt", "w")) == NULL) {
+                                                           printf("Create dump.txt fail\n");
+                                                           exit(1);
+                                                       }
+                                                       if ((regs[A0] & 3) != 0 || (regs[A1] & 3) != 0) {
+                                                           printf("Alignment error on memory dumping.\n");
+                                                           exit(1);
+                                                       }
+                                                       for(i = DVA2PA(regs[A0])/4;
+                                                           i < DVA2PA(regs[A1])/4; i++) {
+                                                           fprintf(fp, "%08x\n", dmem[i]);
+                                                       }
+                                                       fclose(fp);
+                                                   }
+                                                   break;
+                                               default:
+                                                   break;
                                             }
-                                            break;
-                                        case SYS_DUMP: {
-                                                FILE *fp;
-                                                int i;
-                                                if ((fp = fopen("dump.txt", "w")) == NULL) {
-                                                    printf("Create dump.txt fail\n");
-                                                    exit(1);
-                                                }
-                                                if ((regs[A0] & 3) != 0 || (regs[A1] & 3) != 0) {
-                                                    printf("Alignment error on memory dumping.\n");
-                                                    exit(1);
-                                                }
-                                                for(i = DVA2PA(regs[A0])/4;
-                                                    i < DVA2PA(regs[A1])/4; i++) {
-                                                    fprintf(fp, "%08x\n", dmem[i]);
-                                                }
-                                                fclose(fp);
-                                            }
-                                            break;
+                                            TRAP(TRAP_ECALL, 0);
+                                            continue;
+                                        case 1: // ebreak
+                                            TRAP(TRAP_BREAK, 0);
+                                            continue;
+                                        case 2: // mret
+                                            pc = csr.mepc;
+                                            // mstatus.mie = mstatus.mpie
+                                            csr.mstatus = (csr.mstatus & (1 << MPIE)) ?
+                                                          (csr.mstatus | (1 << MIE)) :
+                                                          (csr.mstatus & ~(1 << MIE));
+                                            // mstatus.mpie = 1
+                                            if ((pc&2) == 0)
+                                                CYCLE_ADD(branch_penalty);
+                                            continue;
                                         default:
-                                            break;
+                                            printf("Illegal system call at PC 0x%08x\n", pc);
+                                            TRAP(TRAP_INST_ILL, 0);
+                                            continue;
                                      }
-                                     TRAP(TRAP_ECALL, 0);
-                                     continue;
                     case OP_CSRRW  : val = regs[inst.i.rs1];
                                      update = 1;
-                                     regs[inst.i.rd] = csr_rw(inst.i.imm, OP_CSRRW, val, update);
-                                     if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
-                                                pc, inst.inst, inst.i.rd,
-                                                regname[inst.i.rd], regs[inst.i.rd]);
+                                     result = csr_rw(inst.i.imm, OP_CSRRW, val, update, &regs[inst.i.rd]);
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                               pc, inst.inst, inst.i.rd,
+                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
+                                     if (!result) {
+                                        TRAP(TRAP_INST_ILL, 0);
+                                        continue;
+                                     }
                                      break;
                     // For both CSRRS and CSRRC, if rs1=x0, then the instruction will not
                     // write to the CSR at all
                     case OP_CSRRS  : val = regs[inst.i.rs1];
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
-                                     regs[inst.i.rd] = csr_rw(inst.i.imm, OP_CSRRS, val, update);
-                                     if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
-                                                pc, inst.inst, inst.i.rd,
-                                                regname[inst.i.rd], regs[inst.i.rd]);
+                                     result = csr_rw(inst.i.imm, OP_CSRRS, val, update, &regs[inst.i.rd]);
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                               pc, inst.inst, inst.i.rd,
+                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
+                                     if (!result) {
+                                        TRAP(TRAP_INST_ILL, 0);
+                                        continue;
+                                     }
                                      break;
                     case OP_CSRRC  : val = regs[inst.i.rs1];
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
-                                     regs[inst.i.rd] = csr_rw(inst.i.imm, OP_CSRRC, val, update);
-                                     if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
-                                                pc, inst.inst, inst.i.rd,
-                                                regname[inst.i.rd], regs[inst.i.rd]);
+                                     result = csr_rw(inst.i.imm, OP_CSRRC, val, update, &regs[inst.i.rd]);
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                               pc, inst.inst, inst.i.rd,
+                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
+                                     if (!result) {
+                                        TRAP(TRAP_INST_ILL, 0);
+                                        continue;
+                                     }
                                      break;
                     // If the zimm[4:0] field is zero, then these instructions will not write
                     // to the CSR
                     case OP_CSRRWI : val = inst.i.rs1;
                                      update = 1;
-                                     regs[inst.i.rd] = csr_rw(inst.i.imm, OP_CSRRW, val, update);
-                                     if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
-                                                pc, inst.inst, inst.i.rd,
-                                                regname[inst.i.rd], regs[inst.i.rd]);
+                                     result = csr_rw(inst.i.imm, OP_CSRRW, val, update, &regs[inst.i.rd]);
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                               pc, inst.inst, inst.i.rd,
+                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
+                                     if (!result) {
+                                        TRAP(TRAP_INST_ILL, 0);
+                                        continue;
+                                     }
                                      break;
                     case OP_CSRRSI : val = inst.i.rs1;
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
-                                     regs[inst.i.rd] = csr_rw(inst.i.imm, OP_CSRRS, val, update);
-                                     if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
-                                                pc, inst.inst, inst.i.rd,
-                                                regname[inst.i.rd], regs[inst.i.rd]);
+                                     result = csr_rw(inst.i.imm, OP_CSRRS, val, update, &regs[inst.i.rd]);
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                               pc, inst.inst, inst.i.rd,
+                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
+                                     if (!result) {
+                                        TRAP(TRAP_INST_ILL, 0);
+                                        continue;
+                                     }
                                      break;
                     case OP_CSRRCI : val = inst.i.rs1;
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
-                                     regs[inst.i.rd] = csr_rw(inst.i.imm, OP_CSRRC, val, update);
-                                     if (ft) fprintf(ft, "%08x %08x x%02d (%s) <= 0x%08x\n",
-                                                pc, inst.inst, inst.i.rd,
-                                                regname[inst.i.rd], regs[inst.i.rd]);
+                                     result = csr_rw(inst.i.imm, OP_CSRRC, val, update, &regs[inst.i.rd]);
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                               pc, inst.inst, inst.i.rd,
+                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
+                                     if (!result) {
+                                        TRAP(TRAP_INST_ILL, 0);
+                                        continue;
+                                     }
                                      break;
                     default: printf("Unknown system instruction at 0x%08x\n", pc);
+                             TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
                 }
                 break;
             }
             default: {
-                printf("Illegal instruction at 0x%08x\n", pc);
-                exit(-1);
+                printf("Illegal instruction at PC 0x%08x\n", pc);
+                TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
+                TRAP(TRAP_INST_ILL, inst.inst);
+                continue;
             }
         }
         pc+=4;

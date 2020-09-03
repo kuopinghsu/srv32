@@ -26,7 +26,7 @@ module riscv (
     output          [31: 0] imem_addr,
     input                   imem_rresp,
     input           [31: 0] imem_rdata,
-    
+
     // interface of data RAM
     output                  dmem_wready,
     input                   dmem_wvalid,
@@ -93,6 +93,7 @@ module riscv (
     wire            [31: 0] ex_csr_mask;
     reg             [31: 0] ex_mcause;
     reg                     ex_illegal;
+    reg                     ex_ill_branch;
     wire                    ex_ld_align_excp;
     wire                    ex_st_align_excp;
     wire                    ex_inst_ill_excp;
@@ -122,12 +123,11 @@ module riscv (
     reg             [31: 0] wb_rdata;
     wire                    wb_flush;
 
-    reg                     ill_csr;
+    reg                     ex_ill_csr;
 
     reg             [63: 0] csr_cycle;
     reg             [63: 0] csr_instret;
 
-    reg             [31: 0] csr_mhartid;
     reg             [31: 0] csr_mstatus;
     reg             [31: 0] csr_misa;
     reg             [31: 0] csr_mie;
@@ -178,7 +178,7 @@ end
 //      F/D  E   W
 //          F/D  E   W
 //              F/D  E  W
-//                  F/D E  w 
+//                  F/D E  w
 ////////////////////////////////////////////////////////////
 // stage 1: fetch/decode
 ////////////////////////////////////////////////////////////
@@ -189,7 +189,7 @@ always @* begin
         OP_AUIPC : imm      = {inst[31:12], 12'd0}; // U-type
         OP_LUI   : imm      = {inst[31:12], 12'd0}; // U-type
         OP_JAL   : imm      = {{12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0}; // J-type
-        OP_JALR  : imm      = {{20{inst[31]}}, inst[31:20]}; // I-Type 
+        OP_JALR  : imm      = {{20{inst[31]}}, inst[31:20]}; // I-Type
         OP_BRANCH: imm      = {{20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0}; // B-type
         OP_LOAD  : imm      = {{20{inst[31]}}, inst[31:20]}; // I-type
         OP_STORE : imm      = {{20{inst[31]}}, inst[31:25], inst[11:7]}; // S-type
@@ -264,8 +264,16 @@ always @(posedge clk or negedge resetb) begin
                                  (inst[`OPCODE] == OP_JAL   )||
                                  (inst[`OPCODE] == OP_JALR  )||
                                  (inst[`OPCODE] == OP_BRANCH)||
-                                 (inst[`OPCODE] == OP_LOAD  )||
-                                 (inst[`OPCODE] == OP_STORE )||
+                                 ((inst[`OPCODE] == OP_LOAD ) &&
+                                  ((inst[`FUNC3] == OP_LB) ||
+                                   (inst[`FUNC3] == OP_LH) ||
+                                   (inst[`FUNC3] == OP_LW) ||
+                                   (inst[`FUNC3] == OP_LBU) ||
+                                   (inst[`FUNC3] == OP_LHU))) ||
+                                 ((inst[`OPCODE] == OP_STORE) &&
+                                  ((inst[`FUNC3] == OP_SB) ||
+                                   (inst[`FUNC3] == OP_SH) ||
+                                   (inst[`FUNC3] == OP_SW))) ||
                                  (inst[`OPCODE] == OP_ARITHI)||
                                  ((inst[`OPCODE] == OP_ARITHR) &&
                                   (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20)) ||
@@ -279,6 +287,15 @@ always @(posedge clk or negedge resetb) begin
         `endif // RV32M_ENABLED
     end
 end
+
+`ifndef SYNTHESIS
+always @* begin
+    if (ex_illegal && !ex_flush)
+        $display("Illegal instruction at PC 0x%08x", ex_pc[31: 0]);
+    if (ex_ill_branch && !ex_flush)
+        $display("Illegal branch instruction at PC 0x%08x", ex_pc[31: 0]);
+end
+`endif
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
@@ -305,8 +322,6 @@ end
     reg             [31: 0] ex_result;
     reg             [31: 0] next_pc;
     reg                     branch_taken;
-    reg                     ill_branch;
-    reg                     ill_alu;
 
 // Trap Exception
 assign ex_ld_align_excp     = ex_mem2reg && !ex_flush && (
@@ -318,7 +333,7 @@ assign ex_st_align_excp     = ex_memwr && !ex_flush && (
                                 (ex_alu_op == OP_SH && ex_memaddr[0]) ||
                                 (ex_alu_op == OP_SW && |ex_memaddr[1:0])
                               );
-assign ex_inst_ill_excp     = !ex_flush && (ill_branch || ill_alu || ill_csr || ex_illegal);
+assign ex_inst_ill_excp     = !ex_flush && (ex_ill_branch || ex_ill_csr || ex_illegal);
 assign ex_inst_align_excp   = !ex_flush && next_pc[1];
 assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE] && !ex_system_op && !ex_flush;
 assign ex_sw_irq            = sw_irq && csr_mstatus[MIE] && csr_mie[MSIE] && !ex_system_op && !ex_flush;
@@ -336,9 +351,9 @@ assign ex_flush             = wb_branch || wb_branch_nxt;
 assign ex_systemcall        = ex_system && !ex_flush;
 
 always @* begin
-    branch_taken = !ex_flush;
-    next_pc      = fetch_pc + 4;
-    ill_branch   = 1'b0;
+    branch_taken  = !ex_flush;
+    next_pc       = fetch_pc + 4;
+    ex_ill_branch = 1'b0;
 
     case(1'b1)
         ex_jal   : next_pc = ex_pc + ex_imm;
@@ -377,7 +392,7 @@ always @* begin
                          end
                 default: begin
                          next_pc    = fetch_pc;
-                         ill_branch = 1'b1;
+                         ex_ill_branch = 1'b1;
                          end
             endcase
         end
@@ -419,7 +434,6 @@ assign result_remu[31: 0]   = (alu_op2 == 32'h00000000) ? alu_op1 :
 `endif // RV32M_ENABLED
 
 always @* begin
-    ill_alu = 1'b0;
     case(1'b1)
         ex_memwr:   ex_result           = alu_op2;
         ex_jal:     ex_result           = ex_pc + 4;
@@ -437,11 +451,8 @@ always @* begin
                 OP_DIV   : ex_result    = result_div  [31: 0];
                 OP_DIVU  : ex_result    = result_divu [31: 0];
                 OP_REM   : ex_result    = result_rem  [31: 0];
-                OP_REMU  : ex_result    = result_remu [31: 0];
-                default  : begin
-                           ex_result    = {32{1'bx}};
-                           ill_alu      = 1'b1;
-                end
+                // OP_REMU
+                default  : ex_result    = result_remu [31: 0];
             endcase
         `endif // RV32M_ENABLED
         ex_alu:
@@ -459,15 +470,11 @@ always @* begin
                          else
                             ex_result   = $signed(alu_op1) >>> alu_op2;
                 OP_OR  : ex_result      = alu_op1 | alu_op2;
-                OP_AND : ex_result      = alu_op1 & alu_op2;
-                default: begin
-                         ex_result      = {32{1'bx}};
-                         ill_alu        = 1'b1;
-                end
+                // OP_AND
+                default: ex_result      = alu_op1 & alu_op2;
             endcase
         default: begin
             ex_result                   = 32'h0;
-            ill_alu                     = 1'b0;
         end
     endcase
 end
@@ -544,8 +551,8 @@ always @(posedge clk or negedge resetb) begin
                 wb_wstrb    <= 4'hf;
             end
             default: begin
-                wb_wdata    <= {32{1'bx}};
-                wb_wstrb    <= {4{1'bx}};
+                wb_wdata    <= 32'h0;
+                wb_wstrb    <= 4'hf;
             end
         endcase
     end
@@ -607,7 +614,7 @@ always @* begin
                                {16'h0, dmem_rdata[15: 0]};
                  end
         default: begin
-                    wb_rdata = 'hx;
+                    wb_rdata = 32'h0;
                  end
     endcase
 end
@@ -643,7 +650,12 @@ always @* begin
                 2'b00: ex_mcause   = TRAP_ECALL;
                 2'b01: ex_mcause   = TRAP_BREAK;
                 2'b10: ex_mcause   = csr_mcause; // uret, sret, mret
-                default: ex_mcause = TRAP_INST_ILL;
+                default: begin
+                    `ifndef SYNTHESIS
+                    $display("Illegal system call at PC 0x%08x\n", ex_pc);
+                    `endif
+                    ex_mcause = TRAP_INST_ILL;
+                end
             endcase
         end
     endcase
@@ -660,6 +672,14 @@ always @(posedge clk or negedge resetb) begin
         csr_mip                     <= 32'h0;
     end else if (!ex_stall && !ex_flush) begin
         case(1'b1)
+            ex_inst_ill_excp : begin
+                csr_mcause          <= TRAP_INST_ILL;
+                csr_mepc            <= {ex_pc[31: 1], 1'b0};
+                csr_mtval           <= ex_insn;
+                csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                csr_mstatus[MIE]    <= 1'b0;
+                csr_mip             <= csr_mip;
+            end
             ex_csr_wr : begin
                 case (ex_imm[11: 0])
                     CSR_MEPC   : begin
@@ -689,14 +709,6 @@ always @(posedge clk or negedge resetb) begin
                     end
                     default    : ;
                 endcase
-            end
-            ex_inst_ill_excp : begin
-                csr_mcause          <= TRAP_INST_ILL;
-                csr_mepc            <= {ex_pc[31: 1], 1'b0};
-                csr_mtval           <= ex_insn;
-                csr_mstatus[MPIE]   <= csr_mstatus[MIE];
-                csr_mstatus[MIE]    <= 1'b0;
-                csr_mip             <= csr_mip;
             end
             ex_inst_align_excp : begin
                 csr_mcause          <= TRAP_INST_ALIGN;
@@ -789,9 +801,9 @@ end
 ////////////////////////////////////////////////////////////
 // CSR read @ execution stage
 always @* begin
-    ill_csr     = 1'b0;
+    ex_ill_csr  = 1'b0;
     ex_csr_read = 32'h0;
-    if (ex_csr) begin
+    if (ex_csr && !ex_flush) begin
         case (ex_imm[11:0])
             CSR_MVENDORID  : ex_csr_read = MVENDORID;
             CSR_MARCHID    : ex_csr_read = MARCHID;
@@ -810,9 +822,9 @@ always @* begin
             CSR_RDINSTRET  : ex_csr_read = csr_instret[31:0];
             CSR_RDINSTRETH : ex_csr_read = csr_instret[63:32];
             default: begin
-                ill_csr = 1'b1;
+                ex_ill_csr = 1'b1;
                 `ifndef SYNTHESIS
-                $display("Unsupport CSR register 0x%0x", ex_imm[11:0]);
+                $display("Unsupport CSR register 0x%0x at PC 0x%08x", ex_imm[11:0], ex_pc);
                 `endif
             end
         endcase
@@ -912,7 +924,7 @@ always @(posedge clk or negedge resetb) begin
 end
 
 ////////////////////////////////////////////////////////////
-// for debugging
+// for debugging, register name alias
 ////////////////////////////////////////////////////////////
 `ifndef SYNTHESIS
 /* Verilator lint_off UNUSED */

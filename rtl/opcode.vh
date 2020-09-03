@@ -47,7 +47,7 @@ localparam  [ 2: 0] OP_LB      = 3'b000,
 localparam  [ 2: 0] OP_SB      = 3'b000,
                     OP_SH      = 3'b001,
                     OP_SW      = 3'b010;
-                    
+
 // FUNC3, INST[14:12], INST[6:0] = 7'b0110011, 7'b0010011
 localparam  [ 2: 0] OP_ADD     = 3'b000,    // inst[30] == 0: ADD, inst[31] == 1: SUB
                     OP_SLL     = 3'b001,

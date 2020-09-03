@@ -20,7 +20,7 @@ module top (
     output          [31: 0] imem_addr,
     input                   imem_rresp,
     input           [31: 0] imem_rdata,
-    
+
     // interface of data RAM
     output                  dmem_wready,
     input                   dmem_wvalid,

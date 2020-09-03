@@ -7,6 +7,7 @@
 `define HAVE_MEM1PORT 1
 `endif
 
+/* verilator coverage_off */
 /* verilator lint_off DECLFILENAME */
 `ifdef HAVE_MEM2PORTS
 module mem2ports # (
@@ -200,3 +201,5 @@ end
 endmodule
 `endif // HAVE_MEM1PORT
 /* verilator lint_on DECLFILENAME */
+/* verilator coverage_on */
+

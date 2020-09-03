@@ -72,8 +72,8 @@ enum {
     OP_STORE   = 0x23,         // S-type
     OP_ARITHI  = 0x13,         // I-type
     OP_ARITHR  = 0x33,         // R-type
-    OP_FENCE   = 0x0f, 
-    OP_SYSTEM  = 0x73  
+    OP_FENCE   = 0x0f,
+    OP_SYSTEM  = 0x73
 };
 
 enum {

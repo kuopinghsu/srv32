@@ -203,7 +203,7 @@ directory.
 
     % make coverage
 
-Here is the coverage report by lcov.
+This is the coverage report by lcov, which get almost 100% code coverage.
 
 <img src="images/coverage.png" alt="coverage">
 

@@ -6,6 +6,8 @@
 
 `define TOP         top.riscv
 
+/* verilator coverage_off */
+
 `ifdef SYNTHESIS
 module fpga_top(
     input           clk,
@@ -467,7 +469,7 @@ always @(posedge clk) begin
                 end
                 3'h2: $fwrite(fp, " write 0x%08x <= 0x%08x\n",
                       `TOP.dmem_waddr, `TOP.dmem_wdata);
-                default: ;
+                default: $fwrite(fp, "\n");
             endcase
         end else begin
             $fwrite(fp, "\n");
@@ -478,4 +480,6 @@ end
 `endif // SYNTHESIS
 
 endmodule
+
+/* verilator coverage_on */
 

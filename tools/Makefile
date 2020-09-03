@@ -1,3 +1,4 @@
+DEBUG      ?= 0
 CC          = gcc
 SYS        := $(shell gcc -dumpmachine)
 top        ?= 0
@@ -13,7 +14,12 @@ else
 CFLAGS   = -Wno-stringop-truncation
 endif
 
+ifeq ($(DEBUG), 1)
+CFLAGS  += -O0 -g -Wall
+else
 CFLAGS  += -O3 -g -Wall
+endif
+
 LDFLAGS += -lbfd
 
 ifeq ($(top), 1)

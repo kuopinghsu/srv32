@@ -102,7 +102,7 @@ begin
             MTIMECMP_BASE   : rdata[31: 0] <= mtimecmp[31: 0];
             MTIMECMP_BASE+4 : rdata[31: 0] <= mtimecmp[63:32];
             MSIP_BASE       : rdata[31: 0] <= {15'h0, ex_irq, 15'h0, sw_irq};
-            default         : rdata[31: 0] <= rdata[31: 0];
+            //default       : rdata[31: 0] <= rdata[31: 0];
         endcase
     end
 end

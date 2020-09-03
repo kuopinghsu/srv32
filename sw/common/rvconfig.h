@@ -40,6 +40,10 @@
 #define _CSRR_MISA()        ({ int result; __asm volatile("csrr %0, misa" : "=r"(result)); result; })
 #define _CSRW_MISA(v)       __asm volatile("csrw misa, %0" : : "r"(v))
 
+// no support CSR
+#define _CSRR_DPC()         ({ int result; __asm volatile("csrr %0, dpc" : "=r"(result)); result; })
+#define _CSRW_DPC(v)        __asm volatile("csrw dpc, %0" : : "r"(v))
+
 static inline int  CSRR_MEPC(void)        { return _CSRR_MEPC(); }
 static inline void CSRW_MEPC(int v)       { _CSRW_MEPC(v); }
 static inline int  CSRR_MCAUSE(void)      { return _CSRR_MCAUSE(); }
@@ -70,6 +74,10 @@ static inline int  CSRR_MHARTID(void)     { return _CSRR_MHARTID(); }
 static inline void CSRW_MHARTID(int v)    { _CSRW_MHARTID(v); }
 static inline int  CSRR_MISA(void)        { return _CSRR_MISA(); }
 static inline void CSRW_MISA(int v)       { _CSRW_MISA(v); }
+
+// no support CSR
+static inline int  CSRR_DPC(void)         { return _CSRR_DPC(); }
+static inline void CSRW_DPC(int v)        { _CSRW_DPC(v); }
 
 #endif // __RVCONFIG_H
 

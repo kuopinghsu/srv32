@@ -73,6 +73,17 @@ int main(void) {
     CSRW_MTVAL(CSRR_MTVAL()+1);
     CSRW_MIP(CSRR_MIP()|(1<<31));
 
+    // test unimplemented CSR
+    CSRW_DPC(CSRR_DPC()+1);
+
+    // Illegal instruction
+    asm volatile(".byte 0x00, 0x00, 0x00, 0x00");
+    asm volatile(".byte 0x03, 0x30, 0x5a, 0x5a");
+    asm volatile(".byte 0x03, 0x70, 0x5a, 0x5a");
+    asm volatile(".byte 0x23, 0x30, 0x5a, 0x5a");
+    asm volatile(".byte 0x63, 0x20, 0x5a, 0x5a");
+    asm volatile(".byte 0x73, 0x00, 0x30, 0x5a");
+
     asm volatile("fence");
 }
 
