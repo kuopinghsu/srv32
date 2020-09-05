@@ -8,7 +8,7 @@ ifneq (, $(findstring darwin, $(SYS)))
 # "--prefix=/usr/local/Cellar/binutils/2.35 --enable-install-libiberty"
 # on MacOS.
 BFD_PATH = /usr/local/Cellar/binutils/2.35
-CFLAGS   = -DMACOX -DPACKAGE -I$(BFD_PATH)/include
+CFLAGS   = -DMACOX -I$(BFD_PATH)/include
 LDFLAGS  = -L$(BFD_PATH)/lib -liberty -lintl -lz #-undefined dynamic_lookup
 else
 CFLAGS   = -Wno-stringop-truncation

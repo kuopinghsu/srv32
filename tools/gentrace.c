@@ -1,5 +1,9 @@
 // Software simulator for RISC-V RV32I instruction sets
 // Copyright 2020, Kuoping Hsu, GPL license
+
+#define PACKAGE "riscv32-gentools"
+#define PACKAGE_VERSION "1.0"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
