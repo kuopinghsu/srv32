@@ -226,6 +226,11 @@ static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {
 
     bfd_close(abfd);
 
+    if (!text->size && !data->size) {
+        printf("can not read the content of elf file\n");
+        exit(-1);
+    }
+
     return 1;
 }
 

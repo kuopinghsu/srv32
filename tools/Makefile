@@ -7,7 +7,11 @@ ifneq (, $(findstring darwin, $(SYS)))
 # to enable bfd library, install the binutils with
 # "--prefix=/usr/local/Cellar/binutils/2.35 --enable-install-libiberty"
 # on MacOS.
+ifneq (,$(wildcard /opt/riscv/include/bfd.h))
+BFD_PATH = /opt/riscv
+else
 BFD_PATH = /usr/local/Cellar/binutils/2.35
+endif
 CFLAGS   = -DMACOX -I$(BFD_PATH)/include
 LDFLAGS  = -L$(BFD_PATH)/lib -liberty -lintl -lz #-undefined dynamic_lookup
 else
