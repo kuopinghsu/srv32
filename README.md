@@ -193,6 +193,24 @@ The github repository is at https://github.com/riscv/riscv-compliance. Running t
 
 Reference code on https://github.com/kuopinghsu/FreeRTOS-RISCV.
 
+    # build FreeRTOS and demo
+    git clone --recursive https://github.com/kuopinghsu/FreeRTOS-RISCV
+    cd FreeRTOS-RISCV && make
+
+This is an example to run the "queue" demo.
+
+    # make directory
+    mkdir ${path_of_simple-riscv}/sw/queue
+
+    # copy queue.elf
+    cp Demo/examples/queue.elf ${path_of_simple-riscv}/sw/queue/.
+
+    # update the example in sw folder
+    cd ${path_of_simple-riscv}/sw && make update
+
+    # run the example for RTL and software simulator
+    cd ${path_of_simple-riscv} && make queue
+
 ## Coverage Report
 
     # Ubuntu package needed to generate coverage report
