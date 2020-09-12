@@ -195,17 +195,17 @@ end
     // syscall
     always @(posedge clk) begin
         if (`TOP.wb_system && !`TOP.wb_stall) begin
-            if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7][7:0] == SYS_EXIT) begin
+            if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_EXIT}) begin
                 $display("\nExcuting %0d instructions, %0d cycles",
                         `TOP.csr_instret, `TOP.csr_cycle);
                 $display("Program terminate");
                 #10 $finish(2);
-            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7][7:0] == SYS_WRITE &&
+            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_WRITE} &&
                 `TOP.regs[REG_A0] == 32'h1) begin // stdout
                 for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
                     $write("%c", mem.getb(`TOP.regs[REG_A1] + i));
                 end
-            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7][7:0] == SYS_DUMP && dump != 0) begin
+            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_DUMP} && dump != 0) begin
                 for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 4) begin
                     $fdisplay(dump, "%02x%02x%02x%02x", mem.getb(i + 3),
                                                         mem.getb(i + 2),
@@ -339,17 +339,17 @@ end
     // syscall
     always @(posedge clk) begin
         if (`TOP.wb_system && !`TOP.wb_stall) begin
-            if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7][7:0] == SYS_EXIT) begin
+            if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_EXIT}) begin
                 $display("\nExcuting %0d instructions, %0d cycles",
                         `TOP.csr_instret, `TOP.csr_cycle);
                 $display("Program terminate");
                 #10 $finish(2);
-            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7][7:0] == SYS_WRITE &&
+            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_WRITE} &&
                 `TOP.regs[REG_A0] == 32'h1) begin // stdout
                 for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
                     $write("%c", dmem.getb(`TOP.regs[REG_A1] - IRAMSIZE + i));
                 end
-            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7][7:0] == SYS_DUMP && dump != 0) begin
+            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_DUMP} && dump != 0) begin
                 for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 4) begin
                     $fdisplay(dump, "%02x%02x%02x%02x", dmem.getb(i - IRAMSIZE + 3),
                                                         dmem.getb(i - IRAMSIZE + 2),
