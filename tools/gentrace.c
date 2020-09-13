@@ -1,14 +1,10 @@
 // Software simulator for RISC-V RV32I instruction sets
 // Copyright 2020, Kuoping Hsu, GPL license
 
-#define PACKAGE "riscv32-gentools"
-#define PACKAGE_VERSION "1.0"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
-#include <bfd.h>
 #include "opcode.h"
 
 #define PRINT_TIMELOG 1
@@ -93,6 +89,8 @@ char *regname[32] = {
 #define IPA2VA(addr) ((addr)+IMEM_BASE)
 #define DVA2PA(addr) ((addr)-DMEM_BASE)
 #define DPA2VA(addr) ((addr)+DMEM_BASE)
+
+int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize);
 
 void usage(void) {
     printf(
@@ -193,6 +191,11 @@ static void prog_exit(int exitcode) {
     exit(exitcode);
 }
 
+// Use libbfd to read the elf file.
+#if 0
+#define PACKAGE "riscv32-gentools"
+#define PACKAGE_VERSION "1.0"
+#include <bfd.h>
 static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {
     bfd *abfd = NULL;
 
@@ -233,6 +236,7 @@ static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {
 
     return 1;
 }
+#endif
 
 #define UPDATE_CSR(update,mode,reg,val) { \
     if (update) { \
@@ -396,6 +400,7 @@ int main(int argc, char **argv) {
 
     // load the .text and .data section
     if ((result = elfread(file, (char*)imem, (char*)dmem, &isize, &dsize)) == 0) {
+        printf("Can not read elf file %s\n", file);
         exit(1);
     }
 
