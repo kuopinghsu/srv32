@@ -346,7 +346,7 @@ int main(int argc, char **argv) {
                     printf("malloc fail\n");
                     exit(1);
                 }
-                strncpy(tfile, optarg, MAXLEN);
+                strncpy(tfile, optarg, MAXLEN-1);
                 break;
             case 'q':
                 quiet = 1;
@@ -368,7 +368,7 @@ int main(int argc, char **argv) {
             printf("malloc fail\n");
             exit(1);
         }
-        strncpy(file, argv[optind], MAXLEN);
+        strncpy(file, argv[optind], MAXLEN-1);
     } else {
         usage();
         printf("Error: missing input file.\n\n");
