@@ -101,8 +101,8 @@ localparam  [11: 0] CSR_MVENDORID   = 12'hF11,    // Vender ID
                     CSR_RDCYCLEH    = 12'hc80,    // upper 32-bits of cycle counter
                     CSR_RDTIME      = 12'hc01,    // timer counter
                     CSR_RDTIMEH     = 12'hc81,    // upper 32-bits of timer counter
-                    CSR_RDINSTRET   = 12'hc02,    // Intructions-retired counter
-                    CSR_RDINSTRETH  = 12'hc82;    // upper 32-bits of intruction-retired counter
+                    CSR_RDINSTRET   = 12'hc02,    // Instructions-retired counter
+                    CSR_RDINSTRETH  = 12'hc82;    // upper 32-bits of instruction-retired counter
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
 localparam  [ 7: 0] SYS_CLOSE   = 8'h39,

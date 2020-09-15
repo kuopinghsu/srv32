@@ -5,7 +5,7 @@
 `define RV32M_ENABLED       1
 
 // ============================================================
-// RISCV for imem and dmem seperate port
+// RISCV for imem and dmem separate port
 // ============================================================
 module riscv (
     input                   clk,

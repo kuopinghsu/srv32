@@ -69,7 +69,7 @@ begin
 end
 
 // MSIP is used to trigger an interrupt. The external interrupt is at D[16],
-// defined by simple-rsicv. This is used for software selftest, it connects
+// defined by simple-rsicv. This is used for software self-test, it connects
 // ex_irq to the interrupt pin at top level of RTL code.
 always @(posedge clk or negedge resetb)
 begin

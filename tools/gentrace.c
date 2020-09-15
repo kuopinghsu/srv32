@@ -515,7 +515,7 @@ int main(int argc, char **argv) {
                           inst.j.rd, regname[inst.j.rd], regs[inst.j.rd] TRACE_END;
                 pc += to_imm_j(inst.j.imm);
                 if (to_imm_j(inst.j.imm) == 0) {
-                    printf("Warnning: forever loop detected at PC 0x%08x\n", pc);
+                    printf("Warning: forever loop detected at PC 0x%08x\n", pc);
                     prog_exit(1);
                 }
                 if ((pc&2) == 0)
@@ -804,7 +804,7 @@ int main(int argc, char **argv) {
                     case OP_SLT  : regs[inst.i.rd] = regs[inst.i.rs1] < to_imm_i(inst.i.imm) ? 1 : 0;
                                    break;
                     case OP_SLTU : //FIXME: to pass compliance test, the IMM should be singed
-                                   //extension, and compare with unsinged.
+                                   //extension, and compare with unsigned.
                                    //regs[inst.i.rd] = ((unsigned int)regs[inst.i.rs1]) <
                                    //                ((unsigned int)to_imm_iu(inst.i.imm)) ? 1 : 0;
                                    regs[inst.i.rd] = ((unsigned int)regs[inst.i.rs1]) <
