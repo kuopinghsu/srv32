@@ -43,7 +43,7 @@ Install RV32IM toolchains.
 | syn       | Synthesis environment for Yosys                 |
 | tests     | Compliance tests                                |
 | testbench | testbench, memory model                         |
-| tool      | ISS (instrution set simulator)                  |
+| tool      | ISS (instruction set simulator)                 |
 
 ## RTL Simulation
 
