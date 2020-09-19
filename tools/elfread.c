@@ -9,6 +9,7 @@
 #define VERBOSE 0
 #define LIBRARY 1
 
+#ifndef USE_LIBBFD
 static int elf32_read(FILE *fp, char *imem, char *dmem, int *isize, int *dsize)
 {
     int i;
@@ -225,4 +226,5 @@ int main(int argc, char **argv)
     return result ? 0 : 1;
 }
 #endif // LIBRARY
+#endif // USE_LIBBFD
 

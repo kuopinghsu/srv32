@@ -21,7 +21,7 @@ endif
 
 help:
 	@echo "make all         build all diags and run the RTL sim"
-	@echo "make all-sw      build all diags and run the software sim"
+	@echo "make all-sw      build all diags and run the ISS sim"
 	@echo "make tests-all   run all diags and compliance test"
 	@echo "make coverage    generate code coverage report"
 	@echo "make build       build all diags and the RTL"
@@ -61,7 +61,7 @@ $(SUBDIRS):
 			 $(if $(_coverage), coverate=1) \
 			 $(if $(_top), top=1) -C sim $@.run
 	@$(MAKE) $(if $(_top), top=1) -C tools $@.run
-	@echo "Compare the trace between RTL and software simulator"
+	@echo "Compare the trace between RTL and ISS simulator"
 	@diff --brief sim/trace.log tools/trace.log
 	@echo === Simulation passed ===
 

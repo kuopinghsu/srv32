@@ -12,7 +12,7 @@
     export RISCV_TARGET=simple-riscv
     make
 
-    export TARGET_SIM=${ROOT_SIMPLE_RISCV}/tools/gentrace
+    export TARGET_SIM=${ROOT_SIMPLE_RISCV}/tools/rvsim
     export RISCV_PREFIX=riscv32-unknown-elf-
     export RISCV_TARGET=simple-riscv
     make

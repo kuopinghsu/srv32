@@ -1,7 +1,7 @@
-DEBUG      ?= 0
-top        ?= 0
-CC          = gcc
-SYS        := $(shell gcc -dumpmachine)
+DEBUG   ?= 0
+top     ?= 0
+CC       = gcc
+SYS     := $(shell gcc -dumpmachine)
 
 ifneq (, $(findstring darwin, $(SYS)))
 CFLAGS  += -DMACOX
@@ -17,9 +17,9 @@ ifeq ($(top), 1)
 CFLAGS  += -DSINGLE_RAM
 endif
 
-SRC      = gentrace.c elfread.c
+SRC      = rvsim.c elfread.c
 OBJECTS  = $(SRC:.c=.o)
-TARGET   = gentrace
+TARGET   = rvsim
 
 .SUFFIXS: .c .o
 

@@ -1,4 +1,4 @@
-// Software simulator for RISC-V RV32I instruction sets
+// Instruction Set Simulator for RISC-V RV32I instruction sets
 // Copyright 2020, Kuoping Hsu, GPL license
 
 #include <stdio.h>
@@ -94,7 +94,8 @@ int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize);
 
 void usage(void) {
     printf(
-"Usage: tracegen [-h] [-b n] [-p] [-l logfile] file\n\n"
+"Instruction Set Simulator for RV32IM, (c) 2020 Kuoping Hsu\n"
+"Usage: rvsim [-h] [-b n] [-p] [-l logfile] file\n\n"
 "       --help, -h              help\n"
 "       --membase n, -m n       memory base (in hex)\n"
 "       --branch n, -b n        branch penalty (default 2)\n"
@@ -192,7 +193,7 @@ static void prog_exit(int exitcode) {
 }
 
 // Use libbfd to read the elf file.
-#if 0
+#ifdef USE_LIBBFD
 #define PACKAGE "riscv32-gentools"
 #define PACKAGE_VERSION "1.0"
 #include <bfd.h>

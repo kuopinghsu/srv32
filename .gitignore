@@ -61,7 +61,7 @@ dump.txt
 # repo compliance test
 tests/riscv-compliance
 
-tools/gentrace
+tools/rvsim
 sim/sim
 sim/sim_cc
 *.dis
