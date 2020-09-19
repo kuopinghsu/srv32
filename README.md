@@ -98,7 +98,7 @@ Use +trace to generate a trace log, which can be compared with the log file of t
 
 ## ISS (Instruction Set Simulator)
 
-The rvsim is a instruction set simulator (ISS) that can generate trace logs for comparison with RTL simulation results. It can also set parameters of branch penalty to run benchmarks to see the effect of branch penalty. The branch instructions of hardware is two instructions delay for branch penalties.
+The rvsim is an instruction set simulator (ISS) that can generate trace logs for comparison with RTL simulation results. It can also set parameters of branch penalty to run benchmarks to see the effect of branch penalty. The branch instructions of hardware is two instructions delay for branch penalties.
 
 ~~~
 Usage: rvsim [-h] [-b n] [-p] [-l logfile] file
