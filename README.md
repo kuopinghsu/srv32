@@ -1,6 +1,8 @@
 Simple 3-stage pipeline RISC-V processor
 ========================================
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/0cae0ed53b5f421c844e1fff32d138a5)](https://app.codacy.com/manual/kuopinghsu/simple-riscv?utm_source=github.com&utm_medium=referral&utm_content=kuopinghsu/simple-riscv&utm_campaign=Badge_Grade_Settings)
+
 This is a simple RISC-V 3-stage pipeline processor and supports FreeRTOS.
 I wrote this code to understand the RV32IM instruction set, just for fun.
 The performance is 1.821 DMIPS/MHz and 2.681 Coremark/MHz.
