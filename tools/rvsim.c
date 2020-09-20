@@ -968,7 +968,8 @@ int main(int argc, char **argv) {
             case OP_SYSTEM: { // I-Type
                 int val;
                 int update;
-                int result = 0;
+                int csr_op = 0;
+                int csr_type;
                 // RDCYCLE, RDTIME and RDINSTRET are read only
                 switch(inst.i.func3) {
                     case OP_ECALL  : TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
@@ -1030,59 +1031,54 @@ int main(int argc, char **argv) {
                                             TRAP(TRAP_INST_ILL, 0);
                                             continue;
                                      }
-                    case OP_CSRRWI : // fall through
-                    case OP_CSRRW  : // If the zimm[4:0] field is zero, then these instructions will not write
-                                     // to the CSR
-                                     if (inst.i.func3 == OP_CSRRW)
-                                        val = regs[inst.i.rs1];
-                                     else
-                                        val = inst.i.rs1;
+                    case OP_CSRRWI : csr_op = 1;
+                                     val = inst.i.rs1;
                                      update = 1;
-                                     result = csr_rw(inst.i.imm, OP_CSRRW, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
-                                               pc, inst.inst, inst.i.rd,
-                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
-                                     if (!result) {
-                                        TRAP(TRAP_INST_ILL, 0);
-                                        continue;
-                                     }
+                                     csr_type = OP_CSRRW;
+                                     break;
+                    // If the zimm[4:0] field is zero, then these instructions will not write
+                    // to the CSR
+                    case OP_CSRRW  : csr_op = 1;
+                                     val = regs[inst.i.rs1];
+                                     update = 1;
+                                     csr_type = OP_CSRRW;
                                      break;
                     // For both CSRRS and CSRRC, if rs1=x0, then the instruction will not
                     // write to the CSR at all
-                    case OP_CSRRSI : // fall through
-                    case OP_CSRRS  : if (inst.i.func3 == OP_CSRRS)
-                                        val = regs[inst.i.rs1];
-                                     else
-                                        val = inst.i.rs1;
+                    case OP_CSRRSI : csr_op = 1;
+                                     val = inst.i.rs1;
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
-                                     result = csr_rw(inst.i.imm, OP_CSRRS, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
-                                               pc, inst.inst, inst.i.rd,
-                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
-                                     if (!result) {
-                                        TRAP(TRAP_INST_ILL, 0);
-                                        continue;
-                                     }
+                                     csr_type = OP_CSRRS;
                                      break;
-                    case OP_CSRRCI : // fall through
-                    case OP_CSRRC  : if (inst.i.func3 == OP_CSRRC)
-                                        val = regs[inst.i.rs1];
-                                     else
-                                        val = inst.i.rs1;
+                    case OP_CSRRS  : csr_op = 1;
+                                     val = regs[inst.i.rs1];
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
-                                     result = csr_rw(inst.i.imm, OP_CSRRC, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
-                                               pc, inst.inst, inst.i.rd,
-                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
-                                     if (!result) {
-                                        TRAP(TRAP_INST_ILL, 0);
-                                        continue;
-                                     }
+                                     csr_type = OP_CSRRS;
+                                     break;
+                    case OP_CSRRCI : csr_op = 1;
+                                     val = inst.i.rs1;
+                                     update = (inst.i.rs1 == 0) ? 0 : 1;
+                                     csr_type = OP_CSRRC;
+                                     break;
+                    case OP_CSRRC  : csr_op = 1;
+                                     val = regs[inst.i.rs1];
+                                     update = (inst.i.rs1 == 0) ? 0 : 1;
+                                     csr_type = OP_CSRRC;
                                      break;
                     default: printf("Unknown system instruction at 0x%08x\n", pc);
                              TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
+                }
+                if (csr_op) {
+                    int result = csr_rw(inst.i.imm, csr_type, val, update, &regs[inst.i.rd]);
+                    TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
+                              pc, inst.inst, inst.i.rd,
+                              regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
+                    if (!result) {
+                       TRAP(TRAP_INST_ILL, 0);
+                       continue;
+                    }
                 }
                 break;
             }
