@@ -1,5 +1,6 @@
-Simple 3-stage pipeline RISC-V processor
-========================================
+# Simple 3-stage pipeline RISC-V processor
+
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/d14f73089d014a87beb91960e9340617)](https://www.codacy.com/manual/kuopinghsu/simple-riscv?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kuopinghsu/simple-riscv&amp;utm_campaign=Badge_Grade)
 
 This is a simple RISC-V 3-stage pipeline processor and supports FreeRTOS.
 I wrote this code to understand the RV32IM instruction set, just for fun.
@@ -8,12 +9,12 @@ This is not a RISC-V core available for production.
 
 ## Features
 
-1. Three-stage pipeline processor
-2. RV32IM instruction sets
-3. Pass RV32IM <A Href="https://github.com/riscv/riscv-compliance">compliance test</A>
-4. Trap exception
-5. Interrupt handler
-6. <A Href="https://github.com/kuopinghsu/FreeRTOS-RISCV">FreeRTOS</A> support
+ 1. Three-stage pipeline processor
+ 2. RV32IM instruction sets
+ 3. Pass RV32IM <A Href="https://github.com/riscv/riscv-compliance">compliance test</A>
+ 4. Trap exception
+ 5. Interrupt handler
+ 6. <A Href="https://github.com/kuopinghsu/FreeRTOS-RISCV">FreeRTOS</A> support
 
 ## Building toolchains
 
@@ -158,13 +159,13 @@ Two instructions branch penalty if branch taken, CPI is 1 for other instructions
 
 This core is three-stage pipeline processors, which is Fetch & Decode (F/D), execution (E) and write back (WB).
 
-* Register Forwarding
+  * Register Forwarding
 
 The problem with data hazards, introduced by this sequence of instructions can be solved with a simple hardware technique called forwarding. When the execution result accesses the same register, the execution result is directly forwarded to the next instruction.
 
 <img src="images/forwarding.svg" alt="Register Forwarding" width=320>
 
-* Branch Penalty
+  * Branch Penalty
 
 When the branch is taken during the execute phase, it needs to flush the instructions that have been fetched into the pipeline, which causes a delay of two instructions, so the extra cost of the branch is two.
 
@@ -188,7 +189,7 @@ The github repository is at https://github.com/riscv/riscv-compliance. Running t
 
 ## FreeRTOS support
 
-Reference code on https://github.com/kuopinghsu/FreeRTOS-RISCV.
+Reference code on <https://github.com/kuopinghsu/FreeRTOS-RISCV>.
 
     # build FreeRTOS and demo
     git clone --recursive https://github.com/kuopinghsu/FreeRTOS-RISCV
@@ -224,15 +225,15 @@ This is the coverage report by lcov, which get almost 100% code coverage.
 
 ## Known issues
 
-* Memory can not respond non-valid, that is, the memory should always accept the command from CPU.
+  * Memory can not respond non-valid, that is, the memory should always accept the command from CPU.
 
 ## TO-DO
 
-* merge the memory interface into one memory for one port
-* static branch predictor
-* support RV32C compress extension
+  * merge the memory interface into one memory for one port
+  * static branch predictor
+  * support RV32C compress extension
 
-# License
+## License
 
 MIT license
 

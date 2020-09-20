@@ -172,7 +172,7 @@ static inline int to_imm_b(unsigned int n1, unsigned int n2) {
             unsigned int a1 : 4;
             unsigned int a2 : 6;
             unsigned int a3 : 1;
-            unsigned int a4 : 20;
+            //unsigned int a4 : 20; // no used
         } m;
     } r;
     r.n = (n1 << 5) + n2;
@@ -189,7 +189,7 @@ static inline int to_imm_j(unsigned int n) {
             unsigned int a1 : 1;
             unsigned int a2 : 10;
             unsigned int a3 : 1;
-            unsigned int a4 : 12;
+            // unsigned int a4 : 12; // no used
         } m;
     } r;
     r.n = n;
@@ -365,7 +365,7 @@ int main(int argc, char **argv) {
                     printf("malloc fail\n");
                     exit(1);
                 }
-                strncpy(tfile, optarg, MAXLEN-1);
+                strncpy(tfile, optarg, MAXLEN-1); tfile[MAXLEN] = 0;
                 break;
             case 'q':
                 quiet = 1;
@@ -387,7 +387,7 @@ int main(int argc, char **argv) {
             printf("malloc fail\n");
             exit(1);
         }
-        strncpy(file, argv[optind], MAXLEN-1);
+        strncpy(file, argv[optind], MAXLEN-1); file[MAXLEN] = 0;
     } else {
         usage();
         printf("Error: missing input file.\n\n");
@@ -518,19 +518,19 @@ int main(int argc, char **argv) {
         switch(inst.r.op) {
             case OP_AUIPC : { // U-Type
                 regs[inst.u.rd] = pc + to_imm_u(inst.u.imm);
-                TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
+                TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n", pc, inst.inst,
                            inst.u.rd, regname[inst.u.rd], regs[inst.u.rd] TRACE_END;
                 break;
             }
             case OP_LUI   : { // U-Type
                 regs[inst.u.rd] = to_imm_u(inst.u.imm);
-                TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
+                TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n", pc, inst.inst,
                           inst.u.rd, regname[inst.u.rd], regs[inst.u.rd] TRACE_END;
                 break;
             }
             case OP_JAL   : { // J-Type
                 regs[inst.j.rd] = pc + 4;
-                TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n", pc, inst.inst,
+                TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n", pc, inst.inst,
                           inst.j.rd, regname[inst.j.rd], regs[inst.j.rd] TRACE_END;
                 pc += to_imm_j(inst.j.imm);
                 if (to_imm_j(inst.j.imm) == 0) {
@@ -546,7 +546,7 @@ int main(int argc, char **argv) {
                 TIME_LOG; TRACE_LOG "%08x ", pc TRACE_END;
                 pc = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
                 regs[inst.i.rd] = new_pc;
-                TRACE_LOG "%08x x%02d (%s) <= 0x%08x\n", inst.inst, inst.i.rd,
+                TRACE_LOG "%08x x%02u (%s) <= 0x%08x\n", inst.inst, inst.i.rd,
                           regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
                 if ((pc&2) == 0)
                     CYCLE_ADD(branch_penalty);
@@ -703,7 +703,7 @@ int main(int argc, char **argv) {
                                   }
                                   data = (address&2) ? ((data>>16)&0xffff) : (data &0xffff);
                                   break;
-                    default: TRACE_LOG " read 0x%08x => 0x%08x, x%02d (%s) <= 0x%08x\n",
+                    default: TRACE_LOG " read 0x%08x => 0x%08x, x%02u (%s) <= 0x%08x\n",
                                        memaddr, memdata, inst.i.rd,
                                        regname[inst.i.rd], 0 TRACE_END;
                              printf("Illegal load instruction at PC 0x%08x\n", pc);
@@ -711,7 +711,7 @@ int main(int argc, char **argv) {
                              continue;
                 }
                 regs[inst.i.rd] = data;
-                TRACE_LOG " read 0x%08x => 0x%08x, x%02d (%s) <= 0x%08x\n",
+                TRACE_LOG " read 0x%08x => 0x%08x, x%02u (%s) <= 0x%08x\n",
                           memaddr, memdata, inst.i.rd,
                           regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
                 break;
@@ -847,7 +847,7 @@ int main(int argc, char **argv) {
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
                 }
-                TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                           pc, inst.inst, inst.i.rd, regname[inst.i.rd],
                           regs[inst.i.rd] TRACE_END;
                 break;
