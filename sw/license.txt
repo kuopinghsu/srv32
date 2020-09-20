@@ -6,5 +6,5 @@ coremark - coremark benchmark
 qsort - quick sort
 
 The dhrystone and coremark are licensed by their respective authors, please refer to the header file for permission.
-The other folders are licensed under the GPL written by Kuoping Hsu.
+The other folders are licensed under the MIT written by Kuoping Hsu.
 
