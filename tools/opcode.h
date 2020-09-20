@@ -19,6 +19,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
+#if defined(__MINGW__) || defined(_MSC_VER)
+#define __STDC_WANT_LIB_EXT1__ 1
+#endif
+
 typedef union _INST {
     int inst;
 
@@ -298,4 +304,14 @@ enum {
 #define STDOUT 1
 
 #define BRANCH_PENALTY 2
+
+#if defined __APPLE__
+#  define strncpy_s(a,b,c,d) strlcpy(a,c,d)
+#  define strncat_s(a,b,c,d) strlcat(a,c,d)
+#elif !defined(__STDC_WANT_LIB_EXT1__)
+#  define strncpy_s __strncpy_s
+#  define strncat_s __strncat_s
+char *strncpy_s(char *dest, size_t n, const char *src, size_t count);
+char *strncat_s(char *dest, size_t n, const char *src, size_t count);
+#endif
 

@@ -148,6 +148,16 @@ void aligned_free( void *mem )
 #define aligned_free free
 #endif
 
+#ifndef __STDC_WANT_LIB_EXT1__ 
+char *strncpy_s(char *dest, size_t n, const char *src, size_t count) {
+    int len = (int)strnlen(src, count);
+    if (len > n) len = n;
+    memcpy(dest, src, len);
+    dest[len] = 0;
+    return dest;
+}
+#endif // __STDC_WANT_LIB_EXT1__
+
 static inline int to_imm_i(unsigned int n) {
     return (int)((n & (1<<11)) ? (n | 0xfffff000) : n);
 }
@@ -365,13 +375,13 @@ int main(int argc, char **argv) {
                     printf("malloc fail\n");
                     exit(1);
                 }
-                strncpy(tfile, optarg, MAXLEN-1); tfile[MAXLEN] = 0;
+                strncpy_s(tfile, MAXLEN-1, optarg, MAXLEN-1);
                 break;
             case 'q':
                 quiet = 1;
                 break;
             case 'm':
-                sscanf(optarg, "%x", &mem_base);
+                sscanf(optarg, "%x", (unsigned int*)&mem_base);
                 break;
             case 's':
                 singleram = 1;
@@ -387,7 +397,7 @@ int main(int argc, char **argv) {
             printf("malloc fail\n");
             exit(1);
         }
-        strncpy(file, argv[optind], MAXLEN-1); file[MAXLEN] = 0;
+        strncpy_s(file, MAXLEN-1, argv[optind], MAXLEN-1);
     } else {
         usage();
         printf("Error: missing input file.\n\n");
@@ -953,7 +963,7 @@ int main(int argc, char **argv) {
                                  continue;
                     }
                 }
-                TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                           pc, inst.inst, inst.r.rd, regname[inst.r.rd],
                           regs[inst.r.rd] TRACE_END;
                 break;

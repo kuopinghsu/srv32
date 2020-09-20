@@ -1,9 +1,8 @@
-
 # Compliance Test
 
     <https://github.com/riscv/riscv-compliance>
 
-~~~
+~~~text
     export ROOT_SIMPLE_RISCV=<root path of simple RISCV>
     cp -r ${ROOT_SIMPLE_RISCV}/tests/simple-riscv <path of riscv-compliance>/riscv-target/.
 

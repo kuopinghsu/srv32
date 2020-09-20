@@ -9,12 +9,12 @@ This is not a RISC-V core available for production.
 
 ## Features
 
- 1. Three-stage pipeline processor
- 2. RV32IM instruction sets
- 3. Pass RV32IM <A Href="https://github.com/riscv/riscv-compliance">compliance test</A>
- 4. Trap exception
- 5. Interrupt handler
- 6. <A Href="https://github.com/kuopinghsu/FreeRTOS-RISCV">FreeRTOS</A> support
+1. Three-stage pipeline processor
+2. RV32IM instruction sets
+3. Pass RV32IM <A Href="https://github.com/riscv/riscv-compliance">compliance test</A>
+4. Trap exception
+5. Interrupt handler
+6. <A Href="https://github.com/kuopinghsu/FreeRTOS-RISCV">FreeRTOS</A> support
 
 ## Building toolchains
 
@@ -101,7 +101,7 @@ Use +trace to generate a trace log, which can be compared with the log file of t
 
 The rvsim is an instruction set simulator (ISS) that can generate trace logs for comparison with RTL simulation results. It can also set parameters of branch penalty to run benchmarks to see the effect of branch penalty. The branch instructions of hardware is two instructions delay for branch penalties.
 
-~~~
+~~~text
 Usage: rvsim [-h] [-b n] [-p] [-l logfile] file
 
        --help, -n              help
@@ -182,7 +182,7 @@ Provide the Yosys synthesis script on the syn folder.
 ## Compliance tests
 
 Compliance test for ISS simulator and RTL. This is the compliance test form RISC-V Foundation Compliance Task Group.
-The github repository is at https://github.com/riscv/riscv-compliance. Running the following command will clone the repository into tests folder and do the compliance test.
+The github repository is at <https://github.com/riscv/riscv-compliance>. Running the following command will clone the repository into tests folder and do the compliance test.
 
     make tests          # run the compliance test for RTL
     make tests-sw       # run the compliance test for ISS simulator
@@ -225,15 +225,14 @@ This is the coverage report by lcov, which get almost 100% code coverage.
 
 ## Known issues
 
-  * Memory can not respond non-valid, that is, the memory should always accept the command from CPU.
+* Memory can not respond non-valid, that is, the memory should always accept the command from CPU.
 
 ## TO-DO
 
-  * merge the memory interface into one memory for one port
-  * static branch predictor
-  * support RV32C compress extension
+* merge the memory interface into one memory for one port
+* static branch predictor
+* support RV32C compress extension
 
 ## License
 
 MIT license
-
