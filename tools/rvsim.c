@@ -681,29 +681,12 @@ int main(int argc, char **argv) {
                 }
                 memdata = data;
                 switch(inst.i.func3) {
-                    case OP_LB  : data = (data >> ((address&3)*8))&0xff;
-                                  if (data&0x80) data |= 0xffffff00;
-                                  break;
-                    case OP_LH  : if (address&1) {
-                                    TRACE_LOG "\n" TRACE_END;
-                                    printf("Unalignment address 0x%08x to read at 0x%08x\n",
-                                            DPA2VA(address), pc);
-                                    TRAP(TRAP_LD_ALIGN, DPA2VA(address));
-                                    continue;
-                                  }
-                                  data = (address&2) ? ((data>>16)&0xffff) : (data &0xffff);
-                                  if (data&0x8000) data |= 0xffff0000;
-                                  break;
-                    case OP_LW  : if (address&3) {
-                                    TRACE_LOG "\n" TRACE_END;
-                                    printf("Unalignment address 0x%08x to read at 0x%08x\n",
-                                            DPA2VA(address), pc);
-                                    TRAP(TRAP_LD_ALIGN, DPA2VA(address));
-                                    continue;
-                                  }
-                                  break;
+                    case OP_LB  : // fall through
                     case OP_LBU : data = (data >> ((address&3)*8))&0xff;
+                                  if (inst.i.func3 == OP_LB && (data&0x80))
+                                    data |= 0xffffff00;
                                   break;
+                    case OP_LH  : // fall through
                     case OP_LHU : if (address&1) {
                                     TRACE_LOG "\n" TRACE_END;
                                     printf("Unalignment address 0x%08x to read at 0x%08x\n",
@@ -712,6 +695,16 @@ int main(int argc, char **argv) {
                                     continue;
                                   }
                                   data = (address&2) ? ((data>>16)&0xffff) : (data &0xffff);
+                                  if (inst.i.func3 == OP_LH && (data&0x8000))
+                                    data |= 0xffff0000;
+                                  break;
+                    case OP_LW  : if (address&3) {
+                                    TRACE_LOG "\n" TRACE_END;
+                                    printf("Unalignment address 0x%08x to read at 0x%08x\n",
+                                            DPA2VA(address), pc);
+                                    TRAP(TRAP_LD_ALIGN, DPA2VA(address));
+                                    continue;
+                                  }
                                   break;
                     default: TRACE_LOG " read 0x%08x => 0x%08x, x%02u (%s) <= 0x%08x\n",
                                        memaddr, memdata, inst.i.rd,
@@ -1037,7 +1030,13 @@ int main(int argc, char **argv) {
                                             TRAP(TRAP_INST_ILL, 0);
                                             continue;
                                      }
-                    case OP_CSRRW  : val = regs[inst.i.rs1];
+                    case OP_CSRRWI : // fall through
+                    case OP_CSRRW  : // If the zimm[4:0] field is zero, then these instructions will not write
+                                     // to the CSR
+                                     if (inst.i.func3 == OP_CSRRW)
+                                        val = regs[inst.i.rs1];
+                                     else
+                                        val = inst.i.rs1;
                                      update = 1;
                                      result = csr_rw(inst.i.imm, OP_CSRRW, val, update, &regs[inst.i.rd]);
                                      TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
@@ -1050,7 +1049,11 @@ int main(int argc, char **argv) {
                                      break;
                     // For both CSRRS and CSRRC, if rs1=x0, then the instruction will not
                     // write to the CSR at all
-                    case OP_CSRRS  : val = regs[inst.i.rs1];
+                    case OP_CSRRSI : // fall through
+                    case OP_CSRRS  : if (inst.i.func3 == OP_CSRRS)
+                                        val = regs[inst.i.rs1];
+                                     else
+                                        val = inst.i.rs1;
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
                                      result = csr_rw(inst.i.imm, OP_CSRRS, val, update, &regs[inst.i.rd]);
                                      TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
@@ -1061,42 +1064,11 @@ int main(int argc, char **argv) {
                                         continue;
                                      }
                                      break;
-                    case OP_CSRRC  : val = regs[inst.i.rs1];
-                                     update = (inst.i.rs1 == 0) ? 0 : 1;
-                                     result = csr_rw(inst.i.imm, OP_CSRRC, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
-                                               pc, inst.inst, inst.i.rd,
-                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
-                                     if (!result) {
-                                        TRAP(TRAP_INST_ILL, 0);
-                                        continue;
-                                     }
-                                     break;
-                    // If the zimm[4:0] field is zero, then these instructions will not write
-                    // to the CSR
-                    case OP_CSRRWI : val = inst.i.rs1;
-                                     update = 1;
-                                     result = csr_rw(inst.i.imm, OP_CSRRW, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
-                                               pc, inst.inst, inst.i.rd,
-                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
-                                     if (!result) {
-                                        TRAP(TRAP_INST_ILL, 0);
-                                        continue;
-                                     }
-                                     break;
-                    case OP_CSRRSI : val = inst.i.rs1;
-                                     update = (inst.i.rs1 == 0) ? 0 : 1;
-                                     result = csr_rw(inst.i.imm, OP_CSRRS, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
-                                               pc, inst.inst, inst.i.rd,
-                                               regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
-                                     if (!result) {
-                                        TRAP(TRAP_INST_ILL, 0);
-                                        continue;
-                                     }
-                                     break;
-                    case OP_CSRRCI : val = inst.i.rs1;
+                    case OP_CSRRCI : // fall through
+                    case OP_CSRRC  : if (inst.i.func3 == OP_CSRRC)
+                                        val = regs[inst.i.rs1];
+                                     else
+                                        val = inst.i.rs1;
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
                                      result = csr_rw(inst.i.imm, OP_CSRRC, val, update, &regs[inst.i.rd]);
                                      TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
