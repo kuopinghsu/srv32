@@ -1,8 +1,7 @@
 # Compliance Test
 
-    <https://github.com/riscv/riscv-compliance>
+<https://github.com/riscv/riscv-compliance>
 
-~~~text
     export ROOT_SIMPLE_RISCV=<root path of simple RISCV>
     cp -r ${ROOT_SIMPLE_RISCV}/tests/simple-riscv <path of riscv-compliance>/riscv-target/.
 
@@ -18,4 +17,3 @@
     export RISCV_PREFIX=riscv32-unknown-elf-
     export RISCV_TARGET=simple-riscv
     make
-~~~

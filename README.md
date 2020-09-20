@@ -15,6 +15,7 @@ This is not a RISC-V core available for production.
 4. Trap exception
 5. Interrupt handler
 6. <A Href="https://github.com/kuopinghsu/FreeRTOS-RISCV">FreeRTOS</A> support
+7. ISS simulator
 
 ## Building toolchains
 
@@ -101,16 +102,14 @@ Use +trace to generate a trace log, which can be compared with the log file of t
 
 The rvsim is an instruction set simulator (ISS) that can generate trace logs for comparison with RTL simulation results. It can also set parameters of branch penalty to run benchmarks to see the effect of branch penalty. The branch instructions of hardware is two instructions delay for branch penalties.
 
-~~~text
-Usage: rvsim [-h] [-b n] [-p] [-l logfile] file
+    Usage: rvsim [-h] [-b n] [-p] [-l logfile] file
 
-       --help, -n              help
-       --branch n, -b n        branch penalty (default 2)
-       --predict, -p           static branch prediction
-       --log file, -l file     generate log file
+           --help, -n              help
+           --branch n, -b n        branch penalty (default 2)
+           --predict, -p           static branch prediction
+           --log file, -l file     generate log file
 
-       file                    the elf executable file
-~~~
+           file                    the elf executable file
 
 The ISS simulator and hardware supports RV32IM instruction sets.
 
@@ -159,13 +158,13 @@ Two instructions branch penalty if branch taken, CPI is 1 for other instructions
 
 This core is three-stage pipeline processors, which is Fetch & Decode (F/D), execution (E) and write back (WB).
 
-  * Register Forwarding
+* Register Forwarding
 
 The problem with data hazards, introduced by this sequence of instructions can be solved with a simple hardware technique called forwarding. When the execution result accesses the same register, the execution result is directly forwarded to the next instruction.
 
 <img src="images/forwarding.svg" alt="Register Forwarding" width=320>
 
-  * Branch Penalty
+* Branch Penalty
 
 When the branch is taken during the execute phase, it needs to flush the instructions that have been fetched into the pipeline, which causes a delay of two instructions, so the extra cost of the branch is two.
 

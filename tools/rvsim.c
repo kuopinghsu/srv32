@@ -1040,7 +1040,7 @@ int main(int argc, char **argv) {
                     case OP_CSRRW  : val = regs[inst.i.rs1];
                                      update = 1;
                                      result = csr_rw(inst.i.imm, OP_CSRRW, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                                                pc, inst.inst, inst.i.rd,
                                                regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
                                      if (!result) {
@@ -1053,7 +1053,7 @@ int main(int argc, char **argv) {
                     case OP_CSRRS  : val = regs[inst.i.rs1];
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
                                      result = csr_rw(inst.i.imm, OP_CSRRS, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                                                pc, inst.inst, inst.i.rd,
                                                regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
                                      if (!result) {
@@ -1064,7 +1064,7 @@ int main(int argc, char **argv) {
                     case OP_CSRRC  : val = regs[inst.i.rs1];
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
                                      result = csr_rw(inst.i.imm, OP_CSRRC, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                                                pc, inst.inst, inst.i.rd,
                                                regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
                                      if (!result) {
@@ -1077,7 +1077,7 @@ int main(int argc, char **argv) {
                     case OP_CSRRWI : val = inst.i.rs1;
                                      update = 1;
                                      result = csr_rw(inst.i.imm, OP_CSRRW, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                                                pc, inst.inst, inst.i.rd,
                                                regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
                                      if (!result) {
@@ -1088,7 +1088,7 @@ int main(int argc, char **argv) {
                     case OP_CSRRSI : val = inst.i.rs1;
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
                                      result = csr_rw(inst.i.imm, OP_CSRRS, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                                                pc, inst.inst, inst.i.rd,
                                                regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
                                      if (!result) {
@@ -1099,7 +1099,7 @@ int main(int argc, char **argv) {
                     case OP_CSRRCI : val = inst.i.rs1;
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
                                      result = csr_rw(inst.i.imm, OP_CSRRC, val, update, &regs[inst.i.rd]);
-                                     TIME_LOG; TRACE_LOG "%08x %08x x%02d (%s) <= 0x%08x\n",
+                                     TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                                                pc, inst.inst, inst.i.rd,
                                                regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
                                      if (!result) {
