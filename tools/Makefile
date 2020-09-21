@@ -1,7 +1,8 @@
-DEBUG   ?= 0
-top     ?= 0
-CC       = gcc
-SYS     := $(shell gcc -dumpmachine)
+DEBUG    ?= 0
+top      ?= 0
+coverage ?= 0
+CC        = gcc
+SYS      := $(shell gcc -dumpmachine)
 
 ifneq (, $(findstring darwin, $(SYS)))
 CFLAGS  += -DMACOX
@@ -11,6 +12,11 @@ ifeq ($(DEBUG), 1)
 CFLAGS  += -O0 -g -Wall
 else
 CFLAGS  += -O3 -g -Wall
+endif
+
+ifeq ($(coverage), 1)
+CFLAGS  += -fprofile-arcs -ftest-coverage
+LDFLAGS += -fprofile-arcs -ftest-coverage
 endif
 
 ifeq ($(top), 1)
@@ -29,7 +35,7 @@ TARGET   = rvsim
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(TARGET): $(OBJECTS)
-	$(CC) -o $(TARGET) $(OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) $(OBJECTS)
 
 %.run: $(TARGET)
 	@if [ ! -f ../sw/$*/$*.elf ]; then \
@@ -37,8 +43,14 @@ $(TARGET): $(OBJECTS)
 	fi
 	./$(TARGET) -l trace.log ../sw/$*/$*.elf
 
+coverage:
+	@gcov *.c
+	@lcov -c -o coverage.info -d .
+	@genhtml coverage.info -o html
+
 clean:
 	@$(RM) $(OBJECTS) dump.txt trace.log $(TARGET)
+	@$(RM) -rf html coverage.info *.gcda *.gcno
 
 distclean: clean
 

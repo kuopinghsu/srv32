@@ -66,13 +66,13 @@ $(SUBDIRS):
 	@echo === Simulation passed ===
 
 coverage:
-	@mkdir -p coverage
 	@$(MAKE) coverage=1 all
 	@mv sim/*_cov.dat coverage/.
 	@$(MAKE) coverage=1 tests
 	@mv tests/riscv-compliance/work/rv32i/*_cov.dat coverage/.
 	@mv tests/riscv-compliance/work/rv32im/*_cov.dat coverage/.
 	@$(MAKE) -C coverage
+	@$(MAKE) -C tools coverage
 
 clean:
 	for i in sw sim tools tests coverage; do \
