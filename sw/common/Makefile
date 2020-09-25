@@ -8,7 +8,11 @@ TARGET = libsys.a
 all: $(TARGET)
 
 .SUFFIXES: .c .S .h .o
-%.o: %.S S %.c %.h
+
+%.o: %.S %.h
+	$(AS) $(ASFLAGS) -o $@ -c $<
+
+%.o: %.c %.S %.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(TARGET): $(OBJECTS)

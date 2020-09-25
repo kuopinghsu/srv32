@@ -19,7 +19,7 @@ This is not a RISC-V core available for production.
 
 ## Building toolchains
 
-Install RV32IM toolchains.
+Install RISCV toolchains.
 
     # Ubuntu packages needed:
     sudo apt-get install autoconf automake autotools-dev curl libmpc-dev \
@@ -30,7 +30,7 @@ Install RV32IM toolchains.
     cd riscv-gnu-toolchain
     
     mkdir build; cd build
-    ../configure --with-arch=rv32im --prefix=/opt/riscv32im
+    ../configure --prefix=/opt/riscv --enable-multilib
     make -j$(nproc)
 
 ## Files list

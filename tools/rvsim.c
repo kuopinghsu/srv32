@@ -222,7 +222,7 @@ static void prog_exit(int exitcode) {
 
 // Use libbfd to read the elf file.
 #ifdef USE_LIBBFD
-#define PACKAGE "riscv32-gentools"
+#define PACKAGE "riscv32-rvsim"
 #define PACKAGE_VERSION "1.0"
 #include <bfd.h>
 static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {

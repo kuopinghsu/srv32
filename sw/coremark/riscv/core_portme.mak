@@ -21,16 +21,13 @@
 OUTFLAG= -o
 # Flag : CC
 #	Use this flag to define compiler to use
-CC = riscv32-unknown-elf-gcc
-OBJCOPY = riscv32-unknown-elf-objcopy
-OBJDUMP = riscv32-unknown-elf-objdump
-READELF = riscv32-unknown-elf-readelf
+include ../common/Makefile.common
 
 ITERATIONS = 4
 
 # Flag : CFLAGS
 #	Use this flag to define compiler options. Note, you can add compiler options from the command line using XCFLAGS="other flags"
-PORT_CFLAGS = -O3 -march=rv32im -nostartfiles -nostdlib -L../common -DPERFORMANCE_RUN=1
+PORT_CFLAGS = -O3 $(ARCH) -nostartfiles -nostdlib -L../common -DPERFORMANCE_RUN=1
 FLAGS_STR = "$(PORT_CFLAGS) $(XCFLAGS) $(XLFLAGS) $(LFLAGS_END)"
 CFLAGS = $(PORT_CFLAGS) -I$(PORT_DIR) -I. -DFLAGS_STR=\"$(FLAGS_STR)\"
 #Flag : LFLAGS_END
@@ -48,7 +45,7 @@ PORT_SRCS = $(PORT_DIR)/core_portme.c
 
 #For native compilation and execution
 LOAD = echo Loading done
-RUN = riscv32-unknown-elf-run
+RUN = riscv64-unknown-elf-run
 
 OEXT = .o
 EXE = .elf

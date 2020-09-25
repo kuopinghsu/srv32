@@ -2,7 +2,7 @@
 include ../common/Makefile.common
 
 EXE      = .elf
-TARGET   = sem
+TARGET   = $(shell basename `pwd`)
 OUTPUT   = $(TARGET)$(EXE)
 
 .PHONY: all clean

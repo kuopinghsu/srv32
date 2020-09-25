@@ -1,8 +1,13 @@
-CC      = riscv32-unknown-elf-gcc
-AR      = riscv32-unknown-elf-ar
-OBJDUMP = riscv32-unknown-elf-objdump
-OBJCOPY = riscv32-unknown-elf-objcopy
-READELF = riscv32-unknown-elf-readelf
+CROSS_COMPILE := riscv64-unknown-elf-
 
-CFLAGS  = -O3 -Wall -march=rv32im -nostartfiles -nostdlib
-LDFLAGS = -lc -lm -lgcc -lsys
+CC      := $(CROSS_COMPILE)gcc
+AS      := $(CROSS_COMPILE)as
+AR      := $(CROSS_COMPILE)ar
+OBJDUMP := $(CROSS_COMPILE)objdump
+OBJCOPY := $(CROSS_COMPILE)objcopy
+READELF := $(CROSS_COMPILE)readelf
+
+ARCH    := -march=rv32im -mabi=ilp32
+CFLAGS  := -O3 -Wall $(ARCH) -nostartfiles -nostdlib
+ASFLAGS := $(ARCH)
+LDFLAGS := -lc -lm -lgcc -lsys

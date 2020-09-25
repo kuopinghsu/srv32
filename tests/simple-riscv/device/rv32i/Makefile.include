@@ -14,12 +14,12 @@ RUN_TARGET    = \
     $(TARGET_SWSIM) -l trace_sw.log $(TARGET_FLAGS) $< 2> $@; \
     diff --brief trace.log trace_sw.log && rm -f imem.bin dmem.bin memory.bin trace.log trace.sw.log
 
-RISCV_PREFIX   ?= riscv32-unknown-elf-
+RISCV_PREFIX   ?= riscv64-unknown-elf-
 RISCV_GCC      ?= $(RISCV_PREFIX)gcc
 RISCV_OBJDUMP  ?= $(RISCV_PREFIX)objdump
 RISCV_OBJCOPY  ?= $(RISCV_PREFIX)objcopy
 RISCV_READELF  ?= $(RISCV_PREFIX)readelf
-RISCV_GCC_OPTS ?= -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles
+RISCV_GCC_OPTS ?= -march=rv32im -mabi=ilp32 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles
 
 COMPILE_TARGET=\
 	$$(RISCV_GCC) $(1) $$(RISCV_GCC_OPTS) \
