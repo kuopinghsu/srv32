@@ -110,6 +110,7 @@ fail:
     return 0;
 }
 
+// LCOV_EXCL_START
 static int elf64_read(FILE *fp, char *imem, char *dmem, int *isize, int *dsize)
 {
     int i;
@@ -191,6 +192,7 @@ fail:
     if (secName) free(secName);
     return 0;
 }
+// LCOV_EXCL_STOP
 
 int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize)
 {
@@ -214,9 +216,11 @@ int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize)
             fclose(fp);
             return result;
         } else { // ELF64
+            // LCOV_EXCL_START
             int result = elf64_read(fp, imem, dmem, isize, dsize);
             fclose(fp);
             return result;
+            // LCOV_EXCL_STOP
         }
     } else {
         printf("The file %s is not an ELF format\n", file);

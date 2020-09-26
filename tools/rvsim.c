@@ -284,12 +284,14 @@ int csr_rw(int regs, int mode, int val, int update, int *result) {
         case CSR_RDCYCLEH  : counter.c = csr.cycle.c - 1;
                              *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.cycle.d.hi, val);
                              break;
+        /*
         case CSR_RDTIME    : counter.c = csr.time.c - 1;
                              *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.time.d.lo, val);
                              break;
         case CSR_RDTIMEH   : counter.c = csr.time.c - 1;
                              *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.time.d.hi, val);
                              break;
+        */
         case CSR_RDINSTRET : counter.c = csr.instret.c - 1;
                              *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.instret.d.lo, val);
                              break;

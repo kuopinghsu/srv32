@@ -218,9 +218,13 @@ directory.
 
     % make coverage
 
-This is the coverage report by lcov, which get almost 100% code coverage.
+This is the coverage report of RTL by lcov, which get 100% code coverage.
 
 <img src="images/coverage.png" alt="coverage">
+
+This is the coverage report of ISS.
+
+<img src="images/coverage_iss.png" alt="coverage-ISS">
 
 ## Known issues
 

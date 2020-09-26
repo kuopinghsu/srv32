@@ -441,12 +441,12 @@ assign result_mulsu[63: 0]  = $signed  ({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
 // Assign the value to pass RISC-V compliance test.
 assign result_div[31: 0]    = (alu_op2 == 32'h00000000) ? 32'hffffffff :
                               ((alu_op1 == 32'h80000000) && (alu_op2 == 32'hffffffff)) ? 32'h80000000 :
-                              $signed($signed  (alu_op1) / $signed  (alu_op2));
+                              $signed  ($signed  (alu_op1) / $signed  (alu_op2));
 assign result_divu[31: 0]   = (alu_op2 == 32'h00000000) ? 32'hffffffff :
                               $unsigned($unsigned(alu_op1) / $unsigned(alu_op2));
 assign result_rem[31: 0]    = (alu_op2 == 32'h00000000) ? alu_op1 :
                               ((alu_op1 == 32'h80000000) && (alu_op2 == 32'hffffffff)) ? 32'h00000000 :
-                              $signed($signed  (alu_op1) % $signed  (alu_op2));
+                              $signed  ($signed  (alu_op1) % $signed  (alu_op2));
 assign result_remu[31: 0]   = (alu_op2 == 32'h00000000) ? alu_op1 :
                               $unsigned($unsigned(alu_op1) % $unsigned(alu_op2));
 `endif // RV32M_ENABLED
@@ -945,6 +945,7 @@ end
 // for debugging, register name alias
 ////////////////////////////////////////////////////////////
 `ifndef SYNTHESIS
+/* verilator coverage_off */
 /* Verilator lint_off UNUSED */
     wire        [31: 0] x0_zero     = 'd0;
     wire        [31: 0] x1_ra       = regs[ 1][31: 0];
@@ -1005,6 +1006,7 @@ always @(posedge clk) begin
         wb_raddress         <= dmem_raddr[31:0];
     end
 end
+/* verilator coverage_on */
 /* Verilator lint_on UNUSED */
 `endif // SYNTHESIS
 
