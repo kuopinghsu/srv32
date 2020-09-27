@@ -1,4 +1,4 @@
-LDSCRIPT      = $(ROOTDIR)/riscv-target/simple-riscv/device/rv32i/link.ld
+LDSCRIPT      = $(ROOTDIR)/riscv-target/srv32/device/rv32i/link.ld
 
 TARGET_SIM   ?= "$(ROOT_SIMPLE_RISCV)/sim/sim +trace"
 TARGET_SWSIM ?= $(ROOT_SIMPLE_RISCV)/tools/rvsim

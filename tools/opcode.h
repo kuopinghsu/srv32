@@ -177,6 +177,16 @@ enum {
     CSR_MTVAL       = 0x343,    // Machine bad address or instructions
     CSR_MIP         = 0x344,    // Machine interrupt pending
 
+    CSR_SSTATUS     = 0x100,    // Supervisor status register
+    CSR_SIE         = 0x104,    // Supervisor interrupt-enable register
+    CSR_STVEC       = 0x105,    // Supervisor trap handler base address
+    CSR_SSCRATCH    = 0x140,    // Scratch register for supervisor trap handlers
+    CSR_SEPC        = 0x141,    // Supervisor exception program counter
+    CSR_SCAUSE      = 0x142,    // Supervisor trap cause
+    CSR_STVAL       = 0x143,    // Supervisor bad address or instruction
+    CSR_SIP         = 0x144,    // Supervisor interrupt pending
+    CSR_SAP         = 0x180,    // Supervisor address translation and protection
+
     CSR_RDCYCLE     = 0xc00,    // cycle counter
     CSR_RDCYCLEH    = 0xc80,    // upper 32-bits of cycle counter
     CSR_RDTIME      = 0xc01,    // timer counter

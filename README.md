@@ -1,6 +1,6 @@
-# Simple 3-stage pipeline RISC-V processor
+# SRV32 - Simple 3-stage pipeline RISC-V processor
 
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/d14f73089d014a87beb91960e9340617)](https://www.codacy.com/manual/kuopinghsu/simple-riscv?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kuopinghsu/simple-riscv&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/d14f73089d014a87beb91960e9340617)](https://www.codacy.com/manual/kuopinghsu/srv32/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kuopinghsu/srv32&amp;utm_campaign=Badge_Grade)
 
 This is a simple RISC-V 3-stage pipeline processor and supports FreeRTOS.
 I wrote this code to understand the RV32IM instruction set, just for fun.
@@ -197,16 +197,16 @@ Reference code on <https://github.com/kuopinghsu/FreeRTOS-RISCV>.
 This is an example to run the "queue" demo.
 
     # make directory
-    mkdir ${path_of_simple-riscv}/sw/queue
+    mkdir ${path_of_srv32}/sw/queue
 
     # copy queue.elf
-    cp Demo/examples/queue.elf ${path_of_simple-riscv}/sw/queue/.
+    cp Demo/examples/queue.elf ${path_of_srv32}/sw/queue/.
 
     # update the example in sw folder
-    cd ${path_of_simple-riscv}/sw && make update
+    cd ${path_of_srv32}/sw && make update
 
     # run the example for RTL and ISS simulator
-    cd ${path_of_simple-riscv} && make queue
+    cd ${path_of_srv32} && make queue
 
 ## Coverage Report
 

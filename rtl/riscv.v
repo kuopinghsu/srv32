@@ -755,7 +755,7 @@ always @(posedge clk or negedge resetb) begin
             ex_timer_irq : begin
                 csr_mcause          <= INT_MTIME;
                 csr_mepc            <= {ex_ret_pc[31: 1], 1'b0};
-                csr_mtval           <= csr_mtval; // FIXME
+                csr_mtval           <= 32'd0; // FIXME
                 csr_mstatus[MPIE]   <= csr_mstatus[MIE];
                 csr_mstatus[MIE]    <= 1'b0;
                 csr_mip[MTIP]       <= 1'b1;
@@ -763,7 +763,7 @@ always @(posedge clk or negedge resetb) begin
             ex_sw_irq : begin
                 csr_mcause          <= INT_MSI;
                 csr_mepc            <= {ex_ret_pc[31: 1], 1'b0};
-                csr_mtval           <= csr_mtval; // FIXME
+                csr_mtval           <= 32'd0; // FIXME
                 csr_mstatus[MPIE]   <= csr_mstatus[MIE];
                 csr_mstatus[MIE]    <= 1'b0;
                 csr_mip[MSIP]       <= 1'b1;
@@ -771,7 +771,7 @@ always @(posedge clk or negedge resetb) begin
             ex_interrupt : begin
                 csr_mcause          <= INT_MEI;
                 csr_mepc            <= {ex_ret_pc[31: 1], 1'b0};
-                csr_mtval           <= csr_mtval; // FIXME
+                csr_mtval           <= 32'd0; // FIXME
                 csr_mstatus[MPIE]   <= csr_mstatus[MIE];
                 csr_mstatus[MIE]    <= 1'b0;
                 csr_mip[MEIP]       <= 1'b1;
@@ -781,7 +781,7 @@ always @(posedge clk or negedge resetb) begin
                     2'b00: begin // ECALL
                         csr_mcause          <= TRAP_ECALL;
                         csr_mepc            <= {ex_pc[31: 1], 1'b0};
-                        csr_mtval           <= csr_mtval;   // FIXME
+                        csr_mtval           <= 32'd0; // FIXME
                         csr_mstatus[MPIE]   <= csr_mstatus[MIE];
                         csr_mstatus[MIE]    <= 1'b0;
                         csr_mip             <= csr_mip;
@@ -789,7 +789,7 @@ always @(posedge clk or negedge resetb) begin
                     2'b01: begin // EBREAK
                         csr_mcause          <= TRAP_BREAK;
                         csr_mepc            <= {ex_pc[31: 1], 1'b0};
-                        csr_mtval           <= csr_mtval;   // FIXME
+                        csr_mtval           <= 32'd0; // FIXME
                         csr_mstatus[MPIE]   <= csr_mstatus[MIE];
                         csr_mstatus[MIE]    <= 1'b0;
                         csr_mip             <= csr_mip;
@@ -797,7 +797,7 @@ always @(posedge clk or negedge resetb) begin
                     2'b10: begin // URET, SRET, MRET
                         csr_mcause          <= csr_mcause;  // FIXME
                         csr_mepc            <= {ex_pc[31: 1], 1'b0}; // FIXME
-                        csr_mtval           <= csr_mtval;   // FIXME
+                        csr_mtval           <= 32'd0; // FIXME
                         csr_mstatus[MIE]    <= csr_mstatus[MPIE];
                         csr_mip             <= csr_mip;
                     end
