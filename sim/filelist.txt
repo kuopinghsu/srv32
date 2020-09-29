@@ -2,6 +2,6 @@
 +define+TRACE
 //+define+SINGLE_RAM
 ../rtl/riscv.v
-../rtl/timer.v
+../rtl/clint.v
 ../testbench/testbench.v
 ../testbench/memmodel.v

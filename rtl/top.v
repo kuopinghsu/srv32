@@ -145,7 +145,7 @@ end
     assign trready          = drready && (draddr[31:28] == MMIO_BASE);
     assign traddr           = draddr;
 
-    timer timer(
+    clint clint(
         .clk                (clk),
         .resetb             (resetb),
         .timer_en           (timer_en),
