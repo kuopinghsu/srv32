@@ -42,6 +42,7 @@ $(TARGET): $(OBJECTS)
 		make -C ../sw $*; \
 	fi
 	./$(TARGET) -l trace.log ../sw/$*/$*.elf
+	@./log2dis.pl trace.log ../sw/$*/$*.elf
 
 coverage:
 	@gcov *.c
@@ -49,8 +50,8 @@ coverage:
 	@genhtml coverage.info -o html
 
 clean:
-	@$(RM) $(OBJECTS) dump.txt trace.log $(TARGET)
-	@$(RM) -rf html coverage.info *.gcda *.gcno
+	@$(RM) $(OBJECTS) dump.txt trace.log trace.log.dis $(TARGET)
+	@$(RM) -rf html coverage.info *.gcda *.gcno *.gcov
 
 distclean: clean
 
