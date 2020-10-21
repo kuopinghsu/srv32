@@ -65,6 +65,7 @@ module testbench();
     reg     [ 1: 0] fillcount;
     integer         i;
     integer         dump;
+    integer         STDIN = 0;
 
 `ifndef SYNTHESIS
 initial begin
@@ -151,7 +152,9 @@ end
 
     assign ready =
         (mem_ready && mem_we &&
-         (mem_addr == MMIO_PUTC || mem_addr == MMIO_EXIT)) ? 1'b0 : mem_ready;
+         (mem_addr == MMIO_PUTC ||
+          mem_addr == MMIO_GETC ||
+          mem_addr == MMIO_EXIT)) ? 1'b0 : mem_ready;
 
     top top (
         .clk        (clk),
@@ -195,6 +198,11 @@ end
         if (mem_ready && mem_we && mem_addr == MMIO_PUTC) begin
             $write("%c", mem_wdata[7:0]);
             $fflush;
+        end
+        else if (mem_ready && !mem_we && mem_addr == MMIO_GETC) begin
+            // TODO
+            mem_rdata[ 7: 0] <= 8'h78; // $fgetc(STDIN);
+            mem_rdata[31: 8] <= 'd0;
         end
         else if (mem_ready && mem_we && mem_addr == MMIO_EXIT) begin
             $display("\nExcuting %0d instructions, %0d cycles", `TOP.csr_instret,
@@ -252,7 +260,7 @@ end
     wire            dmem_rvalid;
     wire    [31: 0] dmem_raddr;
     wire            dmem_rresp;
-    wire    [31: 0] dmem_rdata;
+    reg     [31: 0] dmem_rdata;
 
     wire            wready;
 
@@ -264,7 +272,9 @@ end
 
     assign wready =
         (dmem_wready &&
-         (dmem_waddr == MMIO_PUTC || dmem_waddr == MMIO_EXIT)) ? 1'b0 : dmem_wready;
+         (dmem_waddr == MMIO_PUTC ||
+          dmem_waddr == MMIO_GETC ||
+          dmem_waddr == MMIO_EXIT)) ? 1'b0 : dmem_wready;
 
     top top(
         .clk        (clk),
@@ -339,6 +349,11 @@ end
 
         if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_PUTC) begin
             $write("%c", dmem_wdata[7:0]);
+        end
+        else if (`TOP.dmem_rready && `TOP.dmem_raddr == MMIO_GETC) begin
+            // TODO
+            dmem_rdata[ 7: 0] <= 8'h78; // $fgetc(STDIN);
+            dmem_rdata[31: 8] <= 'd0;
         end
         else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_EXIT) begin
             $display("\nExcuting %0d instructions, %0d cycles", `TOP.csr_instret,

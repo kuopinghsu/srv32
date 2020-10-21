@@ -25,14 +25,15 @@
 #include <getopt.h>
 #include "opcode.h"
 
+int mem_size = 128*1024; // default memory size
+
 #define PRINT_TIMELOG 1
 #define MAXLEN      1024
-#define RAMSIZE     128*1024
 
 #define IMEM_BASE   (0+mem_base)
-#define DMEM_BASE   (RAMSIZE+mem_base)
-#define IMEM_SIZE   RAMSIZE
-#define DMEM_SIZE   RAMSIZE
+#define DMEM_BASE   (mem_size+mem_base)
+#define IMEM_SIZE   mem_size
+#define DMEM_SIZE   mem_size
 
 #define TIME_LOG    if (ft && PRINT_TIMELOG) fprintf(ft, "%10d ", csr.cycle.d.lo)
 #define TRACE_LOG   if (ft) fprintf(ft,
@@ -75,6 +76,7 @@ typedef struct _CSR {
     int marchid;
     int mimpid;
     int mhartid;
+    int mscratch;
     int mstatus;
     int misa;
     int mie;
@@ -84,10 +86,25 @@ typedef struct _CSR {
     int mip;
     int mtval;
     int msip;
+#ifdef XV6_SUPPORT
+    int medeleg;
+    int mideleg;
+    int mcounteren;
+    int sstatus;
+    int sie;
+    int stvec;
+    int sscratch;
+    int sepc;
+    int scause;
+    int stval;
+    int sip;
+    int satp;
+#endif
 } CSR;
 
 CSR csr;
 int pc = 0;
+int mode = MMODE;
 int prev_pc = 0;
 int mem_base = 0;
 int singleram = 0;
@@ -113,9 +130,10 @@ int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize);
 void usage(void) {
     printf(
 "Instruction Set Simulator for RV32IM, (c) 2020 Kuoping Hsu\n"
-"Usage: rvsim [-h] [-b n] [-p] [-l logfile] file\n\n"
+"Usage: rvsim [-h] [-b n] [-m n] [-n n] [-p] [-l logfile] file\n\n"
 "       --help, -h              help\n"
 "       --membase n, -m n       memory base (in hex)\n"
+"       --memsize n, -n n       memory size\n"
 "       --branch n, -b n        branch penalty (default 2)\n"
 "       --single, -s            single RAM\n"
 "       --predict, -p           static branch prediction\n"
@@ -278,50 +296,78 @@ static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {
 int csr_rw(int regs, int mode, int val, int update, int *result) {
     COUNTER counter;
     switch(regs) {
-        case CSR_RDCYCLE   : counter.c = csr.cycle.c - 1;
-                             *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.cycle.d.lo, val);
-                             break;
-        case CSR_RDCYCLEH  : counter.c = csr.cycle.c - 1;
-                             *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.cycle.d.hi, val);
-                             break;
+        case CSR_RDCYCLE    : counter.c = csr.cycle.c - 1;
+                              *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.cycle.d.lo, val);
+                              break;
+        case CSR_RDCYCLEH   : counter.c = csr.cycle.c - 1;
+                              *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.cycle.d.hi, val);
+                              break;
         /*
-        case CSR_RDTIME    : counter.c = csr.time.c - 1;
-                             *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.time.d.lo, val);
-                             break;
-        case CSR_RDTIMEH   : counter.c = csr.time.c - 1;
-                             *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.time.d.hi, val);
-                             break;
+        case CSR_RDTIME     : counter.c = csr.time.c - 1;
+                              *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.time.d.lo, val);
+                              break;
+        case CSR_RDTIMEH    : counter.c = csr.time.c - 1;
+                              *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.time.d.hi, val);
+                              break;
         */
-        case CSR_RDINSTRET : counter.c = csr.instret.c - 1;
-                             *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.instret.d.lo, val);
-                             break;
-        case CSR_RDINSTRETH: counter.c = csr.instret.c - 1;
-                             *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.instret.d.hi, val);
-                             break;
-        case CSR_MVENDORID : *result = csr.mvendorid; // UPDATE_CSR(update, mode, csr.mvendorid, val);
-                             break;
-        case CSR_MARCHID   : *result = csr.marchid; // UPDATE_CSR(update, mode, csr.marchid, val);
-                             break;
-        case CSR_MIMPID    : *result = csr.mimpid; // UPDATE_CSR(update, mode, csr.mimpid, val);
-                             break;
-        case CSR_MHARTID   : *result = csr.mhartid; // UPDATE_CSR(update, mode, csr.mhartid, val);
-                             break;
-        case CSR_MSTATUS   : *result = csr.mstatus; UPDATE_CSR(update, mode, csr.mstatus, val);
-                             break;
-        case CSR_MISA      : *result = csr.misa; UPDATE_CSR(update, mode, csr.misa, val);
-                             break;
-        case CSR_MIE       : *result = csr.mie; UPDATE_CSR(update, mode, csr.mie, val);
-                             break;
-        case CSR_MIP       : *result = csr.mip; UPDATE_CSR(update, mode, csr.mip, val);
-                             break;
-        case CSR_MTVEC     : *result = csr.mtvec; UPDATE_CSR(update, mode, csr.mtvec, val);
-                             break;
-        case CSR_MEPC      : *result = csr.mepc; UPDATE_CSR(update, mode, csr.mepc, val);
-                             break;
-        case CSR_MCAUSE    : *result = csr.mcause; UPDATE_CSR(update, mode, csr.mcause, val);
-                             break;
-        case CSR_MTVAL     : *result = csr.mtval; UPDATE_CSR(update, mode, csr.mtval, val);
-                             break;
+        case CSR_RDINSTRET  : counter.c = csr.instret.c - 1;
+                              *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.instret.d.lo, val);
+                              break;
+        case CSR_RDINSTRETH : counter.c = csr.instret.c - 1;
+                              *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.instret.d.hi, val);
+                              break;
+        case CSR_MVENDORID  : *result = csr.mvendorid; // UPDATE_CSR(update, mode, csr.mvendorid, val);
+                              break;
+        case CSR_MARCHID    : *result = csr.marchid; // UPDATE_CSR(update, mode, csr.marchid, val);
+                              break;
+        case CSR_MIMPID     : *result = csr.mimpid; // UPDATE_CSR(update, mode, csr.mimpid, val);
+                              break;
+        case CSR_MHARTID    : *result = csr.mhartid; // UPDATE_CSR(update, mode, csr.mhartid, val);
+                              break;
+        case CSR_MSCRATCH   : *result = csr.mscratch; UPDATE_CSR(update, mode, csr.mscratch, val);
+                              break;
+        case CSR_MSTATUS    : *result = csr.mstatus; UPDATE_CSR(update, mode, csr.mstatus, val);
+                              break;
+        case CSR_MISA       : *result = csr.misa; UPDATE_CSR(update, mode, csr.misa, val);
+                              break;
+        case CSR_MIE        : *result = csr.mie; UPDATE_CSR(update, mode, csr.mie, val);
+                              break;
+        case CSR_MIP        : *result = csr.mip; UPDATE_CSR(update, mode, csr.mip, val);
+                              break;
+        case CSR_MTVEC      : *result = csr.mtvec; UPDATE_CSR(update, mode, csr.mtvec, val);
+                              break;
+        case CSR_MEPC       : *result = csr.mepc; UPDATE_CSR(update, mode, csr.mepc, val);
+                              break;
+        case CSR_MCAUSE     : *result = csr.mcause; UPDATE_CSR(update, mode, csr.mcause, val);
+                              break;
+        case CSR_MTVAL      : *result = csr.mtval; UPDATE_CSR(update, mode, csr.mtval, val);
+                              break;
+#ifdef XV6_SUPPORT
+        case CSR_MEDELEG    : *result = csr.medeleg; UPDATE_CSR(update, mode, csr.medeleg, val);
+                              break;
+        case CSR_MIDELEG    : *result = csr.mideleg; UPDATE_CSR(update, mode, csr.mideleg, val);
+                              break;
+        case CSR_MCOUNTEREN : *result = csr.mcounteren; UPDATE_CSR(update, mode, csr.mcounteren, val);
+                              break;
+        case CSR_SSTATUS    : *result = csr.sstatus; UPDATE_CSR(update, mode, csr.sstatus, val);
+                              break;
+        case CSR_SIE        : *result = csr.sie; UPDATE_CSR(update, mode, csr.sie, val);
+                              break;
+        case CSR_STVEC      : *result = csr.stvec; UPDATE_CSR(update, mode, csr.stvec, val);
+                              break;
+        case CSR_SSCRATCH   : *result = csr.sscratch; UPDATE_CSR(update, mode, csr.sscratch, val);
+                              break;
+        case CSR_SEPC       : *result = csr.sepc; UPDATE_CSR(update, mode, csr.sepc, val);
+                              break;
+        case CSR_SCAUSE     : *result = csr.scause; UPDATE_CSR(update, mode, csr.scause, val);
+                              break;
+        case CSR_STVAL      : *result = csr.stval; UPDATE_CSR(update, mode, csr.stval, val);
+                              break;
+        case CSR_SIP        : *result = csr.sip; UPDATE_CSR(update, mode, csr.sip, val);
+                              break;
+        case CSR_SATP       : *result = csr.satp; UPDATE_CSR(update, mode, csr.satp, val);
+                              break;
+#endif
         default: *result = 0; // FIXME
                  printf("Unsupport CSR register 0x%03x at PC 0x%08x\n", regs, pc);
                  return 0;
@@ -349,7 +395,7 @@ int main(int argc, char **argv) {
     int ext_irq;
     int ext_irq_next;
 
-    const char *optstring = "hb:pl:qm:s";
+    const char *optstring = "hb:pl:qm:n:s";
     int c;
     struct option opts[] = {
         {"help", 0, NULL, 'h'},
@@ -358,6 +404,7 @@ int main(int argc, char **argv) {
         {"log", 1, NULL, 'l'},
         {"quiet", 0, NULL, 'q'},
         {"membase", 0, NULL, 'm'},
+        {"memsize", 0, NULL, 'n'},
         {"single", 0, NULL, 's'}
     };
 
@@ -383,7 +430,16 @@ int main(int argc, char **argv) {
                 quiet = 1;
                 break;
             case 'm':
-                sscanf(optarg, "%x", (unsigned int*)&mem_base);
+                if (optarg[0] == '0' && optarg[1] == 'x')
+                    sscanf(optarg, "%x", (unsigned int*)&mem_base);
+                else
+                    mem_base = atoi(optarg);
+                break;
+            case 'n':
+                if (optarg[0] == '0' && optarg[1] == 'x')
+                    sscanf(optarg, "%x", (unsigned int*)&mem_size);
+                else
+                    mem_size = atoi(optarg);
                 break;
             case 's':
                 singleram = 1;
@@ -394,7 +450,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (argc > 1) {
+    if (optind < argc) {
         if ((file = malloc(MAXLEN)) == NULL) {
             printf("malloc fail\n");
             exit(1);
@@ -456,6 +512,7 @@ int main(int argc, char **argv) {
     sw_irq_next    = 0;
     ext_irq        = 0;
     ext_irq_next   = 0;
+    mode           = MMODE;
 
     // Execution loop
     while(1) {
@@ -637,6 +694,9 @@ int main(int argc, char **argv) {
                         case MMIO_PUTC:
                             data = 0;
                             break;
+                        case MMIO_GETC:
+                            data = getchar();
+                            break;
                         case MMIO_EXIT:
                             data = 0;
                             break;
@@ -740,6 +800,8 @@ int main(int argc, char **argv) {
                         case MMIO_PUTC:
                             putchar((char)data);
                             fflush(stdout);
+                            break;
+                        case MMIO_GETC:
                             break;
                         case MMIO_EXIT:
                             TRACE_LOG " write 0x%08x <= 0x%08x\n",
@@ -980,6 +1042,17 @@ int main(int argc, char **argv) {
                                             switch(regs[A7]) { // function argument A7/X17
                                                case SYS_EXIT:
                                                    prog_exit(0);
+                                                   break;
+                                               case SYS_READ:
+                                                   if (regs[A0] == STDIN) {
+                                                       char *ptr = (char*)dmem;
+                                                       int i = 0;
+                                                       char c = 0;
+                                                       do {
+                                                           c = getchar();
+                                                           ptr[DVA2PA(regs[A1])+i] = c;
+                                                       } while(++i<regs[A2] && c != '\n');
+                                                   }
                                                    break;
                                                case SYS_WRITE:
                                                    if (regs[A0] == STDOUT) {

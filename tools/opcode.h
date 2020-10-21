@@ -185,7 +185,7 @@ enum {
     CSR_SCAUSE      = 0x142,    // Supervisor trap cause
     CSR_STVAL       = 0x143,    // Supervisor bad address or instruction
     CSR_SIP         = 0x144,    // Supervisor interrupt pending
-    CSR_SAP         = 0x180,    // Supervisor address translation and protection
+    CSR_SATP        = 0x180,    // Supervisor address translation and protection
 
     CSR_RDCYCLE     = 0xc00,    // cycle counter
     CSR_RDCYCLEH    = 0xc80,    // upper 32-bits of cycle counter
@@ -198,6 +198,7 @@ enum {
 // system call defined in the file /usr/include/asm-generic/unistd.h
 enum {
     SYS_CLOSE   = 0x39,
+    SYS_READ    = 0x3f,
     SYS_WRITE   = 0x40,
     SYS_FSTAT   = 0x50,
     SYS_EXIT    = 0x5d,
@@ -302,16 +303,26 @@ enum {
 //  WPRI    = 12 ... MXLEN-1 // Reserved
 };
 
+// The privileged mode
+enum {
+    UMODE   = 0,        // User mode
+    SMODE   = 1,        // Supervisor mode
+    MMODE   = 2         // Machine mode
+};
+
 #define MVENDORID     0
 #define MARCHID       0
 #define MIMPID        0
 #define MHARTID       0
 #define MMIO_PUTC     0x9000001c
+#define MMIO_GETC     0x90000020
 #define MMIO_EXIT     0x9000002c
 #define MMIO_MTIME    0x90000000
 #define MMIO_MTIMECMP 0x90000008
 #define MMIO_MSIP     0x90000010
+#define STDIN  0
 #define STDOUT 1
+#define STDERR 2
 
 #define BRANCH_PENALTY 2
 

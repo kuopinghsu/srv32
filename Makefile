@@ -1,4 +1,4 @@
-dirs        = $(dir $(wildcard sw/*/))
+dirs        = $(dir $(wildcard sw/[^_]*/))
 SUBDIRS     = $(subst /,,$(subst sw/,,$(subst common,,$(dirs))))
 
 verilator ?= 1

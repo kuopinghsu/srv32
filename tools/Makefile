@@ -49,6 +49,11 @@ coverage:
 	@lcov -c -o coverage.info -d .
 	@genhtml coverage.info -o html
 
+coverage_extra:
+	-@./$(TARGET) -h
+	-@./$(TARGET) dummy
+	-@./$(TARGET) -m 0 -n 0x20000 -b 1 -s -p -l trace.log ../sw/hello/hello.elf
+
 clean:
 	@$(RM) $(OBJECTS) dump.txt trace.log trace.log.dis $(TARGET)
 	@$(RM) -rf html coverage.info *.gcda *.gcno *.gcov

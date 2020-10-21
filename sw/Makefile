@@ -1,6 +1,6 @@
 include common/Makefile.common
 
-dirs = $(filter %/, $(wildcard */))
+dirs = $(filter %/, $(wildcard [^_]*/))
 SUBDIRS = $(subst /,,$(subst common,,$(dirs)))
 
 .PHONY: $(SUBDIRS) common clean

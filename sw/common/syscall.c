@@ -6,11 +6,13 @@
 
 #define HAVE_SYSCALL        1
 #define MEMIO_PUTC          0x9000001c
+#define MEMIO_GETC          0x90000020
 #define MEMIO_EXIT          0x9000002c
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
 enum {
     SYS_CLOSE   = 0x39,
+    SYS_READ    = 0x3f,
     SYS_WRITE   = 0x40,
     SYS_FSTAT   = 0x50,
     SYS_EXIT    = 0x5d,
@@ -44,6 +46,10 @@ __internal_syscall(long n, long _a0, long _a1, long _a2, long _a3, long _a4, lon
 int _putchar(char ch) {
     *(volatile char*)MEMIO_PUTC = (char)ch;
     return 0;
+}
+
+int _getchar(void) {
+    return *(volatile char*)MEMIO_GETC;
 }
 
 /* Write to a file.  */
@@ -80,10 +86,24 @@ int _lseek(int file, int ptr, int dir)
     return -1;
 }
 
+#include <stdio.h>
 int _read(int file, char *ptr, int len)
 {
-    //errno = ENOENT;
-    return -1;
+#if HAVE_SYSCALL
+    int i;
+    __internal_syscall(SYS_READ, (long)file, (long)ptr, (long)len, 0, 0, 0);
+    for(i=0; i<len && ptr[i] != '\n'; i++);
+    return i;
+#else
+    char *buf = (char*)ptr;
+    char c = 0;
+    int i = 0;
+    do {
+        c = _getchar();
+        buf[i] = c;
+    } while(++i<len && c != '\n');
+    return len;
+#endif
 }
 
 void _exit(int code) {

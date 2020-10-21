@@ -115,6 +115,16 @@ localparam  [11: 0] CSR_MVENDORID   = 12'hF11,    // Vender ID
                     CSR_MTVAL       = 12'h343,    // Machine bad address or instructions
                     CSR_MIP         = 12'h344,    // Machine interrupt pending
 
+                    CSR_SSTATUS     = 12'h100,    // Supervisor status register
+                    CSR_SIE         = 12'h104,    // Supervisor interrupt-enable register
+                    CSR_STVEC       = 12'h105,    // Supervisor trap handler base address
+                    CSR_SSCRATCH    = 12'h140,    // Scratch register for supervisor trap handlers
+                    CSR_SEPC        = 12'h141,    // Supervisor exception program counter
+                    CSR_SCAUSE      = 12'h142,    // Supervisor trap cause
+                    CSR_STVAL       = 12'h143,    // Supervisor bad address or instruction
+                    CSR_SIP         = 12'h144,    // Supervisor interrupt pending
+                    CSR_SATP        = 12'h180,    // Supervisor address translation and protection
+
                     CSR_RDCYCLE     = 12'hc00,    // cycle counter
                     CSR_RDCYCLEH    = 12'hc80,    // upper 32-bits of cycle counter
                     CSR_RDTIME      = 12'hc01,    // timer counter
@@ -210,5 +220,6 @@ localparam  [31: 0] MTIME_BASE    = 32'h9000_0000,
                     MTIMECMP_BASE = 32'h9000_0008,
                     MSIP_BASE     = 32'h9000_0010,
                     MMIO_PUTC     = 32'h9000_001c,
+                    MMIO_GETC     = 32'h9000_0020,
                     MMIO_EXIT     = 32'h9000_002c;
 
