@@ -108,7 +108,7 @@ module riscv (
     reg             [31: 0] ex_csr_read;
     wire                    ex_trap;
     wire            [31: 0] ex_trap_pc;
-    wire            [31: 0] ex_csr_mask;
+    wire            [31: 0] ex_csr_data;
     reg             [31: 0] ex_mcause;
     reg                     ex_illegal;
     reg                     ex_ill_branch;
@@ -146,6 +146,7 @@ module riscv (
     reg             [63: 0] csr_cycle;
     reg             [63: 0] csr_instret;
 
+    reg             [31: 0] csr_mscratch;
     reg             [31: 0] csr_mstatus;
     reg             [31: 0] csr_misa;
     reg             [31: 0] csr_mie;
@@ -651,7 +652,7 @@ assign ex_trap_pc   = (ex_systemcall && ex_imm[1:0] == 2'b10) ? // mret
                       {csr_mtvec[31:2], 2'b00} + {26'h0, ex_mcause[3:0], 2'b00} :
                       {csr_mtvec[31:2], 2'b00};
 
-assign ex_csr_mask  = ex_alu_op[2] ? {27'h0, ex_src1_sel[4:0]} : reg_rdata1;
+assign ex_csr_data  = ex_alu_op[2] ? {27'h0, ex_src1_sel[4:0]} : reg_rdata1;
 
 always @* begin
     ex_mcause     = 32'h0;
@@ -701,29 +702,29 @@ always @(posedge clk or negedge resetb) begin
             ex_csr_wr : begin
                 case (ex_imm[11: 0])
                     CSR_MEPC   : begin
-                        csr_mepc    <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
-                                       !ex_alu_op[0] ? (csr_mepc | ex_csr_mask) : // CSRRS
-                                       (csr_mepc & ~ex_csr_mask); // CSRRC
+                        csr_mepc    <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mepc | ex_csr_data) : // CSRRS
+                                       (csr_mepc & ~ex_csr_data); // CSRRC
                     end
                     CSR_MCAUSE : begin
-                        csr_mcause  <= !ex_alu_op[1] ? reg_rdata1[31:0] : // CSRRW
-                                       !ex_alu_op[0] ? (csr_mcause | ex_csr_mask) : // CSRRS
-                                       (csr_mcause & ~ex_csr_mask); // CSRRC
+                        csr_mcause  <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mcause | ex_csr_data) : // CSRRS
+                                       (csr_mcause & ~ex_csr_data); // CSRRC
                     end
                     CSR_MTVAL  : begin
-                        csr_mtval   <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
-                                       !ex_alu_op[0] ? (csr_mtval | ex_csr_mask) : // CSRRS
-                                       (csr_mtval & ~ex_csr_mask); // CSRRC
+                        csr_mtval   <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mtval | ex_csr_data) : // CSRRS
+                                       (csr_mtval & ~ex_csr_data); // CSRRC
                     end
                     CSR_MSTATUS: begin
-                        csr_mstatus <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
-                                       !ex_alu_op[0] ? (csr_mstatus | ex_csr_mask) : // CSRRS
-                                       (csr_mstatus & ~ex_csr_mask); // CSRRC
+                        csr_mstatus <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mstatus | ex_csr_data) : // CSRRS
+                                       (csr_mstatus & ~ex_csr_data); // CSRRC
                     end
                     CSR_MIP    : begin
-                        csr_mip     <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
-                                       !ex_alu_op[0] ? (csr_mip | ex_csr_mask) : // CSRRS
-                                       (csr_mip & ~ex_csr_mask); // CSRRC
+                        csr_mip     <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
+                                       !ex_alu_op[0] ? (csr_mip | ex_csr_data) : // CSRRS
+                                       (csr_mip & ~ex_csr_data); // CSRRC
                     end
                     default    : ;
                 endcase
@@ -827,6 +828,7 @@ always @* begin
             CSR_MARCHID    : ex_csr_read = MARCHID;
             CSR_MIMPID     : ex_csr_read = MIMPID;
             CSR_MHARTID    : ex_csr_read = MHARTID;
+            CSR_MSCRATCH   : ex_csr_read = csr_mscratch;
             CSR_MSTATUS    : ex_csr_read = csr_mstatus;
             CSR_MISA       : ex_csr_read = csr_misa;
             CSR_MIE        : ex_csr_read = csr_mie;
@@ -861,20 +863,25 @@ always @(posedge clk or negedge resetb) begin
             CSR_MIMPID     : ; // Read only
             CSR_MHARTID    : ; // Read only
             CSR_MSTATUS    : ; // update @ trap/interrupt handler
+            CSR_MSCRATCH   : begin
+                csr_mscratch<= !ex_alu_op[1] ? ex_csr_data : // CSRRW
+                               !ex_alu_op[0] ? (csr_mscratch | ex_csr_data) : // CSRRS
+                               (csr_mscratch & ~ex_csr_data); // CSRRC
+            end
             CSR_MISA       : begin
-                csr_misa    <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
-                               !ex_alu_op[0] ? (csr_misa | ex_csr_mask) : // CSRRS
-                               (csr_misa & ~ex_csr_mask); // CSRRC
+                csr_misa    <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
+                               !ex_alu_op[0] ? (csr_misa | ex_csr_data) : // CSRRS
+                               (csr_misa & ~ex_csr_data); // CSRRC
             end
             CSR_MIE        : begin
-                csr_mie     <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
-                               !ex_alu_op[0] ? (csr_mie | ex_csr_mask) : // CSRRS
-                               (csr_mie & ~ex_csr_mask); // CSRRC
+                csr_mie     <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
+                               !ex_alu_op[0] ? (csr_mie | ex_csr_data) : // CSRRS
+                               (csr_mie & ~ex_csr_data); // CSRRC
             end
             CSR_MTVEC      : begin
-                csr_mtvec   <= !ex_alu_op[1] ? reg_rdata1 : // CSRRW
-                               !ex_alu_op[0] ? (csr_mtvec | ex_csr_mask) : // CSRRS
-                               (csr_mtvec & ~ex_csr_mask); // CSRRC
+                csr_mtvec   <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
+                               !ex_alu_op[0] ? (csr_mtvec | ex_csr_data) : // CSRRS
+                               (csr_mtvec & ~ex_csr_data); // CSRRC
             end
             CSR_MEPC       : ; // update @ trap/interrupt handler
             CSR_MCAUSE     : ; // update @ trap/interrupt handler
