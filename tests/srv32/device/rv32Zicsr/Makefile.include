@@ -1,0 +1,36 @@
+LDSCRIPT      = $(ROOTDIR)/riscv-target/srv32/device/rv32i/link.ld
+
+TARGET_SIM   ?= "$(ROOT_SIMPLE_RISCV)/sim/sim +trace"
+TARGET_SWSIM ?= $(ROOT_SIMPLE_RISCV)/tools/rvsim
+TARGET_FLAGS ?= $(RISCV_TARGET_FLAGS) -q
+ifeq ($(shell command -v $(TARGET_SIM) 2> /dev/null),)
+    $(error Target simulator executable '$(TARGET_SIM)` not found)
+endif
+
+RUN_TARGET    = \
+    cp $(*).elf.imem.bin imem.bin; cp $(*).elf.dmem.bin dmem.bin; cp $(*).elf.memory.bin memory.bin; \
+    $(TARGET_SIM) $(TARGET_FLAGS) $< 2> $@; \
+    mv dump.txt $(*).signature.output; if [ -f coverage.dat ]; then mv coverage.dat $(*)_cov.dat; fi; \
+    $(TARGET_SWSIM) -l trace_sw.log $(TARGET_FLAGS) $< 2> $@; \
+    diff --brief trace.log trace_sw.log && rm -f imem.bin dmem.bin memory.bin trace.log trace.sw.log
+
+RISCV_PREFIX   ?= riscv64-unknown-elf-
+RISCV_GCC      ?= $(RISCV_PREFIX)gcc
+RISCV_OBJDUMP  ?= $(RISCV_PREFIX)objdump
+RISCV_OBJCOPY  ?= $(RISCV_PREFIX)objcopy
+RISCV_READELF  ?= $(RISCV_PREFIX)readelf
+RISCV_GCC_OPTS ?= -march=rv32im -mabi=ilp32 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles
+
+COMPILE_TARGET=\
+	$$(RISCV_GCC) $(1) $$(RISCV_GCC_OPTS) \
+		-I$(ROOTDIR)/riscv-test-env/ \
+		-I$(ROOTDIR)/riscv-test-env/p/ \
+		-I$(TARGETDIR)/$(RISCV_TARGET)/ \
+		-T$(LDSCRIPT) $$(<) \
+		-o $$@; \
+	$$(RISCV_OBJDUMP) -D $$@ > $$@.objdump; \
+	$$(RISCV_READELF) -a $$@ > $$@.readelf; \
+	$$(RISCV_OBJCOPY) -O binary -j .text $$@ $$@.imem.bin; \
+	$$(RISCV_OBJCOPY) -O binary -j .data $$@ $$@.dmem.bin; \
+	$$(RISCV_OBJCOPY) -O binary $$@ $$@.memory.bin
+
