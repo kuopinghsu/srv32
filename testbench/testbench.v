@@ -25,6 +25,10 @@
 
 /* verilator coverage_off */
 
+`ifdef VERILATOR
+import "DPI-C" function byte getch();
+`endif
+
 `ifdef SYNTHESIS
 module fpga_top(
     input           clk,
@@ -200,8 +204,12 @@ end
             $fflush;
         end
         else if (mem_ready && !mem_we && mem_addr == MMIO_GETC) begin
+            `ifdef VERILATOR
+            mem_rdata[ 7: 0] <= getch();
+            `else
             // TODO
             mem_rdata[ 7: 0] <= 8'h78; // $fgetc(STDIN);
+            `endif
             mem_rdata[31: 8] <= 'd0;
         end
         else if (mem_ready && mem_we && mem_addr == MMIO_EXIT) begin
@@ -230,6 +238,7 @@ end
                 for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
                     $write("%c", mem.getb(`TOP.regs[REG_A1] + i));
                 end
+                $fflush;
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_DUMP} && dump != 0) begin
                 for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 4) begin
                     $fdisplay(dump, "%02x%02x%02x%02x", mem.getb(i + 3),
@@ -349,10 +358,15 @@ end
 
         if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_PUTC) begin
             $write("%c", dmem_wdata[7:0]);
+            $fflush;
         end
         else if (`TOP.dmem_rready && `TOP.dmem_raddr == MMIO_GETC) begin
+            `ifdef VERILATOR
+            dmem_rdata[ 7: 0] <= getch();
+            `else
             // TODO
             dmem_rdata[ 7: 0] <= 8'h78; // $fgetc(STDIN);
+            `endif
             dmem_rdata[31: 8] <= 'd0;
         end
         else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_EXIT) begin
@@ -381,6 +395,7 @@ end
                 for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
                     $write("%c", dmem.getb(`TOP.regs[REG_A1] - IRAMSIZE + i));
                 end
+                $fflush;
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_DUMP} && dump != 0) begin
                 for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 4) begin
                     $fdisplay(dump, "%02x%02x%02x%02x", dmem.getb(i - IRAMSIZE + 3),

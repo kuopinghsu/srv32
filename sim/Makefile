@@ -27,7 +27,7 @@ ifeq ($(verilator),1)
 BFLAGS      = -O3 -cc -Wall -Wno-STMTDLY -Wno-UNUSED \
               $(if $(_top), +define+SINGLE_RAM) \
               $(if $(_coverage), --coverage) \
-              --trace-fst --Mdir sim_cc --build --exe sim_main.cpp
+              --trace-fst --Mdir sim_cc --build --exe sim_main.cpp getch.cpp
 TARGET_SIM  = verilator
 else
 BFLAGS      = $(if $(_top), -D SINGLE_RAM=1)
