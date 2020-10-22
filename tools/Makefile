@@ -23,7 +23,7 @@ ifeq ($(top), 1)
 CFLAGS  += -DSINGLE_RAM
 endif
 
-SRC      = rvsim.c elfread.c
+SRC      = rvsim.c elfread.c getch.c
 OBJECTS  = $(SRC:.c=.o)
 TARGET   = rvsim
 
@@ -44,15 +44,17 @@ $(TARGET): $(OBJECTS)
 	./$(TARGET) -l trace.log ../sw/$*/$*.elf
 	@./log2dis.pl trace.log ../sw/$*/$*.elf
 
-coverage:
+coverage: coverage_extra
 	@gcov *.c
 	@lcov -c -o coverage.info -d .
 	@genhtml coverage.info -o html
 
 coverage_extra:
+	-@./$(TARGET) -q
 	-@./$(TARGET) -h
 	-@./$(TARGET) dummy
 	-@./$(TARGET) -m 0 -n 0x20000 -b 1 -s -p -l trace.log ../sw/hello/hello.elf
+	-@./$(TARGET) -m 0x0 -n 131072 -b 1 -s -p -l trace.log ../sw/hello/hello.elf
 
 clean:
 	@$(RM) $(OBJECTS) dump.txt trace.log trace.log.dis $(TARGET)

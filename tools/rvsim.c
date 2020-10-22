@@ -126,6 +126,7 @@ char *regname[32] = {
 #define DPA2VA(addr) ((addr)+DMEM_BASE)
 
 int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize);
+int getch(void);
 
 void usage(void) {
     printf(
@@ -695,7 +696,7 @@ int main(int argc, char **argv) {
                             data = 0;
                             break;
                         case MMIO_GETC:
-                            data = getchar();
+                            data = getch();
                             break;
                         case MMIO_EXIT:
                             data = 0;
@@ -1049,7 +1050,7 @@ int main(int argc, char **argv) {
                                                        int i = 0;
                                                        char c = 0;
                                                        do {
-                                                           c = getchar();
+                                                           c = getch();
                                                            ptr[DVA2PA(regs[A1])+i] = c;
                                                        } while(++i<regs[A2] && c != '\n');
                                                    }

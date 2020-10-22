@@ -65,12 +65,13 @@ $(SUBDIRS):
 	@diff --brief sim/trace.log tools/trace.log
 	@echo === Simulation passed ===
 
-coverage:
+coverage: clean
 	@$(MAKE) coverage=1 all
 	@mv sim/*_cov.dat coverage/.
 	@$(MAKE) coverage=1 tests
 	@mv tests/riscv-compliance/work/rv32i/*_cov.dat coverage/.
 	@mv tests/riscv-compliance/work/rv32im/*_cov.dat coverage/.
+	@mv tests/riscv-compliance/work/rv32Zicsr/*_cov.dat coverage/.
 	@$(MAKE) -C coverage
 	@$(MAKE) -C tools coverage
 

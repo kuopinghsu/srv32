@@ -1,16 +1,18 @@
 #include <stdio.h>
+#include <unistd.h>
 
 int main(void) {
     char c;
-    printf("Enter character: ");
+    printf("Enter character (enter to exit): ");
     fflush(stdout);
     do {
-        c = getchar();
+        read(STDIN_FILENO, &c, 1);
         if (c >= 'a' && c <= 'z')
             printf("%c", c-'a'+'A');
         else
             printf("%c", c);
-    } while (c != 'x');
+        fflush(stdout);
+    } while (c != '\n');
     printf("\n");
     return 0;
 }
