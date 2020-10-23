@@ -6,7 +6,8 @@ int main(void) {
     printf("Enter character (enter to exit): ");
     fflush(stdout);
     do {
-        read(STDIN_FILENO, &c, 1);
+        size_t ret = read(STDIN_FILENO, &c, 1);
+        if (ret != 1) continue;
         if (c >= 'a' && c <= 'z')
             printf("%c", c-'a'+'A');
         else
