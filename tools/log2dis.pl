@@ -1,11 +1,18 @@
 #!/usr/bin/perl -w
 use strict;
 
+my $VERBOSE = 1;
 my $objdump = "riscv64-unknown-elf-objdump";
 my %DIS;
+$| = 1;
+
+if ($#ARGV == 2 && $ARGV[0] eq "-q") {
+    $VERBOSE = 0;
+    shift;
+}
 
 if ($#ARGV != 1) {
-    print "Usage: log2dis.pl trace.log file.elf\n";
+    print "Usage: log2dis.pl [-q] trace.log file.elf\n";
     exit -1;
 }
 
@@ -23,6 +30,7 @@ close (FH);
 open(FH, "< $ARGV[0]") || die "can not open file $ARGV[0]";
 open(FO, "> $ARGV[0].dis") || die "can not open file $ARGV[0].dis";
 
+my $line = 0;
 while(<FH>) {
     chomp;
     if (/^\s+(\d+)\s+([0-9a-fA-F]+)/) {
@@ -37,8 +45,12 @@ while(<FH>) {
         } else {
             printf FO "$_\n";
         }
+        $line++;
+        printf "." if ($VERBOSE == 1 && ($line % 100000) == 0);
     }
 }
+
+printf "Done.\n" if ($VERBOSE == 1);
 
 close(FH);
 close(FO);

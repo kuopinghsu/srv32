@@ -4,7 +4,7 @@
 #include <sys/unistd.h>
 #include <errno.h>
 
-#define HAVE_SYSCALL        1
+#define HAVE_SYSCALL        0
 #define MEMIO_PUTC          0x9000001c
 #define MEMIO_GETC          0x90000020
 #define MEMIO_EXIT          0x9000002c

@@ -42,7 +42,7 @@ $(TARGET): $(OBJECTS)
 		make -C ../sw $*; \
 	fi
 	./$(TARGET) -l trace.log ../sw/$*/$*.elf
-	@./log2dis.pl trace.log ../sw/$*/$*.elf
+	@./log2dis.pl -q trace.log ../sw/$*/$*.elf
 
 coverage: coverage_extra
 	@gcov *.c
