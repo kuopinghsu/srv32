@@ -480,14 +480,16 @@ always @* begin
                             ex_result   = alu_op1 + alu_op2;
                          else
                             ex_result   = alu_op1 - alu_op2;
-                OP_SLL : ex_result      = alu_op1 << alu_op2;
+                                          // In RISC-V ISA spec, only shift amount
+                                          // held in lower 5 bits of register
+                OP_SLL : ex_result      = alu_op1 << alu_op2[4:0];
                 OP_SLT : ex_result      = result_subs[32] ? 'd1 : 'd0;
                 OP_SLTU: ex_result      = result_subu[32] ? 'd1 : 'd0;
                 OP_XOR : ex_result      = alu_op1 ^ alu_op2;
                 OP_SR  : if (ex_subtype == 1'b0)
-                            ex_result   = alu_op1 >>> alu_op2;
+                            ex_result   = alu_op1 >>> alu_op2[4:0]; // shift more than 32 is undefined
                          else
-                            ex_result   = $signed(alu_op1) >>> alu_op2;
+                            ex_result   = $signed(alu_op1) >>> alu_op2[4:0]; // shift more than 32 is undefined
                 OP_OR  : ex_result      = alu_op1 | alu_op2;
                 // OP_AND
                 default: ex_result      = alu_op1 & alu_op2;
