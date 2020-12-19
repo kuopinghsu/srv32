@@ -2,18 +2,18 @@
 
 <https://github.com/riscv/riscv-compliance>
 
-    export ROOT_SIMPLE_RISCV=<root path of simple RISCV>
-    cp -r ${ROOT_SIMPLE_RISCV}/tests/srv32 <path of riscv-compliance>/riscv-target/.
+    export ROOT_SRV32=<root path of simple RISCV>
+    cp -r ${ROOT_SRV32}/tests/srv32 <path of riscv-compliance>/riscv-target/.
 
-    cd ${ROOT_SIMPLE_RISCV}
+    cd ${ROOT_SRV32}
     make build
 
-    export TARGET_SIM=${ROOT_SIMPLE_RISCV}/sim/sim
+    export TARGET_SIM=${ROOT_SRV32}/sim/sim
     export RISCV_PREFIX=riscv64-unknown-elf-
     export RISCV_TARGET=srv32
     make
 
-    export TARGET_SIM=${ROOT_SIMPLE_RISCV}/tools/rvsim
+    export TARGET_SIM=${ROOT_SRV32}/tools/rvsim
     export RISCV_PREFIX=riscv64-unknown-elf-
     export RISCV_TARGET=srv32
     make

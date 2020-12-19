@@ -1,6 +1,7 @@
 ROOT_SIMPLE_RISCV ?= $(shell cd .. && pwd)
 
 tests: riscv-compliance
+	rm -rf riscv-compliance/riscv-target/srv32
 	cp -r srv32 riscv-compliance/riscv-target/.
 	export ROOT_SIMPLE_RISCV=$(ROOT_SIMPLE_RISCV); \
 	export TARGET_SIM="$(ROOT_SIMPLE_RISCV)/sim/sim +trace"; \
@@ -9,6 +10,7 @@ tests: riscv-compliance
 	make -C riscv-compliance
 
 tests-sw: riscv-compliance
+	rm -rf riscv-compliance/riscv-target/srv32
 	cp -r srv32 riscv-compliance/riscv-target/.
 	export ROOT_SIMPLE_RISCV=$(ROOT_SIMPLE_RISCV); \
 	export TARGET_SIM="$(ROOT_SIMPLE_RISCV)/tools/rvsim -l trace.log"; \
@@ -17,7 +19,8 @@ tests-sw: riscv-compliance
 	make -C riscv-compliance
 
 riscv-compliance:
-	git clone git://github.com/riscv/riscv-compliance.git
+	git clone -b v1.0 git://github.com/riscv/riscv-compliance.git
+	rm -rf riscv-compliance/riscv-target/srv32
 	cp -r srv32 riscv-compliance/riscv-target/.
 
 clean:
