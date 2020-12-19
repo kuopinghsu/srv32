@@ -12,7 +12,7 @@ RUN_TARGET    = \
     $(TARGET_SIM) $(TARGET_FLAGS) $< 2> $@; \
     mv dump.txt $(*).signature.output; if [ -f coverage.dat ]; then mv coverage.dat $(*)_cov.dat; fi; \
     $(TARGET_SWSIM) -l trace_sw.log $(TARGET_FLAGS) $< 2> $@; \
-    diff --brief trace.log trace_sw.log && rm -f imem.bin dmem.bin memory.bin trace.log trace.sw.log
+    diff --brief trace.log trace_sw.log && rm -f imem.bin dmem.bin memory.bin trace.log trace_sw.log dump.txt
 
 RISCV_PREFIX   ?= riscv64-unknown-elf-
 RISCV_GCC      ?= $(RISCV_PREFIX)gcc
