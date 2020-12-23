@@ -5,6 +5,16 @@ verilator ?= 1
 top       ?= 0
 coverage  ?= 0
 
+# set 1 for compliance test v1, 2 for v2
+test_v    ?= 1
+
+# memory size requirement for compliance test
+ifeq ($(test_v), 1)
+    memsize ?= 128
+else
+    memsize ?= 1716
+endif
+
 ifeq ($(verilator), 1)
     _verilator := 1
 endif
@@ -43,12 +53,12 @@ all-sw:
 	done
 
 tests:
-	make -C sim; make -C tools
-	make -C tests tests
+	make clean && make memsize=$(memsize) -C sim; make -C tools
+	make memsize=$(memsize) test_v=$(test_v) -C tests tests
 
 tests-sw:
-	make clean && make -C sim; make -C tools
-	make -C tests tests-sw
+	make clean && make memsize=$(memsize) -C sim; make -C tools
+	make memsize=$(memsize) test_v=$(test_v) -C tests tests-sw
 
 build:
 	for i in sw sim tools; do \
@@ -69,9 +79,15 @@ coverage: clean
 	@$(MAKE) coverage=1 all
 	@mv sim/*_cov.dat coverage/.
 	@$(MAKE) coverage=1 tests
-	@mv tests/riscv-compliance/work/rv32i/*_cov.dat coverage/.
-	@mv tests/riscv-compliance/work/rv32im/*_cov.dat coverage/.
-	@mv tests/riscv-compliance/work/rv32Zicsr/*_cov.dat coverage/.
+	@if [ "$(test_v)" == "1" ]; then \
+	    mv tests/riscv-compliance/work/rv32i/*_cov.dat coverage/.; \
+	    mv tests/riscv-compliance/work/rv32im/*_cov.dat coverage/.; \
+	    mv tests/riscv-compliance/work/rv32Zicsr/*_cov.dat coverage/.; \
+	else \
+	    mv tests/riscv-compliance/work/rv32i_m/I/*_cov.dat coverage/.; \
+	    mv tests/riscv-compliance/work/rv32i_m/M/*_cov.dat coverage/.; \
+	    mv tests/riscv-compliance/work/rv32i_m/privilege/*_cov.dat coverage/.; \
+	fi
 	@$(MAKE) -C coverage
 	@$(MAKE) -C tools coverage
 

@@ -134,7 +134,7 @@ void usage(void) {
 "Usage: rvsim [-h] [-b n] [-m n] [-n n] [-p] [-l logfile] file\n\n"
 "       --help, -h              help\n"
 "       --membase n, -m n       memory base (in hex)\n"
-"       --memsize n, -n n       memory size\n"
+"       --memsize n, -n n       memory size (in Kb)\n"
 "       --branch n, -b n        branch penalty (default 2)\n"
 "       --single, -s            single RAM\n"
 "       --predict, -p           static branch prediction\n"
@@ -404,8 +404,8 @@ int main(int argc, char **argv) {
         {"predict", 0, NULL, 'p'},
         {"log", 1, NULL, 'l'},
         {"quiet", 0, NULL, 'q'},
-        {"membase", 0, NULL, 'm'},
-        {"memsize", 0, NULL, 'n'},
+        {"membase", 1, NULL, 'm'},
+        {"memsize", 1, NULL, 'n'},
         {"single", 0, NULL, 's'}
     };
 
@@ -441,6 +441,7 @@ int main(int argc, char **argv) {
                     sscanf(optarg, "%x", (unsigned int*)&mem_size);
                 else
                     mem_size = atoi(optarg);
+                mem_size *= 1024;
                 break;
             case 's':
                 singleram = 1;

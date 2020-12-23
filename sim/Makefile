@@ -1,6 +1,7 @@
 verilator  ?= 1
 top        ?= 0
 coverage   ?= 0
+memsize    ?= 128
 
 # Run flags
 RFLAGS      = +trace
@@ -25,6 +26,7 @@ endif
 
 ifeq ($(verilator),1)
 BFLAGS      = -O3 -cc -Wall -Wno-STMTDLY -Wno-UNUSED \
+              +define+MEMSIZE=$(memsize) \
               $(if $(_top), +define+SINGLE_RAM) \
               $(if $(_coverage), --coverage) \
               --trace-fst --Mdir sim_cc --build --exe sim_main.cpp getch.cpp

@@ -49,8 +49,13 @@ module testbench();
 
     `include "opcode.vh"
 
+`ifdef MEMSIZE
+    localparam      DRAMSIZE    = `MEMSIZE*1024;
+    localparam      IRAMSIZE    = `MEMSIZE*1024;
+`else
     localparam      DRAMSIZE    = 128*1024;
     localparam      IRAMSIZE    = 128*1024;
+`endif
 
 `ifndef SYNTHESIS
 `ifndef VERILATOR

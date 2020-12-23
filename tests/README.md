@@ -17,3 +17,6 @@
     export RISCV_PREFIX=riscv64-unknown-elf-
     export RISCV_TARGET=srv32
     make
+
+Requires 1716K of IRAM/DRAM to run compliance test v2, and 128K of IRAM/DRAM for
+compliance test v1.

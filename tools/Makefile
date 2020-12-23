@@ -1,6 +1,7 @@
 DEBUG    ?= 0
 top      ?= 0
 coverage ?= 0
+memsize  ?= 128
 CC        = gcc
 SYS      := $(shell gcc -dumpmachine)
 
@@ -25,7 +26,7 @@ endif
 
 SRC      = rvsim.c elfread.c getch.c
 OBJECTS  = $(SRC:.c=.o)
-TARGET   = rvsim
+RVSIM   = rvsim
 
 .SUFFIXS: .c .o
 
@@ -34,14 +35,14 @@ TARGET   = rvsim
 %.o: %.c opcode.h
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-$(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) $(OBJECTS)
+$(RVSIM): $(OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(RVSIM) $(OBJECTS)
 
-%.run: $(TARGET)
+%.run: $(RVSIM)
 	@if [ ! -f ../sw/$*/$*.elf ]; then \
 		make -C ../sw $*; \
 	fi
-	./$(TARGET) -l trace.log ../sw/$*/$*.elf
+	./$(RVSIM) --memsize $(memsize) -l trace.log ../sw/$*/$*.elf
 	@./log2dis.pl -q trace.log ../sw/$*/$*.elf
 
 coverage: coverage_extra
@@ -50,14 +51,14 @@ coverage: coverage_extra
 	@genhtml coverage.info -o html
 
 coverage_extra:
-	-@./$(TARGET) -q
-	-@./$(TARGET) -h
-	-@./$(TARGET) dummy
-	-@./$(TARGET) -m 0 -n 0x20000 -b 1 -s -p -l trace.log ../sw/hello/hello.elf
-	-@./$(TARGET) -m 0x0 -n 131072 -b 1 -s -p -l trace.log ../sw/hello/hello.elf
+	-@./$(RVSIM) -q
+	-@./$(RVSIM) -h
+	-@./$(RVSIM) dummy
+	-@./$(RVSIM) -m 0 -n 0x20000 -b 1 -s -p -l trace.log ../sw/hello/hello.elf
+	-@./$(RVSIM) -m 0x0 -n 131072 -b 1 -s -p -l trace.log ../sw/hello/hello.elf
 
 clean:
-	@$(RM) $(OBJECTS) dump.txt trace.log trace.log.dis $(TARGET)
+	@$(RM) $(OBJECTS) dump.txt trace.log trace.log.dis $(RVSIM)
 	@$(RM) -rf html coverage.info *.gcda *.gcno *.gcov
 
 distclean: clean
