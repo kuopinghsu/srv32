@@ -1,0 +1,53 @@
+TARGET_SIM   ?= "$(ROOT_SRV32)/sim/sim +trace"
+TARGET_SWSIM ?= $(ROOT_SRV32)/tools/rvsim
+TARGET_FLAGS ?= $(RISCV_TARGET_FLAGS) -q
+ifeq ($(shell command -v $(TARGET_SIM) 2> /dev/null),)
+    $(error Target simulator executable '$(TARGET_SIM)` not found)
+endif
+
+RISCV_PREFIX   ?= riscv64-unknown-elf-
+RISCV_GCC      ?= $(RISCV_PREFIX)gcc
+RISCV_OBJDUMP  ?= $(RISCV_PREFIX)objdump
+RISCV_OBJCOPY  ?= $(RISCV_PREFIX)objcopy
+RISCV_READELF  ?= $(RISCV_PREFIX)readelf
+RISCV_GCC_OPTS ?= -static -march=rv32im -mabi=ilp32 -mcmodel=medany -g -fvisibility=hidden -nostdlib -nostartfiles -DXLEN=$(XLEN) $(RVTEST_DEFINES)
+
+COMPILE_CMD=\
+	$$(RISCV_GCC) $(1) $$(RISCV_GCC_OPTS) \
+		-I$(ROOTDIR)/riscv-test-suite/env/ \
+		-I$(TARGETDIR)/$(RISCV_TARGET)/ \
+		-T$(TARGETDIR)/$(RISCV_TARGET)/env/link.ld $$< \
+		-o $$@; \
+	$$(RISCV_OBJCOPY) -O binary $$@ $$@.bin; \
+	$$(RISCV_OBJCOPY) -O binary -j .text $$@ $$@.imem.bin; \
+	$$(RISCV_OBJCOPY) -O binary -j .data $$@ $$@.dmem.bin; \
+	$$(RISCV_OBJCOPY) -O binary $$@ $$@.memory.bin
+
+OBJ_CMD = $$(RISCV_OBJDUMP) $$@ -D > $$@.objdump; \
+		  $$(RISCV_OBJDUMP) $$@ --source > $$@.debug; \
+		  $$(RISCV_READELF) -a $$@ > $$@.readelf
+
+COMPILE_TARGET=\
+		$(COMPILE_CMD); \
+        if [ $$$$? -ne 0 ] ; \
+            then \
+            echo "\e[31m$$(RISCV_GCC) failed for target $$(@) \e[39m" ; \
+            exit 1 ; \
+        fi ; \
+		$(OBJ_CMD); \
+        if [ $$$$? -ne 0 ] ; \
+            then \
+            echo "\e[31m $$(RISCV_OBJDUMP) failed for target $$(@) \e[39m" ; \
+            exit 1 ; \
+        fi ;
+
+RUN_CMD=\
+	$(TARGET_SIM)
+
+RUN_TARGET=\
+	cp $(*).elf.imem.bin imem.bin; cp $(*).elf.dmem.bin dmem.bin; cp $(*).elf.memory.bin memory.bin; \
+	$(RUN_CMD) $(TARGET_FLAGS) $< 2> $@; \
+	mv dump.txt $(*).signature.output; if [ -f coverage.dat ]; then mv coverage.dat $(*)_cov.dat; fi; \
+	$(TARGET_SWSIM) -l trace_sw.log $(TARGET_FLAGS) $< 2> $@; \
+	diff --brief trace.log trace_sw.log && rm -f imem.bin dmem.bin memory.bin trace.log trace_sw.log dump.txt
+

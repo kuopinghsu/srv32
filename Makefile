@@ -86,7 +86,6 @@ coverage: clean
 	else \
 	    mv tests/riscv-compliance/work/rv32i_m/I/*_cov.dat coverage/.; \
 	    mv tests/riscv-compliance/work/rv32i_m/M/*_cov.dat coverage/.; \
-	    mv tests/riscv-compliance/work/rv32i_m/privilege/*_cov.dat coverage/.; \
 	fi
 	@$(MAKE) -C coverage
 	@$(MAKE) -C tools coverage

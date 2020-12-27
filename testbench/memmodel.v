@@ -73,6 +73,25 @@ begin
 end
 endfunction
 
+function [7:0] setb;
+    input [31:0] address;
+    input [7:0] din;
+begin
+    if (address[31:ADDRW+2] != 0) begin
+        $display("Address %08x out of range", address);
+    end
+
+    case(address[1:0])
+        0: ram[address[ADDRW+1: 2]][8*0+7:8*0] = din[7:0];
+        1: ram[address[ADDRW+1: 2]][8*1+7:8*1] = din[7:0];
+        2: ram[address[ADDRW+1: 2]][8*2+7:8*2] = din[7:0];
+        3: ram[address[ADDRW+1: 2]][8*3+7:8*3] = din[7:0];
+    endcase
+
+    setb = din;
+end
+endfunction
+
 `ifndef SYNTHESIS
 initial begin
     file = $fopen(FILE, "rb");
@@ -167,6 +186,25 @@ begin
         2: getb = ram[address[ADDRW+1: 2]][8*2+7:8*2];
         3: getb = ram[address[ADDRW+1: 2]][8*3+7:8*3];
     endcase
+end
+endfunction
+
+function [7:0] setb;
+    input [31:0] address;
+    input [7:0] din;
+begin
+    if (address[31:ADDRW+2] != 0) begin
+        $display("Address %08x out of range", address);
+    end
+
+    case(address[1:0])
+        0: ram[address[ADDRW+1: 2]][8*0+7:8*0] = din[7:0];
+        1: ram[address[ADDRW+1: 2]][8*1+7:8*1] = din[7:0];
+        2: ram[address[ADDRW+1: 2]][8*2+7:8*2] = din[7:0];
+        3: ram[address[ADDRW+1: 2]][8*3+7:8*3] = din[7:0];
+    endcase
+
+    setb = din;
 end
 endfunction
 

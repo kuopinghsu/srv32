@@ -50,11 +50,15 @@ module testbench();
     `include "opcode.vh"
 
 `ifdef MEMSIZE
-    localparam      DRAMSIZE    = `MEMSIZE*1024;
     localparam      IRAMSIZE    = `MEMSIZE*1024;
+    localparam      IRAMBASE    = 0;
+    localparam      DRAMSIZE    = `MEMSIZE*1024;
+    localparam      DRAMBASE    = `MEMSIZE*1024;
 `else
-    localparam      DRAMSIZE    = 128*1024;
     localparam      IRAMSIZE    = 128*1024;
+    localparam      IRAMBASE    = 0;
+    localparam      DRAMSIZE    = 128*1024;
+    localparam      DRAMBASE    = 128*1024;
 `endif
 
 `ifndef SYNTHESIS
@@ -330,7 +334,7 @@ end
         .wready(1'b0),
         .rresp (imem_rresp),
         .rdata (imem_rdata),
-        .raddr (imem_addr[31:2]),
+        .raddr (imem_addr[31:2]-(IRAMBASE/4)),
         .waddr (30'h0),
         .wdata (32'h0),
         .wstrb (4'h0)
@@ -347,8 +351,8 @@ end
         .wready(wready & dmem_wvalid),
         .rresp (dmem_rresp),
         .rdata (dmem_rdata),
-        .raddr (dmem_raddr[31:2]),
-        .waddr (dmem_waddr[31:2]),
+        .raddr (dmem_raddr[31:2]-(DRAMBASE/4)),
+        .waddr (dmem_waddr[31:2]-(DRAMBASE/4)),
         .wdata (dmem_wdata),
         .wstrb (dmem_wstrb)
     );
