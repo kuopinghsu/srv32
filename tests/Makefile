@@ -21,7 +21,7 @@ tests-sw: riscv-compliance
 	make -C riscv-compliance
 
 riscv-compliance:
-	if [ "$(test_v)" == "1" ]; then \
+	if [ "$(test_v)" = "1" ]; then \
 		if [ ! -d riscv-compliance ]; then \
 			git clone -b v1.0 git://github.com/riscv/riscv-compliance.git; \
 		fi; \
