@@ -23,9 +23,9 @@ compliance test v1.
 
 ## TODO
 
-The following misaligned instruction tests will match targets which have compressed
-extension support enabled by default. Targets without the compressed extension support
-will fail the following tests:
+On Compliance test V2, the following misaligned instruction tests will match targets
+which have compressed extension support enabled by default. Targets without the
+compressed extension support will fail the following tests:
 
 * rv32i_m/privilege/src/misalign-b[ge[u],lt[u],eq,ne]-01.S
 * rv32i_m/privilege/src/misalign[1,2]-jalr-01.S
