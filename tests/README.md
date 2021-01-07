@@ -20,3 +20,12 @@
 
 Requires 1716K of IRAM/DRAM to run compliance test v2, and 128K of IRAM/DRAM for
 compliance test v1.
+
+## TODO
+
+The following misaligned instruction tests will match targets which have compressed
+extension support enabled by default. Targets without the compressed extension support
+will fail the following tests:
+
+* rv32i_m/privilege/src/misalign-b[ge[u],lt[u],eq,ne]-01.S
+* rv32i_m/privilege/src/misalign[1,2]-jalr-01.S
