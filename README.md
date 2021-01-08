@@ -183,8 +183,13 @@ Provide the Yosys synthesis script on the syn folder.
 Compliance test for ISS simulator and RTL. This is the compliance test form RISC-V Foundation Compliance Task Group.
 The github repository is at <https://github.com/riscv/riscv-compliance>. Running the following command will clone the repository into tests folder and do the compliance test.
 
-    make tests          # run the compliance test for RTL
-    make tests-sw       # run the compliance test for ISS simulator
+    make tests              # run the compliance test for RTL
+    make tests-sw           # run the compliance test for ISS simulator
+
+Default is to run compliance test v1, run the following command to run compliance test v2.
+
+    make test_v=2 tests     # run the compliance test for RTL
+    make test_v=2 tests-sw  # run the compliance test for ISS simulator
 
 ## FreeRTOS support
 
@@ -235,6 +240,7 @@ This is the coverage report of ISS.
 *   merge the memory interface into one memory for one port
 *   static branch predictor
 *   support RV32C compress extension
+*   serial multiplier and divider
 
 ## License
 

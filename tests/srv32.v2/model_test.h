@@ -37,6 +37,7 @@ end_signature:                                                                \
         RVMODEL_DATA_SECTION
 
 //RVMODEL_ROOT
+#ifndef __riscv_compressed
 #define RVMODEL_BOOT                                                          \
 core_init:                                                                    \
         la      t0, __trap_handler;                                           \
@@ -60,6 +61,50 @@ _bss_clear:                                                                   \
         bltu    t0, t1, _bss_clear;                                           \
                                                                               \
         la      sp, _stack
+#else
+#define RVMODEL_BOOT                                                          \
+core_init:                                                                    \
+        la      t0, __trap_handler;                                           \
+        csrw    mtvec, t0;                                                    \
+        j       _start;                                                       \
+                                                                              \
+        .balign 4;                                                            \
+__trap_handler:                                                               \
+        la      sp, end_signature;                                            \
+        addi    sp, sp, 8;                                                    \
+        sw      x8, 0(sp);                                                    \
+        sw      x9, 4(sp);                                                    \
+        csrr    x8, mcause;                                                   \
+        blt     x8, zero, __trap_handler_irq;                                 \
+        csrr    x8, mepc;                                                     \
+__trap_handler_exc_c_check:                                                   \
+        lh      x9, 0(x8);                                                    \
+        andi    x9, x9, 3;                                                    \
+        addi    x8, x8, +2;                                                   \
+        csrw    mepc, x8;                                                     \
+        addi    x8, zero, 3;                                                  \
+        bne     x8, x9, __trap_handler_irq;                                   \
+__trap_handler_exc_uncrompressed:                                             \
+        csrr    x8, mepc;                                                     \
+        addi    x8, x8, +2;                                                   \
+        csrw    mepc, x8;                                                     \
+__trap_handler_irq:                                                           \
+        lw      x9, 4(sp);                                                    \
+        lw      x8, 0(sp);                                                    \
+        addi    sp, sp, -8;                                                   \
+        mret;                                                                 \
+                                                                              \
+_start:                                                                       \
+        la      t0, _bss_start;                                               \
+        la      t1, _bss_end;                                                 \
+                                                                              \
+_bss_clear:                                                                   \
+        sw      zero,0(t0);                                                   \
+        addi    t0, t0, 4;                                                    \
+        bltu    t0, t1, _bss_clear;                                           \
+                                                                              \
+        la      sp, _stack
+#endif // RV32C_ENABLED
 
 #define RVMODEL_IO_INIT
 #define RVMODEL_IO_WRITE_STR(_R, _STR)

@@ -43,6 +43,7 @@ help:
 tests-all: tests-sw tests all all-sw
 
 all:
+	make clean
 	for i in $(SUBDIRS); do \
 		$(MAKE) $$i || exit 1; \
 	done
@@ -79,13 +80,13 @@ coverage: clean
 	@$(MAKE) coverage=1 all
 	@mv sim/*_cov.dat coverage/.
 	@$(MAKE) coverage=1 tests
-	@if [ "$(test_v)" == "1" ]; then \
-	    mv tests/riscv-compliance/work/rv32i/*_cov.dat coverage/.; \
-	    mv tests/riscv-compliance/work/rv32im/*_cov.dat coverage/.; \
-	    mv tests/riscv-compliance/work/rv32Zicsr/*_cov.dat coverage/.; \
+	@if [ "$(test_v)" = "1" ]; then \
+	    mv tests/riscv-compliance.v1/work/rv32i/*_cov.dat coverage/.; \
+	    mv tests/riscv-compliance.v1/work/rv32im/*_cov.dat coverage/.; \
+	    mv tests/riscv-compliance.v1/work/rv32Zicsr/*_cov.dat coverage/.; \
 	else \
-	    mv tests/riscv-compliance/work/rv32i_m/I/*_cov.dat coverage/.; \
-	    mv tests/riscv-compliance/work/rv32i_m/M/*_cov.dat coverage/.; \
+	    mv tests/riscv-compliance.v2/work/rv32i_m/I/*_cov.dat coverage/.; \
+	    mv tests/riscv-compliance.v2/work/rv32i_m/M/*_cov.dat coverage/.; \
 	fi
 	@$(MAKE) -C coverage
 	@$(MAKE) -C tools coverage
