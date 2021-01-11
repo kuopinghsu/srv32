@@ -241,6 +241,7 @@ This is the coverage report of ISS.
 *   static branch predictor
 *   support RV32C compress extension
 *   serial multiplier and divider
+*   Nuttx & Zephyr porting
 
 ## License
 
