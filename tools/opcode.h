@@ -25,6 +25,85 @@
 #define __STDC_WANT_LIB_EXT1__ 1
 #endif
 
+typedef union _INSTC {
+    short int inst;
+
+    // byte order
+    struct {
+        char b0, b1;
+    } byte;
+
+    // CR-Type
+    struct {
+        unsigned int op    : 2;
+        unsigned int rs2   : 5;
+        unsigned int rd    : 5;
+        unsigned int func4 : 4;
+    } cr;
+
+    // CI-Type
+    struct {
+        unsigned int op    : 2;
+        unsigned int imm_l : 5;
+        unsigned int rd    : 5;
+        unsigned int imm_h : 1;
+        unsigned int func3 : 3;
+    } ci;
+
+    // CSS-Type
+    struct {
+        unsigned int op    : 2;
+        unsigned int rs2   : 5;
+        unsigned int imm   : 6;
+        unsigned int func3 : 3;
+    } css;
+
+    // CIW-Type
+    struct {
+        unsigned int op    : 2;
+        unsigned int rd_   : 3;
+        unsigned int imm   : 8;
+        unsigned int func3 : 3;
+    } ciw;
+
+    // CL-Type
+    struct {
+        unsigned int op    : 2;
+        unsigned int rd_   : 3;
+        unsigned int imm_l : 2;
+        unsigned int rs1_  : 3;
+        unsigned int imm_h : 3;
+        unsigned int func3 : 3;
+    } cl;
+
+    // CS-Type
+    struct {
+        unsigned int op    : 2;
+        unsigned int rs2_  : 3;
+        unsigned int imm_l : 2;
+        unsigned int rd_   : 3;
+        unsigned int imm_h : 3;
+        unsigned int func3 : 3;
+    } cs;
+
+    // CB-Type
+    struct {
+        unsigned int op    : 2;
+        unsigned int imm_l : 5;
+        unsigned int rs1_  : 3;
+        unsigned int imm_h : 3;
+        unsigned int func3 : 3;
+    } cb;
+
+    // CJ-Type
+    struct {
+        unsigned int op    : 2;
+        unsigned int offset: 11;
+        unsigned int func3 : 3;
+    } cj;
+
+} INSTC;
+
 typedef union _INST {
     int inst;
 
