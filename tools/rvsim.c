@@ -45,14 +45,14 @@ int mem_size = 128*1024; // default memory size
     csr.mstatus = (csr.mstatus &  (1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
     csr.mstatus = (csr.mstatus & ~(1<<MIE)); \
     csr.mepc = prev_pc; \
-    csr.mtval = val; \
+    csr.mtval = (val); \
     pc = (csr.mtvec & 1) ? (csr.mtvec & 0xfffffffe) + cause * 4 : csr.mtvec; \
 }
 
 #define INT(cause,src) { \
     /* When the branch instruction is interrupted, do not accumulate cycles, */ \
     /* which has been added when the branch instruction is executed. */ \
-    if (pc == prev_pc+4) CYCLE_ADD(branch_penalty); \
+    if (pc == (compressed ? prev_pc+2 : prev_pc+4)) CYCLE_ADD(branch_penalty); \
     csr.mcause = cause; \
     csr.mstatus = (csr.mstatus &  (1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
     csr.mstatus = (csr.mstatus & ~(1<<MIE)); \
@@ -376,6 +376,261 @@ int csr_rw(int regs, int mode, int val, int update, int *result) {
     return 1;
 }
 
+int compressed_decoder (
+    INSTC instc,
+    INST  *inst,
+    int   *illegal
+) {
+    INST r;
+    *illegal = 0;
+
+    r.inst = 0;
+
+    // Not compressed instructions
+    if (instc.cr.op == 0x3) {
+        return 0;
+    }
+
+    if (instc.cr.op == 0x0) {
+        switch(instc.ci.func3) {
+            case OP_CADDI4SPN : // c.addi4spn -> addi rd′, x2, nzuimm[9:2]
+                if (instc.inst == 0) {
+                    *illegal = 1;
+                    break;
+                }
+                if (r.i.imm != 0) {
+                    r.i.op    = OP_ARITHI;
+                    r.i.rd    = 8 + instc.ciw.rd_;
+                    r.i.func3 = OP_ADD;
+                    r.i.rs1   = 2;
+                    r.i.imm   = (((instc.ciw.imm << 2) & 0xf0) +
+                                 ((instc.ciw.imm >> 4) & 0xc0) +
+                                 ((instc.ciw.imm << 1) & 0x02) +
+                                 ((instc.ciw.imm >> 1) & 0x01) ) * 4;
+                } else {
+                    *illegal = 1;
+                    break;
+                }
+                break;
+            case OP_CLW       : // c.lw -> lw rd′, offset[6:2](rs1′)
+                r.i.op    = OP_LOAD;
+                r.i.rd    = 8 + instc.cl.rd_;
+                r.i.func3 = OP_LW;
+                r.i.rs1   = 8 + instc.cl.rs1_;
+                r.i.imm   = ((instc.cl.imm_h >> 1) +
+                             ((instc.cl.imm_l >> 1) & 0x01) +
+                             ((instc.cl.imm_l << 4) & 0x10) ) * 4;
+                break;
+            case OP_CSW       : // c.sw -> sw rs2′, offset[6:2](rs1′)
+                r.i.op    = OP_STORE;
+                r.i.rd    = 8 + instc.cl.rd_;
+                r.i.func3 = OP_SW;
+                r.i.rs1   = 8 + instc.cl.rs1_;
+                r.i.imm   = ((instc.cl.imm_h >> 1) +
+                             ((instc.cl.imm_l >> 1) & 0x01) +
+                             ((instc.cl.imm_l << 4) & 0x10) ) * 4;
+                break;
+            default: *illegal = 1;
+        }
+        inst->inst = r.inst;
+        return 1;
+    }
+
+    if (instc.cr.op == 0x1) {
+        switch(instc.ci.func3) {
+            // OP_CNOP, OP_CADDI
+            case OP_CADDI     : 
+                if (instc.ci.rd == 0) { // c.nop -> addi x0, x0, 0
+                    r.i.op    = OP_ARITHI;
+                    r.i.rd    = 0;
+                    r.i.func3 = OP_ADD;
+                    r.i.rs1   = 0;
+                    r.i.imm   = 0;
+
+                // c.addi -> addi rd, rd, nzimm[5:0]
+                } else if (instc.ci.imm_l != 0 || instc.ci.imm_h != 0) {
+                    r.i.op    = OP_ARITHI;
+                    r.i.rd    = instc.ci.rd;
+                    r.i.func3 = OP_ADD;
+                    r.i.rs1   = instc.ci.rd;
+                    r.i.imm   = (instc.ci.imm_h << 5) + instc.ci.imm_l;
+                } else {
+                    *illegal = 1;
+                }
+                break;
+            case OP_CBEQZ     : // c.beqz -> beq rs1′, x0, offset[8:1]
+                r.b.op    = OP_BRANCH;
+                r.b.imm1  = (instc.cb.imm_l & 6) + ((instc.cb.imm_h >> 2) & 1) +
+                            ((instc.cb.imm_h << 3) & 0x18);
+                r.b.func3 = OP_BEQ;
+                r.b.rs1   = instc.cb.rs1_ + 8;
+                r.b.rs2   = 0;
+                r.b.imm2  = ((instc.cb.imm_h & 4) ? 0x78 : 0) +
+                            (instc.cb.imm_l & 1) +
+                            ((instc.cb.imm_l >> 2) & 6);
+                break;
+            case OP_CBNEZ     : // c.bnez -> bne rs1′, x0, offset[8:1]
+                r.b.op    = OP_BRANCH;
+                r.b.imm1  = (instc.cb.imm_l & 6) + ((instc.cb.imm_h >> 2) & 1) +
+                            ((instc.cb.imm_h << 3) & 0x18);
+                r.b.func3 = OP_BNE;
+                r.b.rs1   = instc.cb.rs1_ + 8;
+                r.b.rs2   = 0;
+                r.b.imm2  = ((instc.cb.imm_h & 4) ? 0x78 : 0) +
+                            (instc.cb.imm_l & 1) +
+                            ((instc.cb.imm_l >> 2) & 6);
+                break;
+            case OP_CJ        : // c.j -> jal x0, offset[11:1]
+                r.j.op  = OP_JAL;
+                r.j.rd  = 0;
+                r.j.imm = ((instc.cj.offset & 0x400) ? 0x801ff : 0) +
+                          ((instc.cj.offset & 0x001) << 13) +
+                          ((instc.cj.offset & 0x007) << 9) +
+                          ((instc.cj.offset & 0x010) << 15) +
+                          ((instc.cj.offset & 0x020) << 14) +
+                          ((instc.cj.offset & 0x040) << 18) +
+                          ((instc.cj.offset & 0x180) << 16) +
+                          ((instc.cj.offset & 0x200) << 12);
+                break;
+            case OP_CJAL      : // c.jal -> jal x1, offset[11:1]
+                r.j.op  = OP_JAL;
+                r.j.rd  = 1;
+                r.j.imm = ((instc.cj.offset & 0x400) ? 0x801ff : 0) +
+                          ((instc.cj.offset & 0x001) << 13) +
+                          ((instc.cj.offset & 0x007) << 9) +
+                          ((instc.cj.offset & 0x010) << 15) +
+                          ((instc.cj.offset & 0x020) << 14) +
+                          ((instc.cj.offset & 0x040) << 18) +
+                          ((instc.cj.offset & 0x180) << 16) +
+                          ((instc.cj.offset & 0x200) << 12);
+                break;
+            case OP_CLI       : // c.li -> addi rd, x0, imm[5:0]
+                if (instc.ci.rd == 0) { // HINT (addi x0, x0, 0)
+                    r.i.op    = OP_ARITHI;
+                    r.i.rd    = 0;
+                    r.i.func3 = OP_ADD;
+                    r.i.rs1   = 0;
+                    r.i.imm   = 0;
+                } else { // addi rd, x0, imm[5:0]
+                    r.i.op    = OP_ARITHI;
+                    r.i.rd    = instc.ci.rd;
+                    r.i.func3 = OP_ADD;
+                    r.i.rs1   = 0;
+                    r.i.imm   = (instc.ci.imm_h ? 0xfe0 : 0) + instc.ci.imm_l;
+                }
+                break;
+            // OP_CADDI16SP, OP_CLUI
+            case OP_CLUI      :
+                if (instc.ci.rd == 2) { // c.addi16sp -> addi x2, x2, nzimm[9:4]
+                    if (instc.ci.imm_h != 0 || instc.ci.imm_l != 0) {
+                        r.i.op    = OP_ARITHI;
+                        r.i.rd    = 2;
+                        r.i.func3 = OP_ADD;
+                        r.i.rs1   = 2;
+                        r.i.imm   = ((instc.ci.imm_h ? 0xe0 : 0) +
+                                     ((instc.ci.imm_l >> 4) & 0x01) +
+                                     ((instc.ci.imm_l >> 1) & 0x04) +
+                                     ((instc.ci.imm_l << 2) & 0x18) +
+                                     ((instc.ci.imm_l << 1) & 0x02) ) * 16;
+                    } else { // reserved
+                        *illegal = 1;
+                        break;
+                    }
+                } else if (instc.ci.rd != 0) { // c.lui -> lui rd, nzimm[17:12]
+                    // TODO
+                } else { // HINT (addi x0, x0, 0)
+                    r.i.op    = OP_ARITHI;
+                    r.i.rd    = 0;
+                    r.i.func3 = OP_ADD;
+                    r.i.rs1   = 0;
+                    r.i.imm   = 0;
+                }
+                break;
+            // OP_COR, OP_CXOR, OP_CSUB, OP_CAND
+            // OP_CSRAI, OP_CANDI, OP_CSRLI
+            case OP_CSRLI     :
+                switch(instc.ca.func6 & 3) {
+                    case 0: // c.srli -> srli rd′, rd′, shamt[5:0]
+                        // TODO
+                        break;
+                    case 1: // c.srai -> srai rd′, rd′, shamt[5:0]
+                        // TODO
+                        break;
+                    case 2: // c.andi -> andi rd′, rd′, imm[5:0]
+                        // TODO
+                        break;
+                    case 3:
+                        if (instc.ca.func6 == 0x27) { // Reserved
+                            *illegal = 1;
+                            break;
+                        }
+                        switch(instc.ca.func2) {
+                            case 0: // c.sub -> sub rd′, rd′, rs2′
+                                // TODO
+                                break;
+                            case 1: // c.xor -> xor rd′, rd′, rs2′
+                                // TODO
+                                break;
+                            case 2: // c.or -> or rd′, rd′, rs2'
+                                // TODO
+                                break;
+                            case 3: // c.and -> and rd′, rd′, rs2′
+                                // TODO
+                                break;
+                        }
+                        break;
+                }
+                break;
+            default: *illegal = 1;
+        }
+        inst->inst = r.inst;
+        return 1;
+    }
+
+    if (instc.cr.op == 0x2) {
+        switch(instc.ci.func3) {
+            // OP_CADD, OP_CEBREAK, OP_CJALR, OP_CMV, OP_CJR
+            case OP_CADD    :
+                if (instc.ci.imm_h == 0 && instc.ci.rd != 0 && instc.ci.imm_l == 0) { // c.jr -> jalr x0, 0(rs1)
+                    // TODO
+                    break;
+                }
+                if (instc.ci.imm_h == 0 && instc.ci.rd != 0 && instc.ci.imm_l != 0) { // c.mv -> add rd, x0, rs2
+                    // TODO
+                    break;
+                }
+                if (instc.ci.imm_h == 1 && instc.ci.rd == 0 && instc.ci.imm_l == 0) { // c.ebreak -> ebreak
+                    // TODO
+                    break;
+                }
+                if (instc.ci.imm_h == 1 && instc.ci.rd != 0 && instc.ci.imm_l == 0) { // c.jalr -> jalr x1, 0(rs1)
+                    // TODO
+                    break;
+                }
+                if (instc.ci.imm_h == 1 && instc.ci.rd != 0 && instc.ci.imm_l != 0) { // c.add -> add rd, rd, rs2
+                    // TODO
+                    break;
+                }
+                *illegal = 1;
+                break;
+            case OP_CLWSP   : // c.lwsp -> lw rd, offset[7:2](x2)
+                // TODO
+                break;
+            case OP_CSLLI   : // c.slli -> slli rd, rd, shamt[5:0]
+                // TODO
+                break;
+            case OP_CSWSP   : // c.swsp -> sw rs2, offset[7:2](x2)
+                // TODO
+                break;
+            default: *illegal = 1;
+        }
+        inst->inst = r.inst;
+        return 1;
+    }
+
+    return 0;
+}
+
 int main(int argc, char **argv) {
     FILE *ft = NULL;
     static int regs[32];
@@ -395,6 +650,7 @@ int main(int argc, char **argv) {
     int sw_irq_next;
     int ext_irq;
     int ext_irq_next;
+    int compressed = 0;
 
     const char *optstring = "hb:pl:qm:n:s";
     int c;
@@ -519,7 +775,10 @@ int main(int argc, char **argv) {
     // Execution loop
     while(1) {
         INST inst;
+        INSTC instc;
+        int illegal;
 
+        illegal = 0;
         mtime_update = 0;
 
         //FIXME: to pass the compliance test, the destination PC should
@@ -553,7 +812,12 @@ int main(int argc, char **argv) {
             TRAP(TRAP_INST_ALIGN, pc);
         }
 
-        inst.inst = imem[IVA2PA(pc)/4];
+        inst.inst = (IVA2PA(pc) & 2) ?
+                     (imem[IVA2PA(pc)/4+1] << 16) | ((imem[IVA2PA(pc)] >> 16) & 0xffff) :
+                     imem[IVA2PA(pc)/4];
+        instc.inst = (IVA2PA(pc) & 2) ?
+                     (short)(imem[IVA2PA(pc)/4] >> 16) :
+                     (short)imem[IVA2PA(pc)/4];
 
         if ((csr.mtime.c >= csr.mtimecmp.c) &&
             (csr.mstatus & (1 << MIE)) && (csr.mie & (1 << MTIE)) &&
@@ -586,6 +850,13 @@ int main(int argc, char **argv) {
         CYCLE_ADD(1);
 
         prev_pc = pc;
+
+        compressed = compressed_decoder(instc, &inst, &illegal);
+
+        if (illegal) {
+            TRAP(TRAP_INST_ILL, (int)instc.inst);
+        }
+
         switch(inst.r.op) {
             case OP_AUIPC : { // U-Type
                 regs[inst.u.rd] = pc + to_imm_u(inst.u.imm);
@@ -600,7 +871,7 @@ int main(int argc, char **argv) {
                 break;
             }
             case OP_JAL   : { // J-Type
-                regs[inst.j.rd] = pc + 4;
+                regs[inst.j.rd] = compressed ? pc + 2 : pc + 4;
                 TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n", pc, inst.inst,
                           inst.j.rd, regname[inst.j.rd], regs[inst.j.rd] TRACE_END;
                 pc += to_imm_j(inst.j.imm);
@@ -613,7 +884,7 @@ int main(int argc, char **argv) {
                 continue;
             }
             case OP_JALR  : { // I-Type
-                int new_pc = pc + 4;
+                int new_pc = compressed ? pc + 2 : pc + 4;
                 TIME_LOG; TRACE_LOG "%08x ", pc TRACE_END;
                 pc = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
                 regs[inst.i.rd] = new_pc;
@@ -846,7 +1117,7 @@ int main(int argc, char **argv) {
                         inst.i.func3 == OP_SW) {
                         TRACE_LOG " write 0x%08x <= 0x%08x\n",
                               address, (data & mask) TRACE_END;
-                        pc += 4;
+                        pc = compressed ? pc + 2 : pc + 4;
                         continue;
                     }
                 }
@@ -1166,7 +1437,7 @@ int main(int argc, char **argv) {
                 continue;
             }
         }
-        pc+=4;
+        pc = compressed ? pc + 2 : pc + 4;
     }
 
     aligned_free(imem);

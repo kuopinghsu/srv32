@@ -33,7 +33,7 @@ typedef union _INSTC {
         char b0, b1;
     } byte;
 
-    // CR-Type
+    // CR-Type, compressed register type
     struct {
         unsigned int op    : 2;
         unsigned int rs2   : 5;
@@ -41,7 +41,7 @@ typedef union _INSTC {
         unsigned int func4 : 4;
     } cr;
 
-    // CI-Type
+    // CI-Type, compressed intermedia type
     struct {
         unsigned int op    : 2;
         unsigned int imm_l : 5;
@@ -50,7 +50,7 @@ typedef union _INSTC {
         unsigned int func3 : 3;
     } ci;
 
-    // CSS-Type
+    // CSS-Type, compressed stack-relative store type
     struct {
         unsigned int op    : 2;
         unsigned int rs2   : 5;
@@ -58,7 +58,7 @@ typedef union _INSTC {
         unsigned int func3 : 3;
     } css;
 
-    // CIW-Type
+    // CIW-Type, compressed wide intermedia type
     struct {
         unsigned int op    : 2;
         unsigned int rd_   : 3;
@@ -66,7 +66,7 @@ typedef union _INSTC {
         unsigned int func3 : 3;
     } ciw;
 
-    // CL-Type
+    // CL-Type, compressed load type
     struct {
         unsigned int op    : 2;
         unsigned int rd_   : 3;
@@ -76,7 +76,7 @@ typedef union _INSTC {
         unsigned int func3 : 3;
     } cl;
 
-    // CS-Type
+    // CS-Type, compressed store type
     struct {
         unsigned int op    : 2;
         unsigned int rs2_  : 3;
@@ -85,6 +85,15 @@ typedef union _INSTC {
         unsigned int imm_h : 3;
         unsigned int func3 : 3;
     } cs;
+
+    // CA-Type, compressed arithmetic type
+    struct {
+        unsigned int op    : 2;
+        unsigned int rs2_  : 3;
+        unsigned int func2 : 2;
+        unsigned int rd_   : 3;
+        unsigned int func6 : 6;
+    } ca;
 
     // CB-Type
     struct {
@@ -234,6 +243,36 @@ enum {
     OP_CSRRWI  = 5,
     OP_CSRRSI  = 6,
     OP_CSRRCI  = 7
+};
+
+enum {
+    OP_CLWSP        = 2,
+    OP_CSWSP        = 6,
+    OP_CLW          = 2,
+    OP_CSW          = 6,
+    OP_CJ           = 5,
+    OP_CJAL         = 1,
+    OP_CJR          = 4,
+    OP_CJALR        = 4,
+    OP_CBEQZ        = 6,
+    OP_CBNEZ        = 7,
+    OP_CLI          = 2,
+    OP_CLUI         = 3,
+    OP_CADDI        = 0,
+    OP_CADDI16SP    = 3,
+    OP_CADDI4SPN    = 0,
+    OP_CSLLI        = 0,
+    OP_CSRLI        = 4,
+    OP_CSRAI        = 4,
+    OP_CANDI        = 4,
+    OP_CMV          = 4,
+    OP_CADD         = 4,
+    OP_CAND         = 4,
+    OP_COR          = 4,
+    OP_CXOR         = 4,
+    OP_CSUB         = 4,
+    OP_CNOP         = 0,
+    OP_CEBREAK      = 4
 };
 
 enum {
