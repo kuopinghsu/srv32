@@ -454,3 +454,9 @@ char *strncpy_s(char *dest, size_t n, const char *src, size_t count);
 char *strncat_s(char *dest, size_t n, const char *src, size_t count);
 #endif
 
+int compressed_decoder (
+    INSTC instc,
+    INST  *inst,
+    int   *illegal
+);
+

@@ -24,7 +24,7 @@ ifeq ($(top), 1)
 CFLAGS  += -DSINGLE_RAM
 endif
 
-SRC      = rvsim.c elfread.c getch.c
+SRC      = rvsim.c decompress.c elfread.c getch.c
 OBJECTS  = $(SRC:.c=.o)
 RVSIM   = rvsim
 
