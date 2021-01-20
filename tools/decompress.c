@@ -144,7 +144,7 @@ int compressed_decoder (
                 r.j.rd  = 1;
                 r.j.imm = ((instc.cj.offset & 0x400) ? 0x801ff : 0) +
                           ((instc.cj.offset & 0x001) << 13) +
-                          ((instc.cj.offset & 0x007) << 9) +
+                          ((instc.cj.offset & 0x00e) << 9) +
                           ((instc.cj.offset & 0x010) << 15) +
                           ((instc.cj.offset & 0x020) << 14) +
                           ((instc.cj.offset & 0x040) << 18) +
@@ -222,7 +222,12 @@ int compressed_decoder (
                         r.r.func7 = 0x20;
                         break;
                     case 2: // c.andi -> andi rd′, rd′, imm[5:0]
-                        // TODO
+                        r.i.op    = OP_ARITHI;
+                        r.i.rd    = instc.cb.rs1_ + 8;
+                        r.i.func3 = OP_AND;
+                        r.i.rs1   = instc.cb.rs1_ + 8;
+                        r.i.imm   = ((instc.cb.imm_h & 4) ? 0xff0 : 0) +
+                                    instc.cb.imm_l;
                         break;
                     case 3:
                         if (instc.ca.func6 == 0x27) { // Reserved
@@ -231,16 +236,36 @@ int compressed_decoder (
                         }
                         switch(instc.ca.func2) {
                             case 0: // c.sub -> sub rd′, rd′, rs2′
-                                // TODO
+                                r.r.op    = OP_ARITHR;
+                                r.r.rd    = instc.ca.rd_ + 8;
+                                r.r.func3 = OP_ADD;
+                                r.r.rs1   = instc.ca.rd_ + 8;
+                                r.r.rs2   = instc.ca.rs2_ + 8;
+                                r.r.func7 = 0x20;
                                 break;
                             case 1: // c.xor -> xor rd′, rd′, rs2′
-                                // TODO
+                                r.r.op    = OP_ARITHR;
+                                r.r.rd    = instc.ca.rd_ + 8;
+                                r.r.func3 = OP_XOR;
+                                r.r.rs1   = instc.ca.rd_ + 8;
+                                r.r.rs2   = instc.ca.rs2_ + 8;
+                                r.r.func7 = 0x00;
                                 break;
                             case 2: // c.or -> or rd′, rd′, rs2'
-                                // TODO
+                                r.r.op    = OP_ARITHR;
+                                r.r.rd    = instc.ca.rd_ + 8;
+                                r.r.func3 = OP_OR;
+                                r.r.rs1   = instc.ca.rd_ + 8;
+                                r.r.rs2   = instc.ca.rs2_ + 8;
+                                r.r.func7 = 0x00;
                                 break;
                             case 3: // c.and -> and rd′, rd′, rs2′
-                                // TODO
+                                r.r.op    = OP_ARITHR;
+                                r.r.rd    = instc.ca.rd_ + 8;
+                                r.r.func3 = OP_AND;
+                                r.r.rs1   = instc.ca.rd_ + 8;
+                                r.r.rs2   = instc.ca.rs2_ + 8;
+                                r.r.func7 = 0x00;
                                 break;
                         }
                         break;
@@ -257,35 +282,74 @@ int compressed_decoder (
             // OP_CADD, OP_CEBREAK, OP_CJALR, OP_CMV, OP_CJR
             case OP_CADD    :
                 if (instc.ci.imm_h == 0 && instc.ci.rd != 0 && instc.ci.imm_l == 0) { // c.jr -> jalr x0, 0(rs1)
-                    // TODO
+                    r.i.op    = OP_JALR;
+                    r.i.rd    = 0;
+                    r.i.func3 = 0x0;
+                    r.i.rs1   = instc.ci.rd;
+                    r.i.imm   = 0;
                     break;
                 }
                 if (instc.ci.imm_h == 0 && instc.ci.rd != 0 && instc.ci.imm_l != 0) { // c.mv -> add rd, x0, rs2
-                    // TODO
+                    r.r.op    = OP_ARITHR;
+                    r.r.rd    = instc.cr.rd;
+                    r.r.func3 = OP_ADD;
+                    r.r.rs1   = 0;
+                    r.r.rs2   = instc.cr.rs2;
+                    r.r.func7 = 0;
                     break;
                 }
                 if (instc.ci.imm_h == 1 && instc.ci.rd == 0 && instc.ci.imm_l == 0) { // c.ebreak -> ebreak
-                    // TODO
+                    r.inst    = 0x00100073;
                     break;
                 }
                 if (instc.ci.imm_h == 1 && instc.ci.rd != 0 && instc.ci.imm_l == 0) { // c.jalr -> jalr x1, 0(rs1)
-                    // TODO
+                    r.i.op    = OP_JALR;
+                    r.i.rd    = 1;
+                    r.i.func3 = 0x0;
+                    r.i.rs1   = instc.ci.rd;
+                    r.i.imm   = 0;
                     break;
                 }
                 if (instc.ci.imm_h == 1 && instc.ci.rd != 0 && instc.ci.imm_l != 0) { // c.add -> add rd, rd, rs2
-                    // TODO
+                    r.r.op    = OP_ARITHR;
+                    r.r.rd    = instc.cr.rd;
+                    r.r.func3 = OP_ADD;
+                    r.r.rs1   = instc.cr.rd;
+                    r.r.rs2   = instc.cr.rs2;
+                    r.r.func7 = 0;
                     break;
                 }
                 *illegal = 1;
                 break;
             case OP_CLWSP   : // c.lwsp -> lw rd, offset[7:2](x2)
-                // TODO
+                if (instc.ci.rd == 0) {
+                    r.i.op    = OP_LOAD;
+                    r.i.rd    = instc.ci.rd;
+                    r.i.func3 = OP_LW;
+                    r.i.rs1   = 2;
+                    r.i.imm   = (instc.ci.imm_h ? 0xfc0 : 0) +
+                                instc.ci.imm_l * 4;
+                } else {
+                    *illegal = 1;
+                }
                 break;
             case OP_CSLLI   : // c.slli -> slli rd, rd, shamt[5:0]
-                // TODO
+                r.r.op    = OP_ARITHI;
+                r.r.rd    = instc.ci.rd;
+                r.r.func3 = OP_SLL;
+                r.r.rs1   = instc.ci.rd;
+                r.r.rs2   = (instc.ci.imm_h ? 0x10 : 0) + instc.ci.imm_l;
+                r.r.func7 = 0;
                 break;
             case OP_CSWSP   : // c.swsp -> sw rs2, offset[7:2](x2)
-                // TODO
+                r.s.op    = OP_STORE;
+                r.s.imm1  = instc.css.imm & 0x01c;
+                r.s.func3 = OP_SW;
+                r.s.rs1   = 2;
+                r.s.rs2   = instc.css.rs2;
+                r.s.imm2  = ((instc.css.imm & 2) ? 0x7c0 : 0) +
+                            ((instc.css.imm >> 5) & 1) +
+                            ((instc.css.imm << 1) & 2);
                 break;
             default: *illegal = 1;
         }

@@ -552,13 +552,13 @@ int main(int argc, char **argv) {
             TRAP(TRAP_INST_FAIL, pc);
         }
 
-        if ((pc&2) != 0) {
+        if ((pc&1) != 0) {
             printf("PC 0x%08x alignment error\n", pc);
             TRAP(TRAP_INST_ALIGN, pc);
         }
 
         inst.inst = (IVA2PA(pc) & 2) ?
-                     (imem[IVA2PA(pc)/4+1] << 16) | ((imem[IVA2PA(pc)] >> 16) & 0xffff) :
+                     (imem[IVA2PA(pc)/4+1] << 16) | ((imem[IVA2PA(pc)/4] >> 16) & 0xffff) :
                      imem[IVA2PA(pc)/4];
         instc.inst = (IVA2PA(pc) & 2) ?
                      (short)(imem[IVA2PA(pc)/4] >> 16) :
@@ -597,6 +597,9 @@ int main(int argc, char **argv) {
         prev_pc = pc;
 
         compressed = compressed_decoder(instc, &inst, &illegal);
+
+        if (compressed && 0)
+            TRACE_LOG "           Translate 0x%04x => 0x%08x\n", (unsigned short)instc.inst, inst.inst TRACE_END;
 
         if (illegal) {
             TRAP(TRAP_INST_ILL, (int)instc.inst);
