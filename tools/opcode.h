@@ -81,7 +81,7 @@ typedef union _INSTC {
         unsigned int op    : 2;
         unsigned int rs2_  : 3;
         unsigned int imm_l : 2;
-        unsigned int rd_   : 3;
+        unsigned int rs1_  : 3;
         unsigned int imm_h : 3;
         unsigned int func3 : 3;
     } cs;

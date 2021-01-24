@@ -23,6 +23,9 @@
 #include <stdint.h>
 #include "opcode.h"
 
+#define GET_IMM(v, from, to, mask) \
+(((from > to) ? ((v) >> ((from) - (to))) : ((v) << ((to) - (from)))) & ((mask) << to))
+
 int compressed_decoder (
     INSTC instc,
     INST  *inst,
@@ -45,15 +48,15 @@ int compressed_decoder (
                     *illegal = 1;
                     break;
                 }
-                if (r.i.imm != 0) {
+                if (instc.ciw.imm != 0) {
                     r.i.op    = OP_ARITHI;
                     r.i.rd    = 8 + instc.ciw.rd_;
                     r.i.func3 = OP_ADD;
                     r.i.rs1   = 2;
-                    r.i.imm   = (((instc.ciw.imm << 2) & 0xf0) +
-                                 ((instc.ciw.imm >> 4) & 0xc0) +
-                                 ((instc.ciw.imm << 1) & 0x02) +
-                                 ((instc.ciw.imm >> 1) & 0x01) ) * 4;
+                    r.i.imm   = GET_IMM(instc.ciw.imm, 0, 3, 0x1) + // imm[3]
+                                GET_IMM(instc.ciw.imm, 1, 2, 0x1) + // imm[2]
+                                GET_IMM(instc.ciw.imm, 2, 6, 0xf) + // imm[9:6]
+                                GET_IMM(instc.ciw.imm, 6, 4, 0x3) ; // imm[5:4]
                 } else {
                     *illegal = 1;
                     break;
@@ -64,18 +67,19 @@ int compressed_decoder (
                 r.i.rd    = 8 + instc.cl.rd_;
                 r.i.func3 = OP_LW;
                 r.i.rs1   = 8 + instc.cl.rs1_;
-                r.i.imm   = ((instc.cl.imm_h >> 1) +
-                             ((instc.cl.imm_l >> 1) & 0x01) +
-                             ((instc.cl.imm_l << 4) & 0x10) ) * 4;
+                r.i.imm   = GET_IMM(instc.cl.imm_h, 0, 3, 0x7) + // imm_h[5:3]
+                            GET_IMM(instc.cl.imm_l, 0, 6, 0x1) + // imm_l[6]
+                            GET_IMM(instc.cl.imm_l, 1, 2, 0x1) ; // imm_l[2]
                 break;
             case OP_CSW       : // c.sw -> sw rs2′, offset[6:2](rs1′)
-                r.i.op    = OP_STORE;
-                r.i.rd    = 8 + instc.cl.rd_;
-                r.i.func3 = OP_SW;
-                r.i.rs1   = 8 + instc.cl.rs1_;
-                r.i.imm   = ((instc.cl.imm_h >> 1) +
-                             ((instc.cl.imm_l >> 1) & 0x01) +
-                             ((instc.cl.imm_l << 4) & 0x10) ) * 4;
+                r.s.op    = OP_STORE;
+                r.s.imm1  = GET_IMM(instc.cs.imm_h, 0, 3, 0x3) +
+                            GET_IMM(instc.cs.imm_l, 1, 2, 0x1) ;
+                r.s.func3 = OP_SW;
+                r.s.rs1   = 8 + instc.cs.rs1_;
+                r.s.rs2   = 8 + instc.cs.rs2_;
+                r.s.imm2  = GET_IMM(instc.cs.imm_l, 0, 1, 0x1) +
+                            GET_IMM(instc.cs.imm_h, 2, 0, 0x1) ;
                 break;
             default: *illegal = 1;
         }
@@ -100,56 +104,58 @@ int compressed_decoder (
                     r.i.rd    = instc.ci.rd;
                     r.i.func3 = OP_ADD;
                     r.i.rs1   = instc.ci.rd;
-                    r.i.imm   = (instc.ci.imm_h << 5) + instc.ci.imm_l;
+                    r.i.imm   = (instc.ci.imm_h ? 0xfe0 : 0) + instc.ci.imm_l;
                 } else {
                     *illegal = 1;
                 }
                 break;
             case OP_CBEQZ     : // c.beqz -> beq rs1′, x0, offset[8:1]
                 r.b.op    = OP_BRANCH;
-                r.b.imm1  = (instc.cb.imm_l & 6) + ((instc.cb.imm_h >> 2) & 1) +
-                            ((instc.cb.imm_h << 3) & 0x18);
+                r.b.imm1  = GET_IMM(instc.cb.imm_h, 0, 3, 0x3) +
+                            GET_IMM(instc.cb.imm_l, 1, 1, 0x3) +
+                            ((instc.cb.imm_h & 4) ? 1 : 0);
                 r.b.func3 = OP_BEQ;
                 r.b.rs1   = instc.cb.rs1_ + 8;
                 r.b.rs2   = 0;
                 r.b.imm2  = ((instc.cb.imm_h & 4) ? 0x78 : 0) +
-                            (instc.cb.imm_l & 1) +
-                            ((instc.cb.imm_l >> 2) & 6);
+                            GET_IMM(instc.cb.imm_l, 3, 1, 0x3) +
+                            GET_IMM(instc.cb.imm_l, 0, 0, 0x1) ;
                 break;
             case OP_CBNEZ     : // c.bnez -> bne rs1′, x0, offset[8:1]
                 r.b.op    = OP_BRANCH;
-                r.b.imm1  = (instc.cb.imm_l & 6) + ((instc.cb.imm_h >> 2) & 1) +
-                            ((instc.cb.imm_h << 3) & 0x18);
+                r.b.imm1  = GET_IMM(instc.cb.imm_h, 0, 3, 0x3) +
+                            GET_IMM(instc.cb.imm_l, 1, 1, 0x3) +
+                            ((instc.cb.imm_h & 4) ? 1 : 0);
                 r.b.func3 = OP_BNE;
                 r.b.rs1   = instc.cb.rs1_ + 8;
                 r.b.rs2   = 0;
                 r.b.imm2  = ((instc.cb.imm_h & 4) ? 0x78 : 0) +
-                            (instc.cb.imm_l & 1) +
-                            ((instc.cb.imm_l >> 2) & 6);
+                            GET_IMM(instc.cb.imm_l, 3, 1, 0x3) +
+                            GET_IMM(instc.cb.imm_l, 0, 0, 0x1) ;
                 break;
             case OP_CJ        : // c.j -> jal x0, offset[11:1]
                 r.j.op  = OP_JAL;
                 r.j.rd  = 0;
                 r.j.imm = ((instc.cj.offset & 0x400) ? 0x801ff : 0) +
-                          ((instc.cj.offset & 0x001) << 13) +
-                          ((instc.cj.offset & 0x007) << 9) +
-                          ((instc.cj.offset & 0x010) << 15) +
-                          ((instc.cj.offset & 0x020) << 14) +
-                          ((instc.cj.offset & 0x040) << 18) +
-                          ((instc.cj.offset & 0x180) << 16) +
-                          ((instc.cj.offset & 0x200) << 12);
+                          GET_IMM(instc.cj.offset, 0, 13, 0x1) + // imm[5]
+                          GET_IMM(instc.cj.offset, 1,  9, 0x7) + // imm[3:1]
+                          GET_IMM(instc.cj.offset, 4, 15, 0x1) + // imm[7]
+                          GET_IMM(instc.cj.offset, 5, 14, 0x1) + // imm[6]
+                          GET_IMM(instc.cj.offset, 6, 18, 0x1) + // imm[10]
+                          GET_IMM(instc.cj.offset, 7, 16, 0x3) + // imm[9:8]
+                          GET_IMM(instc.cj.offset, 9, 12, 0x1) ; // imm[4]
                 break;
             case OP_CJAL      : // c.jal -> jal x1, offset[11:1]
                 r.j.op  = OP_JAL;
                 r.j.rd  = 1;
                 r.j.imm = ((instc.cj.offset & 0x400) ? 0x801ff : 0) +
-                          ((instc.cj.offset & 0x001) << 13) +
-                          ((instc.cj.offset & 0x00e) << 9) +
-                          ((instc.cj.offset & 0x010) << 15) +
-                          ((instc.cj.offset & 0x020) << 14) +
-                          ((instc.cj.offset & 0x040) << 18) +
-                          ((instc.cj.offset & 0x180) << 16) +
-                          ((instc.cj.offset & 0x200) << 12);
+                          GET_IMM(instc.cj.offset, 0, 13, 0x1) + // imm[5]
+                          GET_IMM(instc.cj.offset, 1,  9, 0x7) + // imm[3:1]
+                          GET_IMM(instc.cj.offset, 4, 15, 0x1) + // imm[7]
+                          GET_IMM(instc.cj.offset, 5, 14, 0x1) + // imm[6]
+                          GET_IMM(instc.cj.offset, 6, 18, 0x1) + // imm[10]
+                          GET_IMM(instc.cj.offset, 7, 16, 0x3) + // imm[9:8]
+                          GET_IMM(instc.cj.offset, 9, 12, 0x1) ; // imm[4]
                 break;
             case OP_CLI       : // c.li -> addi rd, x0, imm[5:0]
                 if (instc.ci.rd == 0) { // HINT (addi x0, x0, 0)
@@ -174,11 +180,11 @@ int compressed_decoder (
                         r.i.rd    = 2;
                         r.i.func3 = OP_ADD;
                         r.i.rs1   = 2;
-                        r.i.imm   = ((instc.ci.imm_h ? 0xe0 : 0) +
-                                     ((instc.ci.imm_l >> 4) & 0x01) +
-                                     ((instc.ci.imm_l >> 1) & 0x04) +
-                                     ((instc.ci.imm_l << 2) & 0x18) +
-                                     ((instc.ci.imm_l << 1) & 0x02) ) * 16;
+                        r.i.imm   = (instc.ci.imm_h ? 0xe00 : 0) +
+                                    GET_IMM(instc.ci.imm_l, 0, 5, 0x1) + // imm[5]
+                                    GET_IMM(instc.ci.imm_l, 1, 7, 0x3) + // imm[8:7]
+                                    GET_IMM(instc.ci.imm_l, 3, 6, 0x1) + // imm[6]
+                                    GET_IMM(instc.ci.imm_l, 4, 4, 0x1) ; // imm[4]
                     } else { // reserved
                         *illegal = 1;
                         break;
@@ -343,13 +349,13 @@ int compressed_decoder (
                 break;
             case OP_CSWSP   : // c.swsp -> sw rs2, offset[7:2](x2)
                 r.s.op    = OP_STORE;
-                r.s.imm1  = instc.css.imm & 0x01c;
+                r.s.imm1  = GET_IMM(instc.css.imm, 2, 2, 0x7);
                 r.s.func3 = OP_SW;
                 r.s.rs1   = 2;
                 r.s.rs2   = instc.css.rs2;
-                r.s.imm2  = ((instc.css.imm & 2) ? 0x7c0 : 0) +
-                            ((instc.css.imm >> 5) & 1) +
-                            ((instc.css.imm << 1) & 2);
+                r.s.imm2  = GET_IMM(instc.css.imm, 1, 2, 0x1) +
+                            GET_IMM(instc.css.imm, 0, 1, 0x1) +
+                            GET_IMM(instc.css.imm, 5, 0, 0x1) ;
                 break;
             default: *illegal = 1;
         }
