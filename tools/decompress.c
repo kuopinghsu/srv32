@@ -232,7 +232,7 @@ int compressed_decoder (
                         r.i.rd    = instc.cb.rs1_ + 8;
                         r.i.func3 = OP_AND;
                         r.i.rs1   = instc.cb.rs1_ + 8;
-                        r.i.imm   = ((instc.cb.imm_h & 4) ? 0xff0 : 0) +
+                        r.i.imm   = ((instc.cb.imm_h & 4) ? 0xfe0 : 0) +
                                     instc.cb.imm_l;
                         break;
                     case 3:
@@ -328,24 +328,29 @@ int compressed_decoder (
                 *illegal = 1;
                 break;
             case OP_CLWSP   : // c.lwsp -> lw rd, offset[7:2](x2)
-                if (instc.ci.rd == 0) {
+                if (instc.ci.rd != 0) {
                     r.i.op    = OP_LOAD;
                     r.i.rd    = instc.ci.rd;
                     r.i.func3 = OP_LW;
                     r.i.rs1   = 2;
-                    r.i.imm   = (instc.ci.imm_h ? 0xfc0 : 0) +
-                                instc.ci.imm_l * 4;
+                    r.i.imm   = GET_IMM(instc.ci.imm_h, 0, 5, 0x1) +
+                                GET_IMM(instc.ci.imm_l, 0, 6, 0x3) +
+                                GET_IMM(instc.ci.imm_l, 2, 2, 0x7) ;
                 } else {
                     *illegal = 1;
                 }
                 break;
             case OP_CSLLI   : // c.slli -> slli rd, rd, shamt[5:0]
-                r.r.op    = OP_ARITHI;
-                r.r.rd    = instc.ci.rd;
-                r.r.func3 = OP_SLL;
-                r.r.rs1   = instc.ci.rd;
-                r.r.rs2   = (instc.ci.imm_h ? 0x10 : 0) + instc.ci.imm_l;
-                r.r.func7 = 0;
+                if (instc.ci.imm_h == 0) {
+                    r.r.op    = OP_ARITHI;
+                    r.r.rd    = instc.ci.rd;
+                    r.r.func3 = OP_SLL;
+                    r.r.rs1   = instc.ci.rd;
+                    r.r.rs2   = instc.ci.imm_l;
+                    r.r.func7 = 0;
+                } else {
+                    *illegal = 1;
+                }
                 break;
             case OP_CSWSP   : // c.swsp -> sw rs2, offset[7:2](x2)
                 r.s.op    = OP_STORE;
