@@ -4,8 +4,8 @@ _start = 0;
 
 MEMORY
 {
-  imem : ORIGIN = 0x00000000, LENGTH = 128K
-  dmem : ORIGIN = 128K, LENGTH = 128K
+  imem : ORIGIN = 0x00000000,       LENGTH = 128K
+  dmem : ORIGIN = 0x00000000 +128K, LENGTH = 128K
 }
 
 SECTIONS

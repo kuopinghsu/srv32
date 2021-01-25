@@ -45,14 +45,14 @@ int mem_size = 128*1024; // default memory size
     csr.mstatus = (csr.mstatus &  (1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
     csr.mstatus = (csr.mstatus & ~(1<<MIE)); \
     csr.mepc = prev_pc; \
-    csr.mtval = val; \
+    csr.mtval = (val); \
     pc = (csr.mtvec & 1) ? (csr.mtvec & 0xfffffffe) + cause * 4 : csr.mtvec; \
 }
 
 #define INT(cause,src) { \
     /* When the branch instruction is interrupted, do not accumulate cycles, */ \
     /* which has been added when the branch instruction is executed. */ \
-    if (pc == prev_pc+4) CYCLE_ADD(branch_penalty); \
+    if (pc == (compressed ? prev_pc+2 : prev_pc+4)) CYCLE_ADD(branch_penalty); \
     csr.mcause = cause; \
     csr.mstatus = (csr.mstatus &  (1<<MIE)) ? (csr.mstatus | (1<<MPIE)) : (csr.mstatus & ~(1<<MPIE)); \
     csr.mstatus = (csr.mstatus & ~(1<<MIE)); \
@@ -395,6 +395,7 @@ int main(int argc, char **argv) {
     int sw_irq_next;
     int ext_irq;
     int ext_irq_next;
+    int compressed = 0;
 
     const char *optstring = "hb:pl:qm:n:s";
     int c;
@@ -519,7 +520,10 @@ int main(int argc, char **argv) {
     // Execution loop
     while(1) {
         INST inst;
+        INSTC instc;
+        int illegal;
 
+        illegal = 0;
         mtime_update = 0;
 
         //FIXME: to pass the compliance test, the destination PC should
@@ -548,12 +552,17 @@ int main(int argc, char **argv) {
             TRAP(TRAP_INST_FAIL, pc);
         }
 
-        if ((pc&2) != 0) {
+        if ((pc&1) != 0) {
             printf("PC 0x%08x alignment error\n", pc);
             TRAP(TRAP_INST_ALIGN, pc);
         }
 
-        inst.inst = imem[IVA2PA(pc)/4];
+        inst.inst = (IVA2PA(pc) & 2) ?
+                     (imem[IVA2PA(pc)/4+1] << 16) | ((imem[IVA2PA(pc)/4] >> 16) & 0xffff) :
+                     imem[IVA2PA(pc)/4];
+        instc.inst = (IVA2PA(pc) & 2) ?
+                     (short)(imem[IVA2PA(pc)/4] >> 16) :
+                     (short)imem[IVA2PA(pc)/4];
 
         if ((csr.mtime.c >= csr.mtimecmp.c) &&
             (csr.mstatus & (1 << MIE)) && (csr.mie & (1 << MTIE)) &&
@@ -586,6 +595,16 @@ int main(int argc, char **argv) {
         CYCLE_ADD(1);
 
         prev_pc = pc;
+
+        compressed = compressed_decoder(instc, &inst, &illegal);
+
+        if (compressed && 0)
+            TRACE_LOG "           Translate 0x%04x => 0x%08x\n", (unsigned short)instc.inst, inst.inst TRACE_END;
+
+        if (illegal) {
+            TRAP(TRAP_INST_ILL, (int)instc.inst);
+        }
+
         switch(inst.r.op) {
             case OP_AUIPC : { // U-Type
                 regs[inst.u.rd] = pc + to_imm_u(inst.u.imm);
@@ -600,7 +619,7 @@ int main(int argc, char **argv) {
                 break;
             }
             case OP_JAL   : { // J-Type
-                regs[inst.j.rd] = pc + 4;
+                regs[inst.j.rd] = compressed ? pc + 2 : pc + 4;
                 TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n", pc, inst.inst,
                           inst.j.rd, regname[inst.j.rd], regs[inst.j.rd] TRACE_END;
                 pc += to_imm_j(inst.j.imm);
@@ -613,7 +632,7 @@ int main(int argc, char **argv) {
                 continue;
             }
             case OP_JALR  : { // I-Type
-                int new_pc = pc + 4;
+                int new_pc = compressed ? pc + 2 : pc + 4;
                 TIME_LOG; TRACE_LOG "%08x ", pc TRACE_END;
                 pc = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
                 regs[inst.i.rd] = new_pc;
@@ -846,7 +865,7 @@ int main(int argc, char **argv) {
                         inst.i.func3 == OP_SW) {
                         TRACE_LOG " write 0x%08x <= 0x%08x\n",
                               address, (data & mask) TRACE_END;
-                        pc += 4;
+                        pc = compressed ? pc + 2 : pc + 4;
                         continue;
                     }
                 }
@@ -1166,7 +1185,7 @@ int main(int argc, char **argv) {
                 continue;
             }
         }
-        pc+=4;
+        pc = compressed ? pc + 2 : pc + 4;
     }
 
     aligned_free(imem);
