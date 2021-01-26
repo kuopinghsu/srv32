@@ -111,7 +111,7 @@ The rvsim is an instruction set simulator (ISS) that can generate trace logs for
 
            file                    the elf executable file
 
-The ISS simulator and hardware supports RV32IM instruction sets.
+The ISS simulator and hardware supports RV32IMC instruction sets. (RV32C is disabled by default to pass conformance test v1)
 
 ## Benchmarks
 

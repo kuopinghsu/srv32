@@ -25,6 +25,10 @@
 #include <getopt.h>
 #include "opcode.h"
 
+#ifndef RV32C_ENABLED
+#define RV32C_ENABLED 0
+#endif
+
 int mem_size = 128*1024; // default memory size
 
 #define PRINT_TIMELOG 1
@@ -520,10 +524,14 @@ int main(int argc, char **argv) {
     // Execution loop
     while(1) {
         INST inst;
+
+#if RV32C_ENABLED
         INSTC instc;
         int illegal;
 
         illegal = 0;
+#endif // RV32C_ENABLED
+
         mtime_update = 0;
 
         //FIXME: to pass the compliance test, the destination PC should
@@ -552,17 +560,27 @@ int main(int argc, char **argv) {
             TRAP(TRAP_INST_FAIL, pc);
         }
 
+#if RV32C_ENANLED
         if ((pc&1) != 0) {
             printf("PC 0x%08x alignment error\n", pc);
             TRAP(TRAP_INST_ALIGN, pc);
         }
+#else
+        if ((pc&2) != 0) {
+            printf("PC 0x%08x alignment error\n", pc);
+            TRAP(TRAP_INST_ALIGN, pc);
+        }
+#endif
 
         inst.inst = (IVA2PA(pc) & 2) ?
                      (imem[IVA2PA(pc)/4+1] << 16) | ((imem[IVA2PA(pc)/4] >> 16) & 0xffff) :
                      imem[IVA2PA(pc)/4];
+
+#if RV32C_ENABLED
         instc.inst = (IVA2PA(pc) & 2) ?
                      (short)(imem[IVA2PA(pc)/4] >> 16) :
                      (short)imem[IVA2PA(pc)/4];
+#endif // RV32C_ENABLED
 
         if ((csr.mtime.c >= csr.mtimecmp.c) &&
             (csr.mstatus & (1 << MIE)) && (csr.mie & (1 << MTIE)) &&
@@ -596,6 +614,7 @@ int main(int argc, char **argv) {
 
         prev_pc = pc;
 
+#if RV32C_ENABLED
         compressed = compressed_decoder(instc, &inst, &illegal);
 
         if (compressed && 0)
@@ -604,6 +623,7 @@ int main(int argc, char **argv) {
         if (illegal) {
             TRAP(TRAP_INST_ILL, (int)instc.inst);
         }
+#endif // RV32C_ENABLED
 
         switch(inst.r.op) {
             case OP_AUIPC : { // U-Type
