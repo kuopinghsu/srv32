@@ -560,7 +560,7 @@ int main(int argc, char **argv) {
             TRAP(TRAP_INST_FAIL, pc);
         }
 
-#if RV32C_ENANLED
+#if RV32C_ENABLED
         if ((pc&1) != 0) {
             printf("PC 0x%08x alignment error\n", pc);
             TRAP(TRAP_INST_ALIGN, pc);
@@ -570,7 +570,7 @@ int main(int argc, char **argv) {
             printf("PC 0x%08x alignment error\n", pc);
             TRAP(TRAP_INST_ALIGN, pc);
         }
-#endif
+#endif // RV32C_ENABLED
 
         inst.inst = (IVA2PA(pc) & 2) ?
                      (imem[IVA2PA(pc)/4+1] << 16) | ((imem[IVA2PA(pc)/4] >> 16) & 0xffff) :
