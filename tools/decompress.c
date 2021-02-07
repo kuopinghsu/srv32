@@ -24,7 +24,7 @@
 #include "opcode.h"
 
 #define GET_IMM(v, from, to, mask) \
-(unsigned int)(((from > to) ? (((unsigned int)(v)) >> ((from) - (to))) : (((unsigned int)(v)) << ((to) - (from)))) & (((unsigned int)(mask)) << to))
+(((from > to) ? ((v) >> ((from) - (to))) : ((v) << ((to) - (from)))) & ((mask) << to))
 
 int compressed_decoder (
     INSTC instc,
