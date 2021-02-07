@@ -23,8 +23,22 @@
 #include <stdint.h>
 #include "opcode.h"
 
-#define GET_IMM(v, from, to, mask) \
-(((from > to) ? ((v) >> ((from) - (to))) : ((v) << ((to) - (from)))) & ((mask) << to))
+static inline
+unsigned int GET_IMM (
+    unsigned int v,
+    unsigned int from,
+    unsigned int to,
+    unsigned int mask
+) {
+    unsigned int result;
+
+    if (from > to)
+        result = v >> (from - to);
+    else
+        result = v << (to - from);
+
+    return (result & (mask << to));
+}
 
 int compressed_decoder (
     INSTC instc,
