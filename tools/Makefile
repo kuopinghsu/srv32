@@ -2,6 +2,7 @@ DEBUG    ?= 0
 top      ?= 0
 coverage ?= 0
 memsize  ?= 128
+rv32c    ?= 0
 CC        = gcc
 SYS      := $(shell gcc -dumpmachine)
 
@@ -22,6 +23,10 @@ endif
 
 ifeq ($(top), 1)
 CFLAGS  += -DSINGLE_RAM
+endif
+
+ifeq ($(rv32c), 1)
+CFLAGS  += -DRV32C_ENABLED
 endif
 
 SRC      = rvsim.c decompress.c elfread.c getch.c

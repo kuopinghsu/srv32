@@ -115,6 +115,10 @@ int singleram = 0;
 int branch_penalty = BRANCH_PENALTY;
 int mtime_update = 0;
 
+#if RV32C_ENABLED
+int overhead = 0;
+#endif
+
 int quiet = 0;
 
 char *regname[32] = {
@@ -236,8 +240,13 @@ static inline int to_imm_u(unsigned int n) {
 
 static void prog_exit(int exitcode) {
     if (!quiet) {
+#if RV32C_ENABLED
+        printf("\nExcuting %lld instructions, %lld cycles, %1.3f CPI, %1.3f%% overhead\n", csr.instret.c,
+               csr.cycle.c, ((float)csr.cycle.c)/csr.instret.c, (overhead*100.0)/csr.instret.c);
+#else
         printf("\nExcuting %lld instructions, %lld cycles, %1.3f CPI\n", csr.instret.c,
                csr.cycle.c, ((float)csr.cycle.c)/csr.instret.c);
+#endif
         printf("Program terminate\n");
     }
     exit(exitcode);
@@ -400,6 +409,9 @@ int main(int argc, char **argv) {
     int ext_irq;
     int ext_irq_next;
     int compressed = 0;
+#if RV32C_ENABLED
+    int compressed_prev = 0;
+#endif
 
     const char *optstring = "hb:pl:qm:n:s";
     int c;
@@ -616,6 +628,14 @@ int main(int argc, char **argv) {
 
 #if RV32C_ENABLED
         compressed = compressed_decoder(instc, &inst, &illegal);
+
+        // one more cycle when the instruction type changes
+        if (compressed_prev != compressed) {
+            CYCLE_ADD(1);
+            overhead++;
+        }
+
+        compressed_prev = compressed;
 
         if (compressed && 0)
             TRACE_LOG "           Translate 0x%04x => 0x%08x\n", (unsigned short)instc.inst, inst.inst TRACE_END;

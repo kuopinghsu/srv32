@@ -1,3 +1,4 @@
+rv32c   ?= 0
 CROSS_COMPILE := riscv64-unknown-elf-
 
 CC      := $(CROSS_COMPILE)gcc
@@ -7,7 +8,12 @@ OBJDUMP := $(CROSS_COMPILE)objdump
 OBJCOPY := $(CROSS_COMPILE)objcopy
 READELF := $(CROSS_COMPILE)readelf
 
+ifeq ($(rv32c), 1)
+ARCH    := -march=rv32imac -mabi=ilp32
+else
 ARCH    := -march=rv32im -mabi=ilp32
+endif
+
 CFLAGS  := -O3 -Wall $(ARCH) -nostartfiles -nostdlib
 ASFLAGS := $(ARCH)
 LDFLAGS := -lc -lm -lgcc -lsys

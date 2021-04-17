@@ -1,3 +1,4 @@
+rv32c        := 0
 LDSCRIPT      = $(ROOTDIR)/riscv-target/srv32/device/rv32i/link.ld
 
 TARGET_SIM   ?= "$(ROOT_SRV32)/sim/sim +trace"
@@ -19,7 +20,12 @@ RISCV_GCC      ?= $(RISCV_PREFIX)gcc
 RISCV_OBJDUMP  ?= $(RISCV_PREFIX)objdump
 RISCV_OBJCOPY  ?= $(RISCV_PREFIX)objcopy
 RISCV_READELF  ?= $(RISCV_PREFIX)readelf
+
+ifeq ($(rv32c),1)
+RISCV_GCC_OPTS ?= -march=rv32imac -mabi=ilp32 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles
+else
 RISCV_GCC_OPTS ?= -march=rv32im -mabi=ilp32 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles
+endif
 
 COMPILE_TARGET=\
 	$$(RISCV_GCC) $(1) $$(RISCV_GCC_OPTS) \
