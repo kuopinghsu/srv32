@@ -812,7 +812,7 @@ int main(int argc, char **argv) {
                     case OP_LH  : // fall through
                     case OP_LHU : if (address&1) {
                                     TRACE_LOG "\n" TRACE_END;
-                                    printf("Unalignment address 0x%08x to read at 0x%08x\n",
+                                    printf("Unalignment address 0x%08x to read at PC 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_LD_ALIGN, DPA2VA(address));
                                     continue;
@@ -823,7 +823,7 @@ int main(int argc, char **argv) {
                                   break;
                     case OP_LW  : if (address&3) {
                                     TRACE_LOG "\n" TRACE_END;
-                                    printf("Unalignment address 0x%08x to read at 0x%08x\n",
+                                    printf("Unalignment address 0x%08x to read at PC 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_LD_ALIGN, DPA2VA(address));
                                     continue;
@@ -893,7 +893,7 @@ int main(int argc, char **argv) {
                             if (inst.i.func3 == OP_SB ||
                                 inst.i.func3 == OP_SH ||
                                 inst.i.func3 == OP_SW) {
-                                printf("Unknown address 0x%08x to write at 0x%08x\n",
+                                printf("Unknown address 0x%08x to write at PC 0x%08x\n",
                                        address, pc);
                                 TRACE_LOG "\n" TRACE_END;
                                 TRAP(TRAP_ST_FAIL, address);
@@ -918,7 +918,7 @@ int main(int argc, char **argv) {
                                  break;
                     case OP_SH : if (address&1) {
                                     TRACE_LOG "\n" TRACE_END;
-                                    printf("Unalignment address 0x%08x to write at 0x%08x\n",
+                                    printf("Unalignment address 0x%08x to write at PC 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_ST_ALIGN, DPA2VA(address));
                                     continue;
@@ -929,7 +929,7 @@ int main(int argc, char **argv) {
                                  break;
                     case OP_SW : if (address&3) {
                                     TRACE_LOG "\n" TRACE_END;
-                                    printf("Unalignment address 0x%08x to write at 0x%08x\n",
+                                    printf("Unalignment address 0x%08x to write at PC 0x%08x\n",
                                             DPA2VA(address), pc);
                                     TRAP(TRAP_ST_ALIGN, DPA2VA(address));
                                     continue;
@@ -971,7 +971,7 @@ int main(int argc, char **argv) {
                                    else
                                        regs[inst.i.rd] = regs[inst.i.rs1] >> (inst.i.imm&0x1f);
                                    break;
-                    default: printf("Unknown instruction at 0x%08x\n", pc);
+                    default: printf("Unknown instruction at PC 0x%08x\n", pc);
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
                 }
@@ -1045,7 +1045,7 @@ int main(int argc, char **argv) {
                                         else
                                             regs[inst.r.rd] = regs[inst.r.rs1];
                                         break;
-                        default: printf("Unknown instruction at 0x%08x\n", pc);
+                        default: printf("Unknown instruction at PC 0x%08x\n", pc);
                                  TRAP(TRAP_INST_ILL, inst.inst);
                                  continue;
                     }
@@ -1076,7 +1076,7 @@ int main(int argc, char **argv) {
                                        break;
                         case OP_AND  : regs[inst.r.rd] = regs[inst.r.rs1] & regs[inst.r.rs2];
                                        break;
-                        default: printf("Unknown instruction at 0x%08x\n", pc);
+                        default: printf("Unknown instruction at PC 0x%08x\n", pc);
                                  TRAP(TRAP_INST_ILL, inst.inst);
                                  continue;
                     }
@@ -1201,7 +1201,7 @@ int main(int argc, char **argv) {
                                      update = (inst.i.rs1 == 0) ? 0 : 1;
                                      csr_type = OP_CSRRC;
                                      break;
-                    default: printf("Unknown system instruction at 0x%08x\n", pc);
+                    default: printf("Unknown system instruction at PC 0x%08x\n", pc);
                              TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
                              TRAP(TRAP_INST_ILL, inst.inst);
                              continue;
