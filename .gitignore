@@ -5,7 +5,6 @@
 *.o
 *.ko
 *.obj
-*.elf
 
 # Linker output
 *.ilk
@@ -68,4 +67,3 @@ sim/sim
 sim/sim_cc
 *.dis
 *.symbol
-*.elf
