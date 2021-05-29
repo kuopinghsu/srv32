@@ -226,10 +226,10 @@ Excuting 1306645 instructions, 1617219 cycles, 1.238 CPI
 
 ### Benchmark with different configurations
 
-| Name      | GCC8 RV32IM                     | GCC11 RV32IM                    | GCC11 RV32IM (*1)               | GCC11 RV32IM (*2)              |
-|-----------| ------------------------------- | ------------------------------- | ------------------------------- | ------------------------------ |
-| Dhrystone | 1.821 DMIPS/MHz<br>1.295 CPI    | 1.821 DMIPS/MHz<br>1.298 CPI    | 1.844 DMIPS/MHz<br>1.158 CPI    | 2.151 DMIPS/MHz<br>1.000 CPI   |
-| Coremark  | 3.060 Coremark/MHz<br>1.240 CPI | 3.120 Coremark/MHz<br>1.238 CPI | 3.470 Coremark/MHz<br>1.102 CPI | 3.815 Coremark/MHz<br>1.000CPI |
+| Name      | GCC11 RV32IM                    | GCC11 RV32IM (*1)               | GCC11 RV32IM (*2)              |
+|-----------| ------------------------------- | ------------------------------- | ------------------------------ |
+| Dhrystone | 1.821 DMIPS/MHz<br>1.298 CPI    | 1.844 DMIPS/MHz<br>1.158 CPI    | 2.151 DMIPS/MHz<br>1.000 CPI   |
+| Coremark  | 3.120 Coremark/MHz<br>1.238 CPI | 3.470 Coremark/MHz<br>1.102 CPI | 3.815 Coremark/MHz<br>1.000CPI |
 
 > Note 1: this is a measurement made by ISS simulator for GCC11 with static branch prediction.
 
