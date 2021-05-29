@@ -246,7 +246,7 @@ Excuting 1306645 instructions, 1617219 cycles, 1.238 CPI
 
 ## Cycles per Instruction Performance
 
-Two instructions branch penalty if branch taken, CPI is 1 for other instructions. The average Cycles per Instruction (CPI) is approximately 1.2 on Dhrystone diag.
+Two instructions branch penalty if branch taken, CPI is 1 for other instructions. The average Cycles per Instruction (CPI) is approximately 1.3 on Dhrystone diag.
 
 This core is three-stage pipeline processors, which is Fetch & Decode (F/D), execution (E) and write back (WB).
 
