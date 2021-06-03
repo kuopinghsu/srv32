@@ -1,4 +1,6 @@
 
+coverage ?= 0
+
 ifeq (, $(shell which genhtml))
     $(error "require install lcov package to report code coverage.")
 endif
@@ -8,7 +10,9 @@ all:
 	@genhtml coverage.info -o html
 
 clean:
-	@$(RM) -rf *_cov.dat coverage.info html
+	-@if [ $(coverage) = 0 ]; then \
+		$(RM) -rf *_cov.dat coverage.info html; \
+	fi
 
 distclean: clean
 

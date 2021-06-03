@@ -56,6 +56,8 @@ coverage: coverage_extra
 	@genhtml coverage.info -o html
 
 coverage_extra:
+	-@$(MAKE) irq.run
+	-@$(MAKE) sem.run
 	-@./$(RVSIM) -q
 	-@./$(RVSIM) -h
 	-@./$(RVSIM) dummy
@@ -63,8 +65,10 @@ coverage_extra:
 	-@./$(RVSIM) -m 0x0 -n 131072 -b 1 -s -p -l trace.log ../sw/hello/hello.elf
 
 clean:
-	@$(RM) $(OBJECTS) dump.txt trace.log trace.log.dis $(RVSIM)
-	@$(RM) -rf html coverage.info *.gcda *.gcno *.gcov
+	-$(RM) $(OBJECTS) dump.txt trace.log trace.log.dis $(RVSIM)
+	-if [ $(coverage) = 0 ]; then \
+		$(RM) -rf html coverage.info *.gcda *.gcno *.gcov; \
+	fi
 
 distclean: clean
 

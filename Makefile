@@ -57,11 +57,11 @@ all-sw:
 	done
 
 tests:
-	$(MAKE) clean && $(MAKE) rv32c=$(rv32c) memsize=$(memsize) -C sim; $(MAKE) rv32c=$(rv32c) -C tools
+	$(MAKE) coverage=$(coverage) clean && $(MAKE) rv32c=$(rv32c) memsize=$(memsize) -C sim; $(MAKE) rv32c=$(rv32c) -C tools
 	$(MAKE) memsize=$(memsize) test_v=$(test_v) rv32c=$(rv32c) -C tests tests
 
 tests-sw:
-	$(MAKE) clean && $(MAKE) rv32c=$(rv32c) memsize=$(memsize) -C sim; $(MAKE) rv32c=$(rv32c) -C tools
+	$(MAKE) coverage=$(coverage) clean && $(MAKE) rv32c=$(rv32c) memsize=$(memsize) -C sim; $(MAKE) rv32c=$(rv32c) -C tools
 	$(MAKE) memsize=$(memsize) test_v=$(test_v) rv32c=$(rv32c) -C tests tests-sw
 
 build:

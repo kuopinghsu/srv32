@@ -317,11 +317,11 @@ directory.
 
 This is the coverage report of RTL by lcov, which get 100% code coverage.
 
-<img src="images/coverage.png" alt="coverage">
+<img src="images/coverage.svg" alt="coverage" width=480>
 
 This is the coverage report of ISS.
 
-<img src="images/coverage_iss.png" alt="coverage-ISS">
+<img src="images/coverage_iss.svg" alt="coverage-ISS" width=480>
 
 ## Known issues
 
