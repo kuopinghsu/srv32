@@ -80,6 +80,16 @@ module testbench();
     integer         dump;
     integer         STDIN = 0;
 
+task printStatistics;
+begin
+    $display("\nExcuting %0d instructions, %0d cycles, %0d.%03d CPI",
+            `TOP.csr_instret, `TOP.csr_cycle,
+            `TOP.csr_cycle/`TOP.csr_instret,
+            (`TOP.csr_cycle * 1000 /`TOP.csr_instret) % 1000);
+    $display("Program terminate");
+end
+endtask
+
 `ifndef SYNTHESIS
 initial begin
     if ($test$plusargs("help") != 0) begin
@@ -222,9 +232,7 @@ end
             mem_rdata[31: 8] <= 'd0;
         end
         else if (mem_ready && mem_we && mem_addr == MMIO_EXIT) begin
-            $display("\nExcuting %0d instructions, %0d cycles", `TOP.csr_instret,
-                     `TOP.csr_cycle);
-            $display("Program terminate");
+	    printStatistics();
             #10 $finish(1);
         end
         else if (mem_ready &&
@@ -238,9 +246,7 @@ end
     always @(posedge clk) begin
         if (`TOP.wb_system && !`TOP.wb_stall) begin
             if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_EXIT}) begin
-                $display("\nExcuting %0d instructions, %0d cycles",
-                        `TOP.csr_instret, `TOP.csr_cycle);
-                $display("Program terminate");
+		printStatistics();
                 #10 $finish(2);
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_WRITE} &&
                 `TOP.regs[REG_A0] == 32'h1) begin // stdout
@@ -379,9 +385,7 @@ end
             dmem_rdata[31: 8] <= 'd0;
         end
         else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_EXIT) begin
-            $display("\nExcuting %0d instructions, %0d cycles", `TOP.csr_instret,
-                     `TOP.csr_cycle);
-            $display("Program terminate");
+            printStatistics();
             #10 $finish(1);
         end
         else if (dmem_wready &&
@@ -395,9 +399,7 @@ end
     always @(posedge clk) begin
         if (`TOP.wb_system && !`TOP.wb_stall) begin
             if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_EXIT}) begin
-                $display("\nExcuting %0d instructions, %0d cycles",
-                        `TOP.csr_instret, `TOP.csr_cycle);
-                $display("Program terminate");
+                printStatistics();
                 #10 $finish(2);
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_WRITE} &&
                 `TOP.regs[REG_A0] == 32'h1) begin // stdout
