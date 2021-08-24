@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <sys/time.h>
 #include "opcode.h"
 
 #ifndef RV32C_ENABLED
@@ -114,6 +115,8 @@ int mem_base = 0;
 int singleram = 0;
 int branch_penalty = BRANCH_PENALTY;
 int mtime_update = 0;
+struct timeval time_start;
+struct timeval time_end;
 
 #if RV32C_ENABLED
 int overhead = 0;
@@ -239,6 +242,11 @@ static inline int to_imm_u(unsigned int n) {
 }
 
 static void prog_exit(int exitcode) {
+    double diff;
+    gettimeofday(&time_end, NULL);
+
+    diff = (double)(time_end.tv_sec-time_start.tv_sec) + (time_end.tv_usec-time_start.tv_usec)/1000000.0;
+
     if (!quiet) {
 #if RV32C_ENABLED
         printf("\nExcuting %lld instructions, %lld cycles, %1.3f CPI, %1.3f%% overhead\n", csr.instret.c,
@@ -247,7 +255,16 @@ static void prog_exit(int exitcode) {
         printf("\nExcuting %lld instructions, %lld cycles, %1.3f CPI\n", csr.instret.c,
                csr.cycle.c, ((float)csr.cycle.c)/csr.instret.c);
 #endif
+
         printf("Program terminate\n");
+
+        printf("\n");
+        printf("Simulation statistics\n");
+        printf("=====================\n");
+	printf("Simulation time  : %0.3f s\n", (float)diff);
+	printf("Simulation cycles: %lld\n", csr.cycle.c);
+	printf("Simulation speed : %0.3f MHz\n", (float)(csr.cycle.c / diff / 1000000.0));
+        printf("\n");
     }
     exit(exitcode);
 }
@@ -532,6 +549,8 @@ int main(int argc, char **argv) {
     ext_irq        = 0;
     ext_irq_next   = 0;
     mode           = MMODE;
+
+    gettimeofday(&time_start, NULL);
 
     // Execution loop
     while(1) {

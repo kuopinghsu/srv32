@@ -56,19 +56,17 @@ int main(int argc, char** argv)
     #ifdef HAVE_CHRONO
     {
           std::chrono::steady_clock::time_point time_end;
-          int ms;
+          float sec;
           int cycles = main_time / RESOLUTION;
           time_end = std::chrono::steady_clock::now();
-          ms = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_begin).count();
-          double speed_hz = cycles / (ms / 1000.0);
-          double speed_khz = speed_hz / 1000.0;
+          sec = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_begin).count() / 1000.0;
+          float speed_mhz = cycles / sec / 1000000.0;
           std::cout << std::endl;
           std::cout << "Simulation statistics" << std::endl;
           std::cout << "=====================" << std::endl;
-          std::cout << "Simulation time  : " << ms / 1000.0 << " s" << std::endl;
+          std::cout << "Simulation time  : " << sec << " s" << std::endl;
           std::cout << "Simulation cycles: " << cycles << std::endl;
-          std::cout << "Simulation speed : " << speed_hz << " cycles/s "
-                    << "(" << speed_khz << " kHz)" << std::endl << std::endl;
+          std::cout << "Simulation speed : " << speed_mhz << " MHz" << std::endl << std::endl;
     }
     #endif
 
