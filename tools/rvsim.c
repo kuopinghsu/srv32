@@ -1163,6 +1163,20 @@ int main(int argc, char **argv) {
                                                        fclose(fp);
                                                    }
                                                    break;
+                                               case SYS_DUMP_BIN: {
+                                                       FILE *fp;
+                                                       int i;
+                                                       if ((fp = fopen("dump.bin", "wb")) == NULL) {
+                                                           printf("Create dump.bin fail\n");
+                                                           exit(1);
+                                                       }
+                                                       for(i = DVA2PA(regs[A0]);
+                                                           i < DVA2PA(regs[A1]); i++) {
+                                                           fprintf(fp, "%c", (dmem[i/4]>>((i%4)*8))&0xff);
+                                                       }
+                                                       fclose(fp);
+                                                   }
+                                                   break;
                                                default:
                                                    break;
                                             }

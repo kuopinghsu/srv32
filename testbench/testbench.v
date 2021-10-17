@@ -232,7 +232,7 @@ end
             mem_rdata[31: 8] <= 'd0;
         end
         else if (mem_ready && mem_we && mem_addr == MMIO_EXIT) begin
-	    printStatistics();
+            printStatistics();
             #10 $finish(1);
         end
         else if (mem_ready &&
@@ -246,7 +246,7 @@ end
     always @(posedge clk) begin
         if (`TOP.wb_system && !`TOP.wb_stall) begin
             if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_EXIT}) begin
-		printStatistics();
+                printStatistics();
                 #10 $finish(2);
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_WRITE} &&
                 `TOP.regs[REG_A0] == 32'h1) begin // stdout
@@ -260,6 +260,10 @@ end
                                                         mem.getb(i + 2),
                                                         mem.getb(i + 1),
                                                         mem.getb(i + 0));
+                end
+            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_DUMP_BIN} && dump != 0) begin
+                for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 1) begin
+                    $fwrite(dump, "%c", mem.getb(i));
                 end
             end
         end
@@ -413,6 +417,10 @@ end
                                                         dmem.getb(i - IRAMSIZE + 2),
                                                         dmem.getb(i - IRAMSIZE + 1),
                                                         dmem.getb(i - IRAMSIZE + 0));
+                end
+            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == {24'd0, SYS_DUMP_BIN} && dump != 0) begin
+                for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 1) begin
+                    $fwrite(dump, "%c", dmem.getb(i - IRAMSIZE));
                 end
             end
         end

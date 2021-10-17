@@ -315,13 +315,14 @@ enum {
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
 enum {
-    SYS_CLOSE   = 0x39,
-    SYS_READ    = 0x3f,
-    SYS_WRITE   = 0x40,
-    SYS_FSTAT   = 0x50,
-    SYS_EXIT    = 0x5d,
-    SYS_SBRK    = 0xd6,
-    SYS_DUMP    = 0x88
+    SYS_CLOSE       = 0x39,
+    SYS_READ        = 0x3f,
+    SYS_WRITE       = 0x40,
+    SYS_FSTAT       = 0x50,
+    SYS_EXIT        = 0x5d,
+    SYS_SBRK        = 0xd6,
+    SYS_DUMP        = 0x88,
+    SYS_DUMP_BIN    = 0x99
 };
 
 // Exception code
