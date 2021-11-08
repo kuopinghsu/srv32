@@ -16,9 +16,11 @@
 #define RV_COMPLIANCE_HALT                                                    \
         la      a0, begin_signature;                                          \
         la      a1, end_signature;                                            \
-        li      a7, 0x88;                                                     \
+        li      a7, 0xbeef0000;                                               \
+        addi    a7 , a7, 0x88;                                                \
         ecall;                                                                \
-        li      a7, 0x5d;                                                     \
+        li      a7, 0xbeef0000;                                               \
+        addi    a7 , a7, 0x5d;                                                \
         ecall;                                                                \
 1:      j       1b;
 

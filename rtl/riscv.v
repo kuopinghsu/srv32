@@ -1015,6 +1015,18 @@ always @(posedge clk) begin
         wb_raddress         <= dmem_raddr[31:0];
     end
 end
+
+function [31:0] set_reg;
+    input [ 4:0] regn;
+    input [31:0] data;
+begin
+    /* verilator lint_off BLKSEQ */
+    regs[regn] = data;
+    /* verilator lint_on BLKSEQ */
+    set_reg = data;
+end
+endfunction
+
 /* verilator coverage_on */
 /* Verilator lint_on UNUSED */
 `endif // SYNTHESIS

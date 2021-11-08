@@ -3,7 +3,7 @@
 #include <termios.h>
 
 extern "C" {
-   char getch (void);
+    char getch (void);
 }
 
 char getch(void)

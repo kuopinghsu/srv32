@@ -19,6 +19,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#ifndef __OPCODE_H__
+#define __OPCODE_H__
+
 #define _CRT_SECURE_NO_WARNINGS 1
 
 #if defined(__MINGW__) || defined(_MSC_VER)
@@ -315,14 +318,16 @@ enum {
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
 enum {
-    SYS_CLOSE       = 0x39,
-    SYS_READ        = 0x3f,
-    SYS_WRITE       = 0x40,
-    SYS_FSTAT       = 0x50,
-    SYS_EXIT        = 0x5d,
-    SYS_SBRK        = 0xd6,
-    SYS_DUMP        = 0x88,
-    SYS_DUMP_BIN    = 0x99
+    SYS_OPEN        = 0xbeef0031,
+    SYS_LSEEK       = 0xbeef0032,
+    SYS_CLOSE       = 0xbeef0039,
+    SYS_READ        = 0xbeef003f,
+    SYS_WRITE       = 0xbeef0040,
+    SYS_FSTAT       = 0xbeef0050,
+    SYS_EXIT        = 0xbeef005d,
+    SYS_SBRK        = 0xbeef00d6,
+    SYS_DUMP        = 0xbeef0088,
+    SYS_DUMP_BIN    = 0xbeef0099
 };
 
 // Exception code
@@ -460,4 +465,16 @@ int compressed_decoder (
     INST  *inst,
     int   *illegal
 );
+
+#define IMEM_BASE   (0+mem_base)
+#define DMEM_BASE   (mem_size+mem_base)
+#define IMEM_SIZE   mem_size
+#define DMEM_SIZE   mem_size
+
+#define IVA2PA(addr) ((addr)-IMEM_BASE)
+#define IPA2VA(addr) ((addr)+IMEM_BASE)
+#define DVA2PA(addr) ((addr)-DMEM_BASE)
+#define DPA2VA(addr) ((addr)+DMEM_BASE)
+
+#endif // __OPCODE_H__
 

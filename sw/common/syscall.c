@@ -11,12 +11,14 @@
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
 enum {
-    SYS_CLOSE   = 0x39,
-    SYS_READ    = 0x3f,
-    SYS_WRITE   = 0x40,
-    SYS_FSTAT   = 0x50,
-    SYS_EXIT    = 0x5d,
-    SYS_SBRK    = 0xd6
+    SYS_OPEN    = 0xbeef0031,
+    SYS_LSEEK   = 0xbeef0032,
+    SYS_CLOSE   = 0xbeef0039,
+    SYS_READ    = 0xbeef003f,
+    SYS_WRITE   = 0xbeef0040,
+    SYS_FSTAT   = 0xbeef0050,
+    SYS_EXIT    = 0xbeef005d,
+    SYS_SBRK    = 0xbeef00d6
 };
 
 extern int errno;
@@ -52,13 +54,25 @@ int _getchar(void) {
     return *(volatile char*)MEMIO_GETC;
 }
 
+/* open file */
+ssize_t
+_open(const char *pathname, int flags, int mode)
+{
+#if HAVE_SYSCALL
+    int res = __internal_syscall(SYS_OPEN, (long)pathname, (long)flags, (long)mode, 0, 0, 0);
+    return res;
+#else
+    return -1;
+#endif
+}
+
 /* Write to a file.  */
 ssize_t
 _write(int file, const void *ptr, size_t len)
 {
 #if HAVE_SYSCALL
-    __internal_syscall(SYS_WRITE, (long)file, (long)ptr, (long)len, 0, 0, 0);
-    return len;
+    int res = __internal_syscall(SYS_WRITE, (long)file, (long)ptr, (long)len, 0, 0, 0);
+    return res;
 #else
     const char *buf = (char*)ptr;
     int i;
@@ -76,24 +90,32 @@ int _fstat(int file, struct stat *st)
 
 int _close(int file)
 {
+#if HAVE_SYSCALL
+    int res = __internal_syscall(SYS_CLOSE, (long)file, 0, 0, 0, 0, 0);
+    return res;
+#else
     //errno = ENOENT;
     return -1;
+#endif
 }
 
 int _lseek(int file, int ptr, int dir)
 {
+#if HAVE_SYSCALL
+    int res = __internal_syscall(SYS_LSEEK, (long)file, (long)ptr, (long)dir, 0, 0, 0);
+    return res;
+#else
     //errno = ENOENT;
     return -1;
+#endif
 }
 
 #include <stdio.h>
 int _read(int file, char *ptr, int len)
 {
 #if HAVE_SYSCALL
-    int i;
-    __internal_syscall(SYS_READ, (long)file, (long)ptr, (long)len, 0, 0, 0);
-    for(i=0; i<len && ptr[i] != '\n'; i++);
-    return i;
+    int res = __internal_syscall(SYS_READ, (long)file, (long)ptr, (long)len, 0, 0, 0);
+    return res;
 #else
     char *buf = (char*)ptr;
     char c = 0;

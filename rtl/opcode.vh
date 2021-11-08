@@ -133,13 +133,16 @@ localparam  [11: 0] CSR_MVENDORID   = 12'hF11,    // Vender ID
                     CSR_RDINSTRETH  = 12'hc82;    // upper 32-bits of instruction-retired counter
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
-localparam  [ 7: 0] SYS_CLOSE       = 8'h39,
-                    SYS_WRITE       = 8'h40,
-                    SYS_FSTAT       = 8'h50,
-                    SYS_EXIT        = 8'h5d,
-                    SYS_SBRK        = 8'hd6,
-                    SYS_DUMP        = 8'h88,
-                    SYS_DUMP_BIN    = 8'h99;
+localparam  [31: 0] SYS_OPEN        = 32'hbeef0031,
+                    SYS_LSEEK       = 32'hbeef0032,
+                    SYS_CLOSE       = 32'hbeef0039,
+                    SYS_READ        = 32'hbeef003f,
+                    SYS_WRITE       = 32'hbeef0040,
+                    SYS_FSTAT       = 32'hbeef0050,
+                    SYS_EXIT        = 32'hbeef005d,
+                    SYS_SBRK        = 32'hbeef00d6,
+                    SYS_DUMP        = 32'hbeef0088,
+                    SYS_DUMP_BIN    = 32'hbeef0099;
 
 // Exception code
 localparam  [31: 0] TRAP_INST_ALIGN = 32'h0,        // Instruction address misaligned

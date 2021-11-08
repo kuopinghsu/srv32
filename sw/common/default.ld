@@ -48,6 +48,7 @@ SECTIONS
     *(.srodata .srodata.* .gnu.linkonce.r.*)
     *(.sdata .sdata.* .gnu.linkonce.s.*)
     *(.rodata .rodata.* .gnu.linkonce.r.*)
+    *(.init*)
     *(.data .data.* .gnu.linkonce.d.*)
     KEEP (*(.gnu.linkonce.d.*personality*))
     . = ALIGN(32 / 8);

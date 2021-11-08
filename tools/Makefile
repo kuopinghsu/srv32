@@ -29,7 +29,7 @@ ifeq ($(rv32c), 1)
 CFLAGS  += -DRV32C_ENABLED
 endif
 
-SRC      = rvsim.c decompress.c elfread.c getch.c
+SRC      = rvsim.c decompress.c syscall.c elfread.c getch.c
 OBJECTS  = $(SRC:.c=.o)
 RVSIM   = rvsim
 
@@ -65,7 +65,7 @@ coverage_extra:
 	-@./$(RVSIM) -m 0x0 -n 131072 -b 1 -s -p -l trace.log ../sw/hello/hello.elf
 
 clean:
-	-$(RM) $(OBJECTS) dump.txt trace.log trace.log.dis $(RVSIM)
+	-$(RM) $(OBJECTS) dump.txt trace.log trace.log.dis $(RVSIM) out.bin
 	-if [ $(coverage) = 0 ]; then \
 		$(RM) -rf html coverage.info *.gcda *.gcno *.gcov; \
 	fi
