@@ -1149,22 +1149,26 @@ int main(int argc, char **argv) {
             int update;
             int csr_op = 0;
             int csr_type;
+            int res;
             // RDCYCLE, RDTIME and RDINSTRET are read only
             switch(inst.i.func3) {
                 case OP_ECALL:
                     TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
                     switch (inst.i.imm & 3) {
                        case 0: // ecall
-                           {
-                           int res;
                            res = srv32_syscall(regs[A7], regs[A0],
                                                regs[A1], regs[A2],
                                                regs[A3], regs[A4],
                                                regs[A5]);
-                           if (res != -1) regs[A0] = res;
+                           // FIXME: if it is prefined syscall, excute it.
+                           // otherwise raising a trap
+                           if (res != -1) {
+                                regs[A0] = res;
+                           } else {
+                                TRAP(TRAP_ECALL, 0);
+                                continue;
                            }
-                           TRAP(TRAP_ECALL, 0);
-                           continue;
+                           break;
                        case 1: // ebreak
                            TRAP(TRAP_BREAK, 0);
                            continue;
