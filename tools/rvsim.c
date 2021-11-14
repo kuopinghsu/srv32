@@ -1160,6 +1160,10 @@ int main(int argc, char **argv) {
                                                regs[A1], regs[A2],
                                                regs[A3], regs[A4],
                                                regs[A5]);
+                           // Notes: FreeRTOS will use ecall to perform context switching.
+                           // The syscall of newlib will confict with the syscall of
+                           // FreeRTOS.
+                           #if 0
                            // FIXME: if it is prefined syscall, excute it.
                            // otherwise raising a trap
                            if (res != -1) {
@@ -1169,6 +1173,12 @@ int main(int argc, char **argv) {
                                 continue;
                            }
                            break;
+                           #else
+                           if (res != -1)
+                                regs[A0] = res;
+                           TRAP(TRAP_ECALL, 0);
+                           continue;
+                           #endif
                        case 1: // ebreak
                            TRAP(TRAP_BREAK, 0);
                            continue;
