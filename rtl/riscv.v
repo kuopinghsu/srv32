@@ -61,6 +61,9 @@ module riscv (
 
 `include "opcode.vh"
 
+`define IF_NEXT_PC (if_compressed ? 2 : 4)
+`define EX_NEXT_PC (ex_compressed ? 2 : 4)
+
     reg                     stall_r;
     wire            [31: 0] inst;
     reg                     flush;
@@ -74,6 +77,7 @@ module riscv (
     reg             [31: 0] if_pc;
     reg             [31: 0] ex_pc;
     reg             [31: 0] wb_pc;
+    reg             [31: 0] if_insn;
 
     // register files
     reg             [31: 0] regs [31: 1];
@@ -158,7 +162,54 @@ module riscv (
 
     integer                 i;
 
-assign inst                 = flush ? NOP : imem_rdata;
+    wire                    is_compressed;
+
+// TODO: DO NOT enable RV32C_ENABLED. This does not implement and verifiy yet.
+`ifdef RV32C_ENABLED
+    reg                     if_compressed;
+    reg                     ex_compressed;
+
+    wire            [15: 0] instr_i;
+    wire            [31: 0] instr_o;
+    wire                    illegal_instr;
+
+assign instr_i              = if_pc[1] ? imem_rdata[31:16] : imem_rdata[15: 0];
+
+decompress decompress(
+    .instr_i                (instr_i),
+    .instr_o                (instr_o),
+
+    .is_compressed_o        (is_compressed),
+    .illegal_instr_o        (illegal_instr)
+);
+assign if_insn              = is_compressed ? instr_o : imem_rdata;
+
+always @(posedge clk or negedge resetb) begin
+    if (!resetb) begin
+        if_compressed       <= 1'b1;
+    end else if (!wb_stall) begin
+        if_compressed       <= is_compressed;
+    end
+end
+
+always @(posedge clk or negedge resetb) begin
+    if (!resetb) begin
+        ex_compressed       <= 1'b1;
+    end else if (!if_stall) begin
+        ex_compressed       <= if_compressed;
+    end
+end
+`else
+    wire                    if_compressed;
+    wire                    ex_compressed;
+
+assign is_compressed        = 1'b0;
+assign if_compressed        = 1'b0;
+assign ex_compressed        = 1'b0;
+assign if_insn              = imem_rdata;
+`endif // RV32C_ENABLED
+
+assign inst                 = flush ? NOP : if_insn;
 assign if_stall             = stall_r || !imem_valid;
 assign dmem_waddr           = wb_waddr;
 assign dmem_raddr           = ex_memaddr;
@@ -371,7 +422,7 @@ assign ex_systemcall        = ex_system && !ex_flush;
 
 always @* begin
     branch_taken  = !ex_flush;
-    next_pc       = fetch_pc + 4;
+    next_pc       = fetch_pc + `IF_NEXT_PC;
     ex_ill_branch = 1'b0;
 
     case(1'b1)
@@ -381,32 +432,32 @@ always @* begin
             case(ex_alu_op)
                 OP_BEQ : begin
                             next_pc = (result_subs[32: 0] == 'd0) ?
-                                      ex_pc + ex_imm : fetch_pc + 4;
+                                      ex_pc + ex_imm : fetch_pc + `IF_NEXT_PC;
                             if (result_subs[32: 0] != 'd0) branch_taken = 1'b0;
                          end
                 OP_BNE : begin
                             next_pc = (result_subs[32: 0] != 'd0) ?
-                                      ex_pc + ex_imm : fetch_pc + 4;
+                                      ex_pc + ex_imm : fetch_pc + `IF_NEXT_PC;
                             if (result_subs[32: 0] == 'd0) branch_taken = 1'b0;
                          end
                 OP_BLT : begin
                             next_pc = result_subs[32] ?
-                                      ex_pc + ex_imm : fetch_pc + 4;
+                                      ex_pc + ex_imm : fetch_pc + `IF_NEXT_PC;
                             if (!result_subs[32]) branch_taken = 1'b0;
                          end
                 OP_BGE : begin
                             next_pc = !result_subs[32] ?
-                                      ex_pc + ex_imm : fetch_pc + 4;
+                                      ex_pc + ex_imm : fetch_pc + `IF_NEXT_PC;
                             if (result_subs[32]) branch_taken = 1'b0;
                          end
                 OP_BLTU: begin
                             next_pc = result_subu[32] ?
-                                      ex_pc + ex_imm : fetch_pc + 4;
+                                      ex_pc + ex_imm : fetch_pc + `IF_NEXT_PC;
                             if (!result_subu[32]) branch_taken = 1'b0;
                          end
                 OP_BGEU: begin
                             next_pc = !result_subu[32] ?
-                                      ex_pc + ex_imm : fetch_pc + 4;
+                                      ex_pc + ex_imm : fetch_pc + `IF_NEXT_PC;
                             if (result_subu[32]) branch_taken = 1'b0;
                          end
                 default: begin
@@ -416,7 +467,7 @@ always @* begin
             endcase
         end
         default  : begin
-                   next_pc          = fetch_pc + 4;
+                   next_pc          = fetch_pc + `IF_NEXT_PC;
                    branch_taken     = 1'b0;
                    end
     endcase
@@ -455,8 +506,8 @@ assign result_remu[31: 0]   = (alu_op2 == 32'h00000000) ? alu_op1 :
 always @* begin
     case(1'b1)
         ex_memwr:   ex_result           = alu_op2;
-        ex_jal:     ex_result           = ex_pc + 4;
-        ex_jalr:    ex_result           = ex_pc + 4;
+        ex_jal:     ex_result           = ex_pc + `EX_NEXT_PC;
+        ex_jalr:    ex_result           = ex_pc + `EX_NEXT_PC;
         ex_lui:     ex_result           = ex_imm;
         ex_auipc:   ex_result           = ex_pc + ex_imm;
         ex_csr:     ex_result           = ex_csr_read;
@@ -504,7 +555,7 @@ always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         fetch_pc            <= RESETVEC;
     end else if (!ex_stall) begin
-        fetch_pc            <= (ex_flush) ? (fetch_pc + 4) :
+        fetch_pc            <= (ex_flush) ? (fetch_pc + `EX_NEXT_PC) :
                                (ex_trap)  ? (ex_trap_pc)   :
                                {next_pc[31:1], 1'b0};
     end
