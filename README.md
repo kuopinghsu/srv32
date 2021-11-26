@@ -33,6 +33,12 @@ Install RISCV toolchains.
     ../configure --prefix=/opt/riscv --enable-multilib
     make -j$(nproc)
 
+The default tools uses riscv64-unknown-elf-. If would like to use others toolchains, you can define a environment to override it. For example,
+
+    export CROSS_COMPILER=riscv-none-embed-
+
+Therefore, you can use <A href="https://github.com/xpack-dev-tools/riscv-none-embed-gcc-xpack/">xPack GNU RISC-V Embedded GCC</A> instead of building a toolchain yourself.
+
 ## Files list
 
 | Folder    | Description                                     |

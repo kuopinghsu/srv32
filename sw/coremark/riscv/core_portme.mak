@@ -53,7 +53,7 @@ PORT_SRCS = $(PORT_DIR)/core_portme.c
 
 #For native compilation and execution
 LOAD = echo Loading done
-RUN = riscv64-unknown-elf-run
+RUN = $(CROSS_COMPILER)run
 
 OEXT = .o
 EXE = .elf

@@ -1,3 +1,8 @@
+
+ifndef CROSS_COMPILER
+export CROSS_COMPILER = riscv64-unknown-elf-
+endif
+
 dirs        = $(dir $(wildcard sw/[^_]*/))
 SUBDIRS     = $(subst /,,$(subst sw/,,$(subst common,,$(dirs))))
 

@@ -8,13 +8,14 @@
     cd ${ROOT_SRV32}
     make build
 
+    export CROSS_COMPILER=riscv64-unknown-elf-
     export TARGET_SIM=${ROOT_SRV32}/sim/sim
-    export RISCV_PREFIX=riscv64-unknown-elf-
+    export RISCV_PREFIX=${CROSS_COMPILER}
     export RISCV_TARGET=srv32
     make
 
     export TARGET_SIM=${ROOT_SRV32}/tools/rvsim
-    export RISCV_PREFIX=riscv64-unknown-elf-
+    export RISCV_PREFIX=${CROSS_COMPILER}
     export RISCV_TARGET=srv32
     make
 
