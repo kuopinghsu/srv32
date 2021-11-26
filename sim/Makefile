@@ -1,11 +1,12 @@
 verilator  ?= 1
 top        ?= 0
 rv32c      ?= 0
+debug      ?= 0
 coverage   ?= 0
 memsize    ?= 128
 
 # Run flags
-RFLAGS      = +trace
+RFLAGS      = +trace $(if $(debug), +dump)
 
 TARGET      = sim
 

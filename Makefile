@@ -4,6 +4,7 @@ SUBDIRS     = $(subst /,,$(subst sw/,,$(subst common,,$(dirs))))
 verilator ?= 1
 top       ?= 0
 coverage  ?= 0
+debug     ?= 0
 
 # set 1 for compliance test v1, 2 for v2
 test_v    ?= 1
@@ -73,7 +74,7 @@ $(SUBDIRS):
 	@$(MAKE) rv32c=$(rv32c) -C sw $@
 	@$(MAKE) $(if $(_verilator), verilator=1) \
 			 $(if $(_coverage), coverate=1) \
-			 $(if $(_top), top=1) rv32c=$(rv32c) -C sim $@.run
+			 $(if $(_top), top=1) rv32c=$(rv32c) debug=$(debug) -C sim $@.run
 	@$(MAKE) $(if $(_top), top=1) rv32c=$(rv32c) -C tools $@.run
 	@echo "Compare the trace between RTL and ISS simulator"
 	@diff --brief sim/trace.log tools/trace.log
