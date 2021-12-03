@@ -110,7 +110,7 @@ The rvsim is an instruction set simulator (ISS) that can generate trace logs for
 
     Usage: rvsim [-h] [-b n] [-p] [-l logfile] file
 
-           --help, -n              help
+           --help, -h              help
            --branch n, -b n        branch penalty (default 2)
            --predict, -p           static branch prediction
            --log file, -l file     generate log file
