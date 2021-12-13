@@ -61,8 +61,8 @@ module riscv (
 
 `include "opcode.vh"
 
-`define IF_NEXT_PC (if_compressed ? 2 : 4)
-`define EX_NEXT_PC (ex_compressed ? 2 : 4)
+`define IF_NEXT_PC (4)
+`define EX_NEXT_PC (4)
 
     reg                     stall_r;
     wire            [31: 0] inst;
@@ -162,52 +162,7 @@ module riscv (
 
     integer                 i;
 
-    wire                    is_compressed;
-
-// TODO: DO NOT enable RV32C_ENABLED. This does not implement and verifiy yet.
-`ifdef RV32C_ENABLED
-    reg                     if_compressed;
-    reg                     ex_compressed;
-
-    wire            [15: 0] instr_i;
-    wire            [31: 0] instr_o;
-    wire                    illegal_instr;
-
-assign instr_i              = if_pc[1] ? imem_rdata[31:16] : imem_rdata[15: 0];
-
-decompress decompress(
-    .instr_i                (instr_i),
-    .instr_o                (instr_o),
-
-    .is_compressed_o        (is_compressed),
-    .illegal_instr_o        (illegal_instr)
-);
-assign if_insn              = is_compressed ? instr_o : imem_rdata;
-
-always @(posedge clk or negedge resetb) begin
-    if (!resetb) begin
-        if_compressed       <= 1'b1;
-    end else if (!wb_stall) begin
-        if_compressed       <= is_compressed;
-    end
-end
-
-always @(posedge clk or negedge resetb) begin
-    if (!resetb) begin
-        ex_compressed       <= 1'b1;
-    end else if (!if_stall) begin
-        ex_compressed       <= if_compressed;
-    end
-end
-`else
-    wire                    if_compressed;
-    wire                    ex_compressed;
-
-assign is_compressed        = 1'b0;
-assign if_compressed        = 1'b0;
-assign ex_compressed        = 1'b0;
 assign if_insn              = imem_rdata;
-`endif // RV32C_ENABLED
 
 assign inst                 = flush ? NOP : if_insn;
 assign if_stall             = stall_r || !imem_valid;
