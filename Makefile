@@ -48,6 +48,20 @@ help:
 	@echo "make coremark    build Coremark diag and run the RTL sim"
 	@echo "make clean       clean"
 	@echo "make distclean   clean all"
+	@echo ""
+	@echo "rv32c=1          enable RV32C (default off)"
+	@echo "debug=1          enable waveform dump (default off)"
+	@echo "coverage=1       enable coverage test (default off)"
+	@echo "test_v=1         run test compliance v1 (default)"
+	@echo "test_v=2         run test compliance v2"
+	@echo ""
+	@echo "For example"
+	@echo ""
+	@echo "$ make tests-all             run all tests with test compliance v1"
+	@echo "$ make test_v=2 tests-all    run all tests with test compliance v2"
+	@echo "$ make coverage=1 tests-all  run all tests with code coverage report"
+	@echo "$ make debug=1 hello         run hello with waveform dump"
+	@echo ""
 
 tests-all: tests-sw tests all all-sw
 

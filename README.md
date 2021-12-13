@@ -90,6 +90,19 @@ Only running make without parameters will get help.
     make clean       clean
     make distclean   clean all
 
+    rv32c=1          enable RV32C (default off)
+    debug=1          enable waveform dump (default off)
+    coverage=1       enable coverage test (default off)
+    test_v=1         run test compliance v1 (default)
+    test_v=2         run test compliance v2
+
+    For example
+
+    make tests-all             run all tests with test compliance v1
+    make test_v=2 tests-all    run all tests with test compliance v2
+    make coverage=1 tests-all  run all tests with code coverage report
+    make debug=1 hello         run hello with waveform dump
+
 Supports following parameter when running the simulation.
 
     +no-meminit do not memory initialize zero
