@@ -4,7 +4,6 @@
 //+define+MEMSIZE=128
 //+define+SINGLE_RAM
 ../rtl/riscv.v
-../rtl/decompress.v
 ../rtl/clint.v
 ../testbench/testbench.v
 ../testbench/memmodel.v
