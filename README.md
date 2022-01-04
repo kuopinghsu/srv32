@@ -11,7 +11,7 @@ This is not a RISC-V core available for production.
 
 1.  Three-stage pipeline processor
 2.  RV32IM instruction sets
-3.  Pass RV32IM <A Href="https://github.com/riscv/riscv-compliance">compliance test</A>
+3.  Pass RV32IM <A Href="https://github.com/riscv-non-isa/riscv-arch-test">architecture test</A>
 4.  Trap exception
 5.  Interrupt handler
 6.  <A Href="https://github.com/kuopinghsu/FreeRTOS-RISCV">FreeRTOS</A> support
@@ -93,8 +93,7 @@ Only running make without parameters will get help.
     rv32c=1          enable RV32C (default off)
     debug=1          enable waveform dump (default off)
     coverage=1       enable coverage test (default off)
-    test_v=1         run test compliance v1 (default)
-    test_v=2         run test compliance v2
+    test_v=[1|2]     run test compliance v1 or v2 (default)
 
     For example
 
@@ -134,7 +133,7 @@ The ISS simulator and hardware supports RV32IMC instruction sets. (RV32C is disa
 
 ## Benchmarks
 
-This is the RV32IM simulation result on GCC11.
+This is the RV32IM simulation result in GCC11.
 
 ### Dhrystone
 
@@ -287,12 +286,12 @@ One instruction memory and one data memory. The instruction memory is read-only 
 
 ## Synthesis
 
-Provide the Yosys synthesis script on the syn folder.
+Provide the Yosys synthesis script in the syn folder.
 
-## Compliance tests
+## Architecture tests
 
-Compliance test for ISS simulator and RTL. This is the compliance test form RISC-V Foundation Compliance Task Group.
-The github repository is at <https://github.com/riscv/riscv-compliance>. Running the following command will clone the repository into tests folder and do the compliance test.
+Architecture test for ISS simulator and RTL. This is the architecture test form RISC-V Foundation Compliance Task Group.
+The github repository is at <https://github.com/riscv-non-isa/riscv-arch-test>. Running the following command will clone the repository into tests folder and do the compliance test.
 
     make tests              # run the compliance test for RTL
     make tests-sw           # run the compliance test for ISS simulator

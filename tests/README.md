@@ -1,9 +1,9 @@
 # Compliance Test
 
-<https://github.com/riscv/riscv-compliance>
+<https://github.com/riscv-non-isa/riscv-arch-test>
 
     export ROOT_SRV32=<root path of simple RISCV>
-    cp -r ${ROOT_SRV32}/tests/srv32 <path of riscv-compliance>/riscv-target/.
+    cp -r ${ROOT_SRV32}/tests/srv32 <path of riscv-arch-test>/riscv-target/.
 
     cd ${ROOT_SRV32}
     make build
@@ -19,12 +19,12 @@
     export RISCV_TARGET=srv32
     make
 
-Requires 1716K of IRAM/DRAM to run compliance test v2, and 128K of IRAM/DRAM for
+Requires 1716K of IRAM/DRAM to run architecture test v2, and 128K of IRAM/DRAM for
 compliance test v1.
 
 ## TODO
 
-On Compliance test V2, the following misaligned instruction tests will match targets
+In architecture test V2, the following misaligned instruction tests will match targets
 which have compressed extension support enabled by default. Targets without the
 compressed extension support will fail the following tests:
 

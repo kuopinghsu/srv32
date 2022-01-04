@@ -58,8 +58,8 @@ trace.log
 dump.txt
 
 # repo compliance test
-tests/riscv-compliance.v1
-tests/riscv-compliance.v2
+tests/riscv-arch-test.v1
+tests/riscv-arch-test.v2
 
 .DS_Store
 tools/rvsim

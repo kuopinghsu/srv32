@@ -12,7 +12,7 @@ coverage  ?= 0
 debug     ?= 0
 
 # set 1 for compliance test v1, 2 for v2
-test_v    ?= 1
+test_v    ?= 2
 
 # set 1 to enable rv32c
 rv32c     ?= 0
@@ -52,8 +52,7 @@ help:
 	@echo "rv32c=1          enable RV32C (default off)"
 	@echo "debug=1          enable waveform dump (default off)"
 	@echo "coverage=1       enable coverage test (default off)"
-	@echo "test_v=1         run test compliance v1 (default)"
-	@echo "test_v=2         run test compliance v2"
+	@echo "test_v=[1|2]     run test compliance v1 or v2 (default)"
 	@echo ""
 	@echo "For example"
 	@echo ""
@@ -104,12 +103,12 @@ coverage: clean
 	@mv sim/*_cov.dat coverage/.
 	@$(MAKE) rv32c=$(rv32c) coverage=1 tests
 	@if [ "$(test_v)" = "1" ]; then \
-	    mv tests/riscv-compliance.v1/work/rv32i/*_cov.dat coverage/.; \
-	    mv tests/riscv-compliance.v1/work/rv32im/*_cov.dat coverage/.; \
-	    mv tests/riscv-compliance.v1/work/rv32Zicsr/*_cov.dat coverage/.; \
+	    mv tests/riscv-arch-test.v1/work/rv32i/*_cov.dat coverage/.; \
+	    mv tests/riscv-arch-test.v1/work/rv32im/*_cov.dat coverage/.; \
+	    mv tests/riscv-arch-test.v1/work/rv32Zicsr/*_cov.dat coverage/.; \
 	else \
-	    mv tests/riscv-compliance.v2/work/rv32i_m/I/*_cov.dat coverage/.; \
-	    mv tests/riscv-compliance.v2/work/rv32i_m/M/*_cov.dat coverage/.; \
+	    mv tests/riscv-arch-test.v2/work/rv32i_m/I/*_cov.dat coverage/.; \
+	    mv tests/riscv-arch-test.v2/work/rv32i_m/M/*_cov.dat coverage/.; \
 	fi
 	@$(MAKE) rv32c=$(rv32c) -C coverage
 	@$(MAKE) rv32c=$(rv32c) -C tools coverage
