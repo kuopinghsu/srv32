@@ -1,6 +1,6 @@
 ROOT_SRV32 ?= $(shell cd .. && pwd)
 memsize    ?= 128
-test_v     ?= 1
+test_v     ?= 2
 rv32c      ?= 0
 
 ifndef CROSS_COMPILER
@@ -34,7 +34,7 @@ riscv-arch-test:
 		cp -r srv32.v1 riscv-arch-test.v1/riscv-target/srv32; \
 	else \
 		if [ ! -d riscv-arch-test.v2 ]; then \
-			git clone git://github.com/riscv/riscv-arch-test.git riscv-arch-test.v2; \
+			git clone -b 2.6.2 git://github.com/riscv/riscv-arch-test.git riscv-arch-test.v2; \
 		fi; \
 		rm -rf riscv-arch-test.v2/riscv-target/srv32; \
 		cp -r srv32.v2 riscv-arch-test.v2/riscv-target/srv32; \

@@ -115,11 +115,11 @@ coverage: clean
 
 clean:
 	for i in sw sim tools tests coverage; do \
-		$(MAKE) -C $$i clean; \
+		$(MAKE) test_v=$(test_v) -C $$i clean; \
 	done
 
 distclean:
 	for i in sw sim tools tests coverage; do \
-		$(MAKE) -C $$i distclean; \
+		$(MAKE) test_v=$(test_v) -C $$i distclean; \
 	done
 
