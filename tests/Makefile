@@ -28,13 +28,13 @@ tests-sw: riscv-arch-test
 riscv-arch-test:
 	if [ "$(test_v)" = "1" ]; then \
 		if [ ! -d riscv-arch-test.v1 ]; then \
-			git clone -b 1.0 git://github.com/riscv/riscv-arch-test.git riscv-arch-test.v1; \
+			git clone -b 1.0 https://github.com/riscv/riscv-arch-test.git riscv-arch-test.v1; \
 		fi; \
 		rm -rf riscv-arch-test.v1/riscv-target/srv32; \
 		cp -r srv32.v1 riscv-arch-test.v1/riscv-target/srv32; \
 	else \
 		if [ ! -d riscv-arch-test.v2 ]; then \
-			git clone -b 2.6.2 git://github.com/riscv/riscv-arch-test.git riscv-arch-test.v2; \
+			git clone -b 2.6.2 https://github.com/riscv/riscv-arch-test.git riscv-arch-test.v2; \
 		fi; \
 		rm -rf riscv-arch-test.v2/riscv-target/srv32; \
 		cp -r srv32.v2 riscv-arch-test.v2/riscv-target/srv32; \
