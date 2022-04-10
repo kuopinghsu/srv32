@@ -38,8 +38,8 @@ while(<FH>) {
         my $addr = sprintf "%08x", hex($2);
         my $len = length($_);
         my $space = " ";
-        if ($len < 60) {
-            $space = " "x(60-$len);
+        if ($len < 74) {
+            $space = " "x(74-$len);
         }
         if (exists($DIS{$addr})) {
             printf FO "$_%s; %s\n", $space, $DIS{$addr};

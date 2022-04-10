@@ -760,7 +760,6 @@ int main(int argc, char **argv) {
         }
         case OP_LOAD: { // I-Type
             COUNTER counter;
-            int memdata;
             int memaddr;
             int data;
             int address = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
@@ -819,7 +818,6 @@ int main(int argc, char **argv) {
                 address = DVA2PA(address);
                 data = dmem[address/4];
             }
-            memdata = data;
             switch(inst.i.func3) {
                 case OP_LB:
                     // fall through
@@ -852,16 +850,16 @@ int main(int argc, char **argv) {
                     }
                     break;
                 default:
-                    TRACE_LOG " read 0x%08x => 0x%08x, x%02u (%s) <= 0x%08x\n",
-                              memaddr, memdata, inst.i.rd,
+                    TRACE_LOG " read 0x%08x, x%02u (%s) <= 0x%08x\n",
+                              memaddr, inst.i.rd,
                               regname[inst.i.rd], 0 TRACE_END;
                     printf("Illegal load instruction at PC 0x%08x\n", pc);
                     TRAP(TRAP_INST_ILL, inst.inst);
                     continue;
             }
             regs[inst.i.rd] = data;
-            TRACE_LOG " read 0x%08x => 0x%08x, x%02u (%s) <= 0x%08x\n",
-                      memaddr, memdata, inst.i.rd,
+            TRACE_LOG " read 0x%08x, x%02u (%s) <= 0x%08x\n",
+                      memaddr, inst.i.rd,
                       regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
             break;
         }

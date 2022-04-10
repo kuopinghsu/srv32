@@ -530,8 +530,7 @@ always @(posedge clk) begin
         `endif
         $fwrite(fp, "%08x %08x", `TOP.wb_pc, `TOP.wb_insn);
         if (`TOP.wb_mem2reg && !`TOP.wb_ld_align_excp) begin
-            $fwrite(fp, " read 0x%08x => 0x%08x", `TOP.wb_raddress,
-                                                  `TOP.dmem_rdata);
+            $fwrite(fp, " read 0x%08x", `TOP.wb_raddress);
             if (`TOP.wb_alu2reg) begin
                 $fwrite(fp, ", x%02d (%0s) <= 0x%08x\n", `TOP.wb_dst_sel,
                                                        regname, `TOP.wb_rdata);
