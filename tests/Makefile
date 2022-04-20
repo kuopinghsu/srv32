@@ -7,6 +7,12 @@ ifndef CROSS_COMPILER
 export CROSS_COMPILER = riscv64-unknown-elf-
 endif
 
+ifneq (, $(findstring darwin, $(shell gcc -dumpmachine)))
+POST_PATCH ?= cd riscv-arch-test.v2 && git checkout . && patch -p 1 < ../macos.patch && cd ..
+else
+POST_PATCH ?=
+endif
+
 .PHONY: riscv-arch-test
 
 tests: riscv-arch-test
@@ -36,6 +42,7 @@ riscv-arch-test:
 		if [ ! -d riscv-arch-test.v2 ]; then \
 			git clone -b 2.7.4 https://github.com/riscv/riscv-arch-test.git riscv-arch-test.v2; \
 		fi; \
+		$(POST_PATCH); \
 		rm -rf riscv-arch-test.v2/riscv-target/srv32; \
 		cp -r srv32.v2 riscv-arch-test.v2/riscv-target/srv32; \
 	fi
