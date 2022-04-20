@@ -1,0 +1,11 @@
+--- riscv-arch-test.v2/riscv-test-env/verify.sh	2022-04-20 21:01:28.000000000 +0800
++++ riscv-arch-test.v2/riscv-test-env/verify.sh.patch	2022-04-20 21:02:10.000000000 +0800
+@@ -29,7 +29,7 @@
+         continue
+     fi
+     #diff --ignore-case --strip-trailing-cr ${ref} ${sig} &> /dev/null
+-    diff --ignore-case --ignore-trailing-space --strip-trailing-cr <(grep -o '^[^#]*' ${ref}) ${sig} &> /dev/null
++    diff --ignore-case --strip-trailing-cr <(grep -o '^[^#]*' ${ref}) ${sig} &> /dev/null
+     if [ $? == 0 ]
+     then
+         echo -e "\e[32m ... OK \e[39m"
