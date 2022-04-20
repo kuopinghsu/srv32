@@ -10,7 +10,7 @@ endif
 ifneq (, $(findstring darwin, $(shell gcc -dumpmachine)))
 POST_PATCH ?= cd riscv-arch-test.v2 && git checkout . && patch -p 1 < ../macos.patch && cd ..
 else
-POST_PATCH ?=
+POST_PATCH ?= echo
 endif
 
 .PHONY: riscv-arch-test
