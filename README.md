@@ -33,7 +33,7 @@ Install RISCV toolchains.
     ../configure --prefix=/opt/riscv --enable-multilib
     make -j$(nproc)
 
-The default tools uses riscv64-unknown-elf-. If would like to use others toolchains, you can define a environment to override it. For example,
+The default tools uses riscv64-unknown-elf-. If you would like to use others toolchains, you can define an environment to override it. For example,
 
     export CROSS_COMPILER=riscv-none-embed-
 
