@@ -257,10 +257,10 @@ Excuting 1306645 instructions, 1617219 cycles, 1.238 CPI
 
 ### Benchmark with different GCC versions
 
-| Benchmark    | gcc-7.2 | gcc-8.3 | gcc-9.2 | gcc-10.2 | gcc-11.1 |
-|--------------| --------| --------|---------|----------|----------|
-| DMIPS/MHz    | 1.797   | 1.821   | 1.821   | 1.821    | 1.821    |
-| CoreMark/MHz | 3.080   | 3.060   | 2.736   | 2.783    | 3.120    |
+| Benchmark    | gcc-7.2 | gcc-8.3 | gcc-9.2 | gcc-10.2 | gcc-11.1 | gcc-12.1 |
+|--------------| --------| --------|---------|----------|----------|----------|
+| DMIPS/MHz    | 1.797   | 1.821   | 1.821   | 1.821    | 1.821    | 1.792    |
+| CoreMark/MHz | 3.080   | 3.060   | 2.736   | 2.783    | 3.120    | 2.872    |
 
 ## Cycles per Instruction Performance
 
