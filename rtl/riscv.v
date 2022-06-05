@@ -77,7 +77,7 @@ module riscv (
     reg             [31: 0] if_pc;
     reg             [31: 0] ex_pc;
     reg             [31: 0] wb_pc;
-    reg             [31: 0] if_insn;
+    wire            [31: 0] if_insn;
 
     // register files
     reg             [31: 0] regs [31: 1];

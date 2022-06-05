@@ -1,9 +1,13 @@
 # read design
-read_verilog ../rtl/riscv.v
+read_verilog ../rtl/top.v ../rtl/riscv.v ../rtl/clint.v
+hierarchy -check -top top
 
-# generic synthesis
-synth -top riscv
-opt -purge
+# the high-level stuff
+proc; opt; fsm; opt; memory; opt
+#flatten
+
+# mapping to internal cell library
+techmap; opt -purge
 
 # mapping to cell library
 dfflibmap -liberty pdk/gscl45nm.lib
