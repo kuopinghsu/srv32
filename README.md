@@ -35,9 +35,9 @@ Install RISCV toolchains.
 
 The default tools uses riscv64-unknown-elf-. If you would like to use others toolchains, you can define an environment to override it. For example,
 
-    export CROSS_COMPILER=riscv-none-embed-
+    export CROSS_COMPILER=riscv-none-elf-
 
-Therefore, you can use <A href="https://github.com/xpack-dev-tools/riscv-none-embed-gcc-xpack/">xPack GNU RISC-V Embedded GCC</A> instead of building a toolchain yourself.
+Therefore, you can use <A href="https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack">xPack GNU RISC-V Embedded GCC</A> instead of building a toolchain yourself.
 
 ## Files list
 
