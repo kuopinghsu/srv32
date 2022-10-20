@@ -142,7 +142,7 @@ always @(posedge clk or negedge resetb) begin
 
         if (count > 100) begin
             $display("Executing timeout");
-            #10 $finish(2);
+            $finish(2);
         end
     end
 end
@@ -152,7 +152,7 @@ end
 always @(posedge clk) begin
     if (exception) begin
         $display("Exception occurs, simulation exist.");
-        #10 $finish(2);
+        $finish(2);
     end
 end
 `endif
@@ -233,12 +233,12 @@ end
         end
         else if (mem_ready && mem_we && mem_addr == MMIO_EXIT) begin
             printStatistics();
-            #10 $finish(1);
+            $finish(1);
         end
         else if (mem_ready &&
                  mem_addr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
             $display("DMEM address %x out of range", mem_addr);
-            #10 $finish(2);
+            $finish(2);
         end
     end
 
@@ -247,7 +247,7 @@ end
         if (`TOP.wb_system && !`TOP.wb_stall) begin
             if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == SYS_EXIT) begin
                 printStatistics();
-                #10 $finish(2);
+                $finish(2);
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == SYS_WRITE &&
                 `TOP.regs[REG_A0] == 32'h1) begin // stdout
                 for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
@@ -397,13 +397,14 @@ end
     always @(posedge clk) begin
         if (imem_ready && imem_addr[31:$clog2(IRAMSIZE)] != 'd0) begin
             $display("IMEM address %x out of range", imem_addr);
-            #10 $finish(2);
+            $finish(2);
         end
 
         if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_PUTC) begin
             $write("%c", dmem_wdata[7:0]);
             $fflush;
         end
+        /*
         else if (`TOP.dmem_rready && `TOP.dmem_raddr == MMIO_GETC) begin
             `ifdef VERILATOR
             dmem_rdata[ 7: 0] <= getch();
@@ -413,14 +414,15 @@ end
             `endif
             dmem_rdata[31: 8] <= 'd0;
         end
+        */
         else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_EXIT) begin
             printStatistics();
-            #10 $finish(1);
+            $finish(1);
         end
         else if (dmem_wready &&
                  dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
             $display("DMEM address %x out of range", dmem_waddr);
-            #10 $finish(2);
+            $finish(2);
         end
     end
 
@@ -429,7 +431,7 @@ end
         if (`TOP.wb_system && !`TOP.wb_stall) begin
             if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == SYS_EXIT) begin
                 printStatistics();
-                #10 $finish(2);
+                $finish(2);
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == SYS_WRITE &&
                 `TOP.regs[REG_A0] == 32'h1) begin // stdout
                 for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
