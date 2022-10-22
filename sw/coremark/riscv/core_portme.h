@@ -185,7 +185,7 @@ typedef int            ee_size_t;
 #endif
 
 /* Variable : default_num_contexts
-        Not used for this simple port, must cintain the value 1.
+        Not used for this simple port, must contain the value 1.
 */
 extern ee_u32 default_num_contexts;
 
