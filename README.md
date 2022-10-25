@@ -24,14 +24,18 @@ Install RISCV toolchains.
     # Ubuntu packages needed:
     sudo apt-get install autoconf automake autotools-dev curl libmpc-dev \
         libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo \
-        gperf libtool patchutils bc zlib1g-dev git libexpat1-dev
+        gperf libtool patchutils bc zlib1g-dev git libexpat1-dev python3 \
+        python-is-python3
     
     git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
     cd riscv-gnu-toolchain
     
     mkdir build; cd build
-    ../configure --prefix=/opt/riscv --enable-multilib
+    ../configure --prefix=/opt/riscv --with-isa-spec=20191213 \
+        --with-multilib-generator="rv32i-ilp32--;rv32im-ilp32--;rv32imac-ilp32--;rv32im_zicsr-ilp32--;rv32imac_zicsr-ilp32--;rv64imac-lp64--;rv64imac_zicsr-lp64--"
     make -j$(nproc)
+
+Notes: change the default ISA to 20191213, refer to [RISC-V GNU toolchain bumping default ISA spec to 20191213](https://groups.google.com/a/groups.riscv.org/g/sw-dev/c/aE1ZeHHCYf4) for detail.
 
 The default tools uses riscv64-unknown-elf-. If you would like to use others toolchains, you can define an environment to override it. For example,
 

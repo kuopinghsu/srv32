@@ -12,9 +12,9 @@ OBJCOPY := $(CROSS_COMPILER)objcopy
 READELF := $(CROSS_COMPILER)readelf
 
 ifeq ($(rv32c), 1)
-ARCH    := -march=rv32imac -mabi=ilp32
+ARCH    := -march=rv32imac_zicsr -mabi=ilp32
 else
-ARCH    := -march=rv32im -mabi=ilp32
+ARCH    := -march=rv32im_zicsr -mabi=ilp32
 endif
 
 CFLAGS  := -O3 -Wall $(ARCH) -nostartfiles -nostdlib
