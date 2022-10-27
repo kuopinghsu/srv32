@@ -1,15 +1,15 @@
 rv32c   ?= 0
 
-ifndef CROSS_COMPILER
-export CROSS_COMPILER = riscv64-unknown-elf-
+ifndef CROSS_COMPILE
+export CROSS_COMPILE = riscv64-unknown-elf-
 endif
 
-CC      := $(CROSS_COMPILER)gcc
-AS      := $(CROSS_COMPILER)as
-AR      := $(CROSS_COMPILER)ar
-OBJDUMP := $(CROSS_COMPILER)objdump
-OBJCOPY := $(CROSS_COMPILER)objcopy
-READELF := $(CROSS_COMPILER)readelf
+CC      := $(CROSS_COMPILE)gcc
+AS      := $(CROSS_COMPILE)as
+AR      := $(CROSS_COMPILE)ar
+OBJDUMP := $(CROSS_COMPILE)objdump
+OBJCOPY := $(CROSS_COMPILE)objcopy
+READELF := $(CROSS_COMPILE)readelf
 
 ifeq ($(rv32c), 1)
 ARCH    := -march=rv32imac_zicsr -mabi=ilp32

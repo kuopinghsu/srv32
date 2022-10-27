@@ -39,7 +39,7 @@ Notes: change the default ISA to 20191213, refer to [RISC-V GNU toolchain bumpin
 
 The default tools uses riscv64-unknown-elf-. If you would like to use others toolchains, you can define an environment to override it. For example,
 
-    export CROSS_COMPILER=riscv-none-elf-
+    export CROSS_COMPILE=riscv-none-elf-
 
 Therefore, you can use [The xPack GNU RISC-V Embedded GCC](https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack) instead of building a toolchain yourself.
 

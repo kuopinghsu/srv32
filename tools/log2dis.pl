@@ -2,8 +2,8 @@
 use strict;
 
 my $VERBOSE = 1;
-my $CROSS_COMPILER = defined($ENV{'CROSS_COMPILER'}) ? $ENV{'CROSS_COMPILER'} : "riscv64-unknown-elf-";
-my $objdump = "${CROSS_COMPILER}objdump";
+my $CROSS_COMPILE = defined($ENV{'CROSS_COMPILE'}) ? $ENV{'CROSS_COMPILE'} : "riscv64-unknown-elf-";
+my $objdump = "${CROSS_COMPILE}objdump";
 my %DIS;
 $| = 1;
 

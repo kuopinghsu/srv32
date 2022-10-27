@@ -53,7 +53,7 @@ PORT_SRCS = $(PORT_DIR)/core_portme.c
 
 #For native compilation and execution
 LOAD = echo Loading done
-RUN = $(CROSS_COMPILER)run
+RUN = $(CROSS_COMPILE)run
 
 OEXT = .o
 EXE = .elf
