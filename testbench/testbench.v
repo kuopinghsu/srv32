@@ -294,7 +294,7 @@ end
     wire            dmem_rvalid;
     wire    [31: 0] dmem_raddr;
     wire            dmem_rresp;
-    reg     [31: 0] dmem_rdata;
+    wire    [31: 0] dmem_rdata;
 
     wire            wready;
 
@@ -340,6 +340,10 @@ end
     );
 
 `ifdef RV32C_ENABLED
+
+wire [30: 0] imem_raddr_i;
+assign imem_raddr_i = imem_addr[31:1]-(IRAMBASE/2);
+
     mem2r1w # (
         .SIZE(IRAMSIZE),
         .FILE("imem.bin")
@@ -351,12 +355,16 @@ end
         .wready(1'b0),
         .rresp (imem_rresp),
         .rdata (imem_rdata),
-        .raddr (imem_addr[31:1]-(IRAMBASE/2)),
+        .raddr (imem_addr_i),
         .waddr (30'h0),
         .wdata (32'h0),
         .wstrb (4'h0)
     );
 `else
+
+wire [29: 0] imem_raddr_i;
+assign imem_raddr_i[29:0] = imem_addr[31:2]-(IRAMBASE/4);
+
     mem2ports # (
         .SIZE(IRAMSIZE),
         .FILE("imem.bin")
@@ -368,12 +376,18 @@ end
         .wready(1'b0),
         .rresp (imem_rresp),
         .rdata (imem_rdata),
-        .raddr (imem_addr[31:2]-(IRAMBASE/4)),
+        .raddr (imem_raddr_i),
         .waddr (30'h0),
         .wdata (32'h0),
         .wstrb (4'h0)
     );
 `endif // RV32C_ENABLED
+
+wire [29:0] dmem_raddr_i;
+wire [29:0] dmem_waddr_i;
+
+assign dmem_raddr_i = dmem_raddr[31:2]-(DRAMBASE/4);
+assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
 
     mem2ports # (
         .SIZE(DRAMSIZE),
@@ -386,8 +400,8 @@ end
         .wready(wready & dmem_wvalid),
         .rresp (dmem_rresp),
         .rdata (dmem_rdata),
-        .raddr (dmem_raddr[31:2]-(DRAMBASE/4)),
-        .waddr (dmem_waddr[31:2]-(DRAMBASE/4)),
+        .raddr (dmem_raddr_i),
+        .waddr (dmem_waddr_i),
         .wdata (dmem_wdata),
         .wstrb (dmem_wstrb)
     );
@@ -438,7 +452,9 @@ end
                     $write("%c", dmem.getb(`TOP.regs[REG_A1] - IRAMSIZE + i));
                 end
                 /* verilator lint_off IGNOREDRETURN */
+                `ifdef VERILATOR
                 `TOP.set_reg(REG_A0, `TOP.regs[REG_A2]);
+                `endif
                 /* verilator lint_on IGNOREDRETURN */
                 $fflush;
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_A7] == SYS_READ &&
