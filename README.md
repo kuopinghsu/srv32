@@ -42,6 +42,12 @@ The default tools uses riscv64-unknown-elf-. If you would like to use others too
     export CROSS_COMPILE=riscv-none-elf-
 
 Therefore, you can use [The xPack GNU RISC-V Embedded GCC](https://github.com/xpack-dev-tools/riscv-none-elf-gcc-xpack) instead of building a toolchain yourself.
+It has been changed to default ISA spec to 20192013, but it does not include rv32im_zicsr multlib.
+The workaround is using -misa-spec=2.2 to force RISC-V GCC using the older ISA spec version.
+Adding extra CFLAGS as follows.
+
+    export EXTRA_CFLAGS="-misa-spec=2.2 -march=rv32im"
+
 
 ## Files list
 
