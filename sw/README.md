@@ -1,5 +1,9 @@
+
+# Diags
+
 This folder is a software diagnostic file used to test the hardware core. Folders prefixed with "_" will not be tested in regression.
 
+## Lists
 
 | folder | description |
 | --- | --- |
@@ -7,7 +11,7 @@ This folder is a software diagnostic file used to test the hardware core. Folder
 | _file | file I/O operation test (for ISS simulator only) |
 | _io | standard I/O test (for ISS simulator only) |
 | coremark | coremark benchmark |
-| cpp | C++ example for global constructor (provide by chatGPT) |
+| cpp | C++ example for global constructor (provided by chatGPT) |
 | dhrystone | dhrystone benchmark |
 | exception | exception test |
 | irq | IRQ test & various CSR tests |
@@ -18,7 +22,7 @@ This folder is a software diagnostic file used to test the hardware core. Folder
 | qsort | quick sort |
 | sem | FreeRTOS semaphor test |
 
-LICENSE
+## LICENSE & NOTES
 
 * The dhrystone and coremark are licensed by their respective authors, please refer to the header file for permission.
 
@@ -30,5 +34,6 @@ LICENSE
 
 * pi_pthread is referenced form [here](https://www.stolaf.edu/people/rab/os/pub0/modules/Pi_Integration_SharedMemory/Pthreads/Pthreads.html)
 
-* The other folders are licensed under the MIT written by Kuoping Hsu.
+* FreeRTOS diags only ELF file is provided, to build the code, refer [here](https://github.com/kuopinghsu/FreeRTOS-RISCV) for details.
 
+* The other folders are licensed under the MIT written by Kuoping Hsu.
