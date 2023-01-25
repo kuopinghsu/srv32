@@ -19,8 +19,8 @@ update:
 	@for i in $(dirs:%/=%); do \
 		if [ -f "$$i/$$i.elf" ]; then \
 			echo $$i && cd $$i; \
-			$(OBJCOPY) -j .text -O binary $$i.elf imem.bin; \
-			$(OBJCOPY) -j .data -O binary $$i.elf dmem.bin; \
+			$(OBJCOPY) -j .reset -j .text -O binary $$i.elf imem.bin; \
+			$(OBJCOPY) -R .reset -R .text -O binary $$i.elf dmem.bin; \
 			$(OBJCOPY) -O binary $$i.elf memory.bin; \
 			$(OBJDUMP) -d $$i.elf > $$i.dis; \
 			$(READELF) -a $$i.elf > $$i.symbol; \
@@ -29,7 +29,7 @@ update:
 	done
 
 clean:
-	for i in $(SUBDIRS) common; do \
+	@for i in $(SUBDIRS) common _*; do \
 		if [ -f $$i/Makefile ]; then \
 			$(MAKE) -C $$i clean; \
 		fi; \

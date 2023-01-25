@@ -37,6 +37,8 @@
 #define _CSRW_MIMPID(v)     __asm volatile("csrw mimpid, %0" : : "r"(v))
 #define _CSRR_MHARTID()     ({ int result; __asm volatile("csrr %0, mhartid" : "=r"(result)); result; })
 #define _CSRW_MHARTID(v)    __asm volatile("csrw mhartid, %0" : : "r"(v))
+#define _CSRR_MSCRATCH()    ({ int result; __asm volatile("csrr %0, mscratch" : "=r"(result)); result; })
+#define _CSRW_MSCRATCH(v)   __asm volatile("csrw mscratch, %0" : : "r"(v))
 #define _CSRR_MISA()        ({ int result; __asm volatile("csrr %0, misa" : "=r"(result)); result; })
 #define _CSRW_MISA(v)       __asm volatile("csrw misa, %0" : : "r"(v))
 
@@ -72,12 +74,34 @@ static inline int  CSRR_MIMPID(void)      { return _CSRR_MIMPID(); }
 static inline void CSRW_MIMPID(int v)     { _CSRW_MIMPID(v); }
 static inline int  CSRR_MHARTID(void)     { return _CSRR_MHARTID(); }
 static inline void CSRW_MHARTID(int v)    { _CSRW_MHARTID(v); }
+static inline int  CSRR_MSCRATCH(void)    { return _CSRR_MSCRATCH(); }
+static inline void CSRW_MSCRATCH(int v)   { _CSRW_MSCRATCH(v); }
 static inline int  CSRR_MISA(void)        { return _CSRR_MISA(); }
 static inline void CSRW_MISA(int v)       { _CSRW_MISA(v); }
 
 // no support CSR
 static inline int  CSRR_DPC(void)         { return _CSRR_DPC(); }
 static inline void CSRW_DPC(int v)        { _CSRW_DPC(v); }
+
+#define csr_read(reg) ({ unsigned long __tmp; \
+  asm volatile ("csrr %0, " #reg : "=r"(__tmp)); \
+  __tmp; })
+
+#define csr_write(reg, val) ({ \
+  asm volatile ("csrw " #reg ", %0" :: "rK"(val)); })
+
+#define csr_set(reg, bit) ({ unsigned long __tmp; \
+  asm volatile ("csrrs %0, " #reg ", %1" : "=r"(__tmp) : "rK"(bit)); \
+  __tmp; })
+
+#define csr_clear(reg, bit) ({ unsigned long __tmp; \
+  asm volatile ("csrrc %0, " #reg ", %1" : "=r"(__tmp) : "rK"(bit)); \
+  __tmp; })
+
+#define csr_swap(reg, val) ({ \
+    unsigned long __v = (unsigned long)(val); \
+    asm volatile ("csrrw %0, " #reg ", %1" : "=r" (__v) : "rK" (__v) : "memory"); \
+    __v; })
 
 #endif // __RVCONFIG_H
 

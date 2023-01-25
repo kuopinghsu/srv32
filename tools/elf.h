@@ -7,6 +7,8 @@
 #define EI_NIDENT 16
 #define EI_CLASS  4
 
+#define PT_LOAD   1
+
 /* 32-bit ELF base types. */
 typedef unsigned int        Elf32_Addr;
 typedef unsigned short      Elf32_Half;
@@ -54,6 +56,17 @@ typedef struct elf32_shdr {
     Elf32_Word              sh_entsize;
 } Elf32_Shdr;
 
+typedef struct elf32_phdr {
+    Elf32_Word              p_type;
+    Elf32_Off               p_offset;
+    Elf32_Addr              p_vaddr;
+    Elf32_Addr              p_paddr;
+    Elf32_Word              p_filesz;
+    Elf32_Word              p_memsz;
+    Elf32_Word              p_flags;
+    Elf32_Word              p_align;
+} Elf32_Phdr;
+
 typedef struct elf64_hdr {
     unsigned char           e_ident[EI_NIDENT];
     Elf64_Half              e_type;
@@ -83,5 +96,16 @@ typedef struct elf64_shdr {
     Elf64_Xword             sh_addralign;
     Elf64_Xword             sh_entsize;
 } Elf64_Shdr;
+
+typedef struct elf64_phdr {
+    Elf64_Word              p_type;
+    Elf64_Word              p_flags;
+    Elf64_Off               p_offset;
+    Elf64_Addr              p_vaddr;
+    Elf64_Addr              p_paddr;
+    Elf64_Xword             p_filesz;
+    Elf64_Xword             p_memsz;
+    Elf64_Xword             p_align;
+} Elf64_Phdr;
 
 #endif // __ELF_H

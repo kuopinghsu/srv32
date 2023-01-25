@@ -52,7 +52,7 @@ $(TARGET):
 		mv sim_cc/sim .; \
 	fi
 
-%.run: $(TARGET) checkcode.awk
+%.elf: $(TARGET) checkcode.awk
 	@if [ ! -f ../sw/$*/memory.bin ]; then \
 		make -C ../sw $*; \
 	fi

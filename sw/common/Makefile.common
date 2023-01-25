@@ -5,6 +5,7 @@ export CROSS_COMPILE = riscv64-unknown-elf-
 endif
 
 CC      := $(CROSS_COMPILE)gcc
+CPP     := $(CROSS_COMPILE)g++
 AS      := $(CROSS_COMPILE)as
 AR      := $(CROSS_COMPILE)ar
 OBJDUMP := $(CROSS_COMPILE)objdump
@@ -17,6 +18,6 @@ else
 ARCH    := -march=rv32im_zicsr -mabi=ilp32 $(EXTRA_CFLAGS)
 endif
 
-CFLAGS  := -O3 -Wall $(ARCH) -nostartfiles -nostdlib
+CFLAGS  := -O3 -Wall $(ARCH) -nostartfiles
 ASFLAGS := $(ARCH)
-LDFLAGS := -lc -lm -lgcc -lsys
+LDFLAGS := -lsys

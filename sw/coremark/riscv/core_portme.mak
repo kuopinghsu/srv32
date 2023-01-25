@@ -27,7 +27,7 @@ ITERATIONS = 4
 
 # Flag : CFLAGS
 #	Use this flag to define compiler options. Note, you can add compiler options from the command line using XCFLAGS="other flags"
-PORT_CFLAGS = -O3 $(ARCH) -nostartfiles -nostdlib -L../common -DPERFORMANCE_RUN=1
+PORT_CFLAGS = -O3 $(ARCH) -nostartfiles -L../common -DPERFORMANCE_RUN=1
 PORT_CFLAGS += -fno-common -funroll-loops -finline-functions -falign-functions=16
 PORT_CFLAGS += -falign-jumps=4 -falign-loops=4 -finline-limit=1000
 PORT_CFLAGS += -fno-if-conversion2 -fselective-scheduling -fno-tree-dominator-opts
@@ -41,7 +41,7 @@ CFLAGS = $(PORT_CFLAGS) -I$(PORT_DIR) -I. -DFLAGS_STR=\"$(FLAGS_STR)\"
 #Flag : LFLAGS_END
 #	Define any libraries needed for linking or other flags that should come at the end of the link line (e.g. linker scripts). 
 #	Note : On certain platforms, the default clock_gettime implementation is supported but requires linking of librt.
-LFLAGS_END = -lc -lm -lgcc -lsys -T ../common/default.ld
+LFLAGS_END = -lsys -T ../common/default.ld
 # Flag : PORT_SRCS
 # 	Port specific source files can be added here
 PORT_SRCS = $(PORT_DIR)/core_portme.c

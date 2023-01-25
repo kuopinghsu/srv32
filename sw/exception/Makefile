@@ -2,10 +2,10 @@
 include ../common/Makefile.common
 
 EXE      = .elf
-SRC      = file.c
-CFLAGS  += -L../common
+SRC      = exception.c
+CFLAGS  += -L../common -I../common
 LDFLAGS += -T ../common/default.ld
-TARGET   = _file
+TARGET   = exception
 OUTPUT   = $(TARGET)$(EXE)
 
 .PHONY: all clean
@@ -21,4 +21,4 @@ $(TARGET): $(SRC)
 	$(READELF) -a $(OUTPUT) > $(TARGET).symbol
 
 clean:
-	$(RM) *.o $(OUTPUT) $(TARGET).dis $(TARGET).symbol [id]mem.bin memory.bin out.bin
+	$(RM) *.o $(OUTPUT) $(TARGET).dis $(TARGET).symbol [id]mem.bin memory.bin

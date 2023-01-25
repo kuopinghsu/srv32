@@ -119,6 +119,7 @@ int mtime_update = 0;
 struct timeval time_start;
 struct timeval time_end;
 
+int *mem;
 int *imem;
 int *dmem;
 
@@ -136,7 +137,7 @@ char *regname[32] = {
 };
 
 int srv32_syscall(int func, int a0, int a1, int a2, int a3, int a4, int a5);
-int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize);
+int elfloader(char *file, char *mem, int imem_base, int dmem_base, int imem_size, int dmem_size);
 int getch(void);
 
 void usage(void) {
@@ -269,53 +270,6 @@ void prog_exit(int exitcode) {
     exit(exitcode);
 }
 
-// Use libbfd to read the elf file.
-#ifdef USE_LIBBFD
-#define PACKAGE "riscv32-rvsim"
-#define PACKAGE_VERSION "1.0"
-#include <bfd.h>
-static int elfread(char *file, char *imem, char *dmem, int *isize, int *dsize) {
-    bfd *abfd = NULL;
-
-    // init bfd
-    bfd_init();
-
-    // load binary file
-    if ((abfd = bfd_openr(file, NULL)) == NULL) {
-		printf("Failed to open file %s!\n", file);
-		return 0;
-    }
-
-	// no section info is loaded unless we call bfd_check_format!:
-	if (!bfd_check_format (abfd, bfd_object)) {
-		printf("Failed to check file %s!\n", file);
-		return 0;
-    }
-
-	asection *text = bfd_get_section_by_name (abfd, ".text");
-	asection *data = bfd_get_section_by_name (abfd, ".data");
-
-	// copy the contents of the data and executable sections into the allocated memory
-	bfd_get_section_contents(abfd, text, imem, 0, text->size);
-	bfd_get_section_contents(abfd, data, dmem, 0, data->size);
-
-    *isize = text->size;
-    *dsize = data->size;
-
-    if (!quiet) printf("Load .text section %ld, .data section %ld bytes\n",
-                       text->size, data->size);
-
-    bfd_close(abfd);
-
-    if (!text->size && !data->size) {
-        printf("can not read the content of elf file\n");
-        exit(-1);
-    }
-
-    return 1;
-}
-#endif
-
 #define UPDATE_CSR(update,mode,reg,val) { \
     if (update) { \
         if ((mode) == OP_CSRRW) reg = (val); \
@@ -414,8 +368,6 @@ int main(int argc, char **argv) {
     int result;
     char *file = NULL;
     char *tfile = NULL;
-    int isize;
-    int dsize;
     int branch_predict = 0;
     int prev_pc;
     int timer_irq;
@@ -454,8 +406,10 @@ int main(int argc, char **argv) {
                 break;
             case 'l':
                 if ((tfile = malloc(MAXLEN)) == NULL) {
+                    // LCOV_EXCL_START
                     printf("malloc fail\n");
                     exit(1);
+                    // LCOV_EXCL_STOP
                 }
                 strncpy_s(tfile, MAXLEN-1, optarg, MAXLEN-1);
                 break;
@@ -486,8 +440,10 @@ int main(int argc, char **argv) {
 
     if (optind < argc) {
         if ((file = malloc(MAXLEN)) == NULL) {
+            // LCOV_EXCL_START
             printf("malloc fail\n");
             exit(1);
+            // LCOV_EXCL_STOP
         }
         strncpy_s(file, MAXLEN-1, argv[optind], MAXLEN-1);
     } else {
@@ -503,26 +459,32 @@ int main(int argc, char **argv) {
 
     if (tfile) {
         if ((ft=fopen(tfile, "w")) == NULL) {
+            // LCOV_EXCL_START
             printf("can not open file %s\n", tfile);
             exit(1);
+            // LCOV_EXCL_STOP
         }
     }
-    if ((imem = (int*)aligned_malloc(sizeof(int), IMEM_SIZE)) == NULL) {
+
+    if ((mem = (int*)aligned_malloc(sizeof(int), IMEM_SIZE+DMEM_SIZE)) == NULL) {
+        // LCOV_EXCL_START
         printf("malloc fail\n");
         exit(1);
+        // LCOV_EXCL_STOP
     }
-    if ((dmem = (int*)aligned_malloc(sizeof(int), DMEM_SIZE)) == NULL) {
-        printf("malloc fail\n");
-        exit(1);
-    }
+
+    imem = (int*)&mem[0];
+    dmem = (int*)&mem[IMEM_SIZE/sizeof(int)];
 
     // clear the data memory
     memset(dmem, 0, DMEM_SIZE);
 
-    // load the .text and .data section
-    if ((result = elfread(file, (char*)imem, (char*)dmem, &isize, &dsize)) == 0) {
+    // load elf file
+    if ((result = elfloader(file, (char*)mem, IMEM_BASE, DMEM_BASE, IMEM_SIZE, DMEM_SIZE)) == 0) {
+        // LCOV_EXCL_START
         printf("Can not read elf file %s\n", file);
         exit(1);
+        // LCOV_EXCL_STOP
     }
 
     // Registers initialize
@@ -584,8 +546,8 @@ int main(int argc, char **argv) {
             INT(INT_MEI, MEIP);
         }
 
-        if (IVA2PA(pc) >= isize || IVA2PA(pc) < 0) {
-            printf("PC 0x%08x out of range 0x%08x\n", pc, IPA2VA(isize));
+        if (IVA2PA(pc) >= IMEM_SIZE || IVA2PA(pc) < 0) {
+            printf("PC 0x%08x out of range 0x%08x\n", pc, IPA2VA(IMEM_SIZE));
             TRAP(TRAP_INST_FAIL, pc);
         }
 
@@ -1264,8 +1226,7 @@ int main(int argc, char **argv) {
         pc = compressed ? pc + 2 : pc + 4;
     }
 
-    aligned_free(imem);
-    aligned_free(dmem);
+    aligned_free(mem);
     if (ft) fclose(ft);
 }
 

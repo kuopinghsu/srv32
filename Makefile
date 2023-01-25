@@ -72,7 +72,7 @@ all:
 
 all-sw:
 	for i in $(SUBDIRS); do \
-		$(MAKE) rv32c=$(rv32c) -C tools $$i.run; \
+		$(MAKE) rv32c=$(rv32c) -C tools $$i.elf; \
 	done
 
 tests:
@@ -92,8 +92,8 @@ $(SUBDIRS):
 	@$(MAKE) rv32c=$(rv32c) -C sw $@
 	@$(MAKE) $(if $(_verilator), verilator=1) \
 			 $(if $(_coverage), coverate=1) \
-			 $(if $(_top), top=1) rv32c=$(rv32c) debug=$(debug) -C sim $@.run
-	@$(MAKE) $(if $(_top), top=1) rv32c=$(rv32c) -C tools $@.run
+			 $(if $(_top), top=1) rv32c=$(rv32c) debug=$(debug) -C sim $@.elf
+	@$(MAKE) $(if $(_top), top=1) rv32c=$(rv32c) -C tools $@.elf
 	@echo "Compare the trace between RTL and ISS simulator"
 	@diff --brief sim/trace.log tools/trace.log
 	@echo === Simulation passed ===
@@ -114,12 +114,12 @@ coverage: clean
 	@$(MAKE) rv32c=$(rv32c) -C tools coverage
 
 clean:
-	for i in sw sim tools tests coverage; do \
+	@for i in sw sim tools tests coverage; do \
 		$(MAKE) test_v=$(test_v) -C $$i clean; \
 	done
 
 distclean:
-	for i in sw sim tools tests coverage; do \
+	@for i in sw sim tools tests coverage; do \
 		$(MAKE) test_v=$(test_v) -C $$i distclean; \
 	done
 

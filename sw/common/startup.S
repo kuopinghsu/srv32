@@ -1,12 +1,17 @@
     .section .reset, "ax"
     .global _start
 _start:
+    .option push
+    .option norelax
+    la gp, __global_pointer$
+    .option pop
+
     la      t0, trap_handler
     csrw    mtvec, t0
     csrrsi  zero, mtvec, 1      // set vector based trap
 
-    la      t0, _bss_start
-    la      t1, _bss_end
+    la      t0, __bss_start
+    la      t1, __bss_end
 
 _bss_clear:
     sw      zero,0(t0)
@@ -14,8 +19,25 @@ _bss_clear:
     bltu    t0, t1, _bss_clear
 
     la      sp, _stack
+
+    .weak   atexit
+    la      a0, atexit
+    beqz    a0, .Lweak_atexit
+    .weak   __libc_fini_array
+    la      a0, __libc_fini_array      # Register global termination functions
+    call    atexit                     #  to be called upon exit
+.Lweak_atexit:
+
+    call    __libc_init_array
+
     call    main
     tail    exit
+
+    .section .data
+    .global __dso_handle
+    .weak   __dso_handle
+__dso_handle:
+    .long   0
 
     .section .text.trap, "ax"
     .align 4

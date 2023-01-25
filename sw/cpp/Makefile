@@ -2,10 +2,10 @@
 include ../common/Makefile.common
 
 EXE      = .elf
-SRC      = file.c
+SRC      = cpp.cc
 CFLAGS  += -L../common
 LDFLAGS += -T ../common/default.ld
-TARGET   = _file
+TARGET   = cpp
 OUTPUT   = $(TARGET)$(EXE)
 
 .PHONY: all clean
@@ -13,7 +13,7 @@ OUTPUT   = $(TARGET)$(EXE)
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $(OUTPUT) $(SRC) $(LDFLAGS)
+	$(CPP) $(CFLAGS) -o $(OUTPUT) $(SRC) $(LDFLAGS)
 	$(OBJCOPY) -j .reset -j .text -O binary $(OUTPUT) imem.bin
 	$(OBJCOPY) -R .reset -R .text -O binary $(OUTPUT) dmem.bin
 	$(OBJCOPY) -O binary $(OUTPUT) memory.bin
@@ -21,4 +21,4 @@ $(TARGET): $(SRC)
 	$(READELF) -a $(OUTPUT) > $(TARGET).symbol
 
 clean:
-	$(RM) *.o $(OUTPUT) $(TARGET).dis $(TARGET).symbol [id]mem.bin memory.bin out.bin
+	$(RM) *.o $(OUTPUT) $(TARGET).dis $(TARGET).symbol [id]mem.bin memory.bin

@@ -20,8 +20,8 @@ PORT_DIR = riscv
 
 .PHONY: all clean
 all: compile
-	$(OBJCOPY) -j .text -O binary $(OUTFILE) imem.bin
-	$(OBJCOPY) -j .data -O binary $(OUTFILE) dmem.bin
+	$(OBJCOPY) -j .reset -j .text -O binary $(OUTFILE) imem.bin
+	$(OBJCOPY) -R .reset -R .text -O binary $(OUTFILE) dmem.bin
 	$(OBJCOPY) -O binary $(OUTFILE) memory.bin
 	$(OBJDUMP) -d $(OUTFILE) > coremark.dis
 	$(READELF) -a $(OUTFILE) > coremark.symbol

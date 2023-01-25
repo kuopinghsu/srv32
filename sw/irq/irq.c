@@ -71,10 +71,21 @@ int main(void) {
     CSRW_MISA(CSRR_MISA()+1);
     CSRW_MCAUSE(CSRR_MCAUSE()+1);
     CSRW_MTVAL(CSRR_MTVAL()+1);
+    CSRW_MSCRATCH(CSRR_MSCRATCH()+1);
     CSRW_MIP(CSRR_MIP()|(1<<31));
 
     // test unimplemented CSR
     CSRW_DPC(CSRR_DPC()+1);
+
+    // test CSR operation
+    csr_write(mscratch, 0x5a5a5a5a);
+    csr_write(mscratch, csr_read(mscratch) | 3);
+    csr_write(mscratch, 0);
+    csr_set(mscratch, 1);
+    csr_set(mscratch, CSRR_MSCRATCH());
+    csr_clear(mscratch, 1);
+    csr_clear(mscratch, CSRR_MSCRATCH());
+    csr_write(mscratch, csr_swap(mscratch, 3));
 
     // Illegal instruction
     asm volatile(".byte 0x00, 0x00, 0x00, 0x00");
@@ -85,5 +96,6 @@ int main(void) {
     asm volatile(".byte 0x73, 0x00, 0x30, 0x5a");
 
     asm volatile("fence");
+    asm volatile("ebreak");
 }
 
