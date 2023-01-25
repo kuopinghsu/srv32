@@ -1,4 +1,3 @@
-
 # Diags
 
 This folder is a software diagnostic file used to test the hardware core. Folders prefixed with "_" will not be tested in regression.
@@ -24,16 +23,17 @@ This folder is a software diagnostic file used to test the hardware core. Folder
 
 ## LICENSE & NOTES
 
-* The dhrystone and coremark are licensed by their respective authors, please refer to the header file for permission.
+*   The dhrystone and coremark are licensed by their respective authors, please refer to the header file for permission.
 
-* cpp C++ example provided by chatGPT.
+*   cpp C++ example provided by chatGPT.
 
-* perf is the FreeRTOS performane test is form [here](https://github.com/foss-xtensa/amazon-freertos/tree/xtensa-v10.2.1-stable/demos/cadence/sim/common/application_code/cadence_code)
+*   perf is the FreeRTOS performane test is form [here](https://github.com/foss-xtensa/amazon-freertos/tree/xtensa-v10.2.1-stable/demos/cadence/sim/common/application_code/cadence_code)
 
-* pi is written by Dik T. Winter
+*   pi is written by Dik T. Winter
 
-* pi_pthread is referenced form [here](https://www.stolaf.edu/people/rab/os/pub0/modules/Pi_Integration_SharedMemory/Pthreads/Pthreads.html)
+*   pi_pthread is referenced form [here](https://www.stolaf.edu/people/rab/os/pub0/modules/Pi_Integration_SharedMemory/Pthreads/Pthreads.html)
 
-* FreeRTOS diags only ELF file is provided, to build the code, refer [here](https://github.com/kuopinghsu/FreeRTOS-RISCV) for details.
+*   FreeRTOS diags only ELF file is provided, to build the code, refer [here](https://github.com/kuopinghsu/FreeRTOS-RISCV) for details.
 
-* The other folders are licensed under the MIT written by Kuoping Hsu.
+*   The other folders are licensed under the MIT written by Kuoping Hsu.
+
