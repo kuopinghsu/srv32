@@ -58,7 +58,11 @@ coverage: coverage_extra
 coverage_extra:
 	-@$(MAKE) irq.elf
 	-@$(MAKE) sem.elf
+	-@$(MAKE) exception.elf
+	-@$(MAKE) -C ../sw/_io
 	-@echo Hello | $(MAKE) _io.elf
+	-@$(MAKE) -C ../sw/_file
+	-@$(MAKE) _file.elf
 	-@./$(RVSIM) -q
 	-@./$(RVSIM) -h
 	-@./$(RVSIM) -d
