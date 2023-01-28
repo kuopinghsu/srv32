@@ -525,10 +525,6 @@ int main(int argc, char **argv) {
 
         mtime_update = 0;
 
-        //FIXME: to pass the compliance test, the destination PC should
-        //       be aligned at short word.
-        pc &= 0xfffffffe;
-
         // keep x0 always zero
         regs[0] = 0;
 
@@ -557,7 +553,7 @@ int main(int argc, char **argv) {
             TRAP(TRAP_INST_ALIGN, pc);
         }
 #else
-        if ((pc&2) != 0) {
+        if ((pc&3) != 0) {
             printf("PC 0x%08x alignment error\n", pc);
             TRAP(TRAP_INST_ALIGN, pc);
         }
@@ -646,7 +642,7 @@ int main(int argc, char **argv) {
                 printf("Warning: forever loop detected at PC 0x%08x\n", pc);
                 prog_exit(1);
             }
-            if ((pc&2) == 0)
+            if ((pc&3) == 0)
                 CYCLE_ADD(branch_penalty);
             continue;
         }
@@ -657,7 +653,7 @@ int main(int argc, char **argv) {
             regs[inst.i.rd] = new_pc;
             TRACE_LOG "%08x x%02u (%s) <= 0x%08x\n", inst.inst, inst.i.rd,
                       regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
-            if ((pc&2) == 0)
+            if ((pc&3) == 0)
                 CYCLE_ADD(branch_penalty);
             continue;
         }
@@ -668,7 +664,7 @@ int main(int argc, char **argv) {
                 case OP_BEQ:
                     if (regs[inst.b.rs1] == regs[inst.b.rs2]) {
                         pc += offset;
-                        if ((!branch_predict || offset > 0) && (pc&2) == 0)
+                        if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
                         continue;
                     }
@@ -676,7 +672,7 @@ int main(int argc, char **argv) {
                 case OP_BNE:
                     if (regs[inst.b.rs1] != regs[inst.b.rs2]) {
                         pc += offset;
-                        if ((!branch_predict || offset > 0) && (pc&2) == 0)
+                        if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
                         continue;
                     }
@@ -684,7 +680,7 @@ int main(int argc, char **argv) {
                 case OP_BLT:
                     if (regs[inst.b.rs1] < regs[inst.b.rs2]) {
                         pc += offset;
-                        if ((!branch_predict || offset > 0) && (pc&2) == 0)
+                        if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
                         continue;
                     }
@@ -692,7 +688,7 @@ int main(int argc, char **argv) {
                 case OP_BGE:
                     if (regs[inst.b.rs1] >= regs[inst.b.rs2]) {
                         pc += offset;
-                        if ((!branch_predict || offset > 0) && (pc&2) == 0)
+                        if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
                         continue;
                     }
@@ -700,7 +696,7 @@ int main(int argc, char **argv) {
                 case OP_BLTU:
                     if (((unsigned int)regs[inst.b.rs1]) < ((unsigned int)regs[inst.b.rs2])) {
                         pc += offset;
-                        if ((!branch_predict || offset > 0) && (pc&2) == 0)
+                        if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
                         continue;
                     }
@@ -708,7 +704,7 @@ int main(int argc, char **argv) {
                 case OP_BGEU:
                     if (((unsigned int)regs[inst.b.rs1]) >= ((unsigned int)regs[inst.b.rs2])) {
                         pc += offset;
-                        if ((!branch_predict || offset > 0) && (pc&2) == 0)
+                        if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
                         continue;
                     }
@@ -1149,7 +1145,7 @@ int main(int argc, char **argv) {
                                          (csr.mstatus | (1 << MIE)) :
                                          (csr.mstatus & ~(1 << MIE));
                            // mstatus.mpie = 1
-                           if ((pc&2) == 0)
+                           if ((pc&3) == 0)
                                CYCLE_ADD(branch_penalty);
                            continue;
                        default:

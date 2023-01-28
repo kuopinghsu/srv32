@@ -35,13 +35,13 @@ void foo(volatile int *ptr) {
 
 int main(void) {
     static int test;
-    void (*func_ptr)(int) = (void(*)(int))((int)foo | 1);
+    void (*func_ptr)(void*) = (void(*)(void*))((int)foo | 1);
 
     // load/store address misalignment
     foo((int*)((int)(&test) | 1));
 
     // instruction address misalignment
-    //func_ptr(test);
+    func_ptr((void*)NULL);
 
     return 0;
 }

@@ -359,7 +359,7 @@ assign ex_st_align_excp     = ex_memwr && !ex_flush && (
                                 (ex_alu_op == OP_SW && |ex_memaddr[1:0])
                               );
 assign ex_inst_ill_excp     = !ex_flush && (ex_ill_branch || ex_ill_csr || ex_illegal);
-assign ex_inst_align_excp   = !ex_flush && next_pc[1];
+assign ex_inst_align_excp   = !ex_flush && |next_pc[1:0];
 assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE] && !ex_system_op && !ex_flush;
 assign ex_sw_irq            = sw_irq && csr_mstatus[MIE] && csr_mie[MSIE] && !ex_system_op && !ex_flush;
 assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE] && !ex_system_op && !ex_flush;
@@ -740,7 +740,7 @@ always @(posedge clk or negedge resetb) begin
             ex_inst_align_excp : begin
                 csr_mcause          <= TRAP_INST_ALIGN;
                 csr_mepc            <= {ex_pc[31: 1], 1'b0};
-                csr_mtval           <= {next_pc[31: 1], 1'b0};
+                csr_mtval           <= next_pc[31: 0];
                 csr_mstatus[MPIE]   <= csr_mstatus[MIE];
                 csr_mstatus[MIE]    <= 1'b0;
                 csr_mip             <= csr_mip;
