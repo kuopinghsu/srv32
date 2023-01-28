@@ -19,6 +19,7 @@ This folder is a software diagnostic file used to test the hardware core. Folder
 | pi_pthread | FreeRTOS pthread example to calculate PI |
 | hello | hello world example |
 | qsort | quick sort |
+| scimark2 | SciMark2 (C version) |
 | sem | FreeRTOS semaphor test |
 
 ## LICENSE & NOTES
@@ -32,6 +33,8 @@ This folder is a software diagnostic file used to test the hardware core. Folder
 *   pi is written by Dik T. Winter
 
 *   pi_pthread is referenced form [here](https://www.stolaf.edu/people/rab/os/pub0/modules/Pi_Integration_SharedMemory/Pthreads/Pthreads.html)
+
+*   [scimark2](http://math.nist.gov/scimark)
 
 *   FreeRTOS diags only ELF file is provided, to build the code, refer [here](https://github.com/kuopinghsu/FreeRTOS-RISCV) for details.
 

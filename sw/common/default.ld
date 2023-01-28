@@ -175,7 +175,7 @@ SECTIONS
     *(.sdata .sdata.* .gnu.linkonce.s.*)
   } > dmem
   _edata = .; PROVIDE (edata = .);
-  . = .;
+  . = ALIGN(32 / 8);
   __bss_start = .;
   .sbss           :
   {
