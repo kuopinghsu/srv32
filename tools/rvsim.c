@@ -145,7 +145,7 @@ void usage(void) {
 "Instruction Set Simulator for RV32IM, (c) 2020 Kuoping Hsu\n"
 "Usage: rvsim [-h] [-b n] [-m n] [-n n] [-p] [-l logfile] file\n\n"
 "       --help, -h              help\n"
-"       --membase n, -m n       memory base (in hex)\n"
+"       --membase n, -m n       memory base\n"
 "       --memsize n, -n n       memory size (in Kb)\n"
 "       --branch n, -b n        branch penalty (default 2)\n"
 "       --single, -s            single RAM\n"
@@ -417,16 +417,10 @@ int main(int argc, char **argv) {
                 quiet = 1;
                 break;
             case 'm':
-                if (optarg[0] == '0' && optarg[1] == 'x')
-                    sscanf(optarg, "%x", (unsigned int*)&mem_base);
-                else
-                    mem_base = atoi(optarg);
+                sscanf(optarg, "%i", (unsigned int*)&mem_base);
                 break;
             case 'n':
-                if (optarg[0] == '0' && optarg[1] == 'x')
-                    sscanf(optarg, "%x", (unsigned int*)&mem_size);
-                else
-                    mem_size = atoi(optarg);
+                sscanf(optarg, "%i", (unsigned int*)&mem_size);
                 mem_size *= 1024;
                 break;
             case 's':
