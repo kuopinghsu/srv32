@@ -3,6 +3,7 @@ top      ?= 0
 coverage ?= 0
 memsize  ?= 128
 rv32c    ?= 0
+rv32e    ?= 0
 CC        = gcc
 SYS      := $(shell gcc -dumpmachine)
 
@@ -27,6 +28,10 @@ endif
 
 ifeq ($(rv32c), 1)
 CFLAGS  += -DRV32C_ENABLED
+endif
+
+ifeq ($(rv32e), 1)
+CFLAGS  += -DRV32E_ENABLED
 endif
 
 SRC      = rvsim.c decompress.c syscall.c elfloader.c getch.c

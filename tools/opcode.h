@@ -476,5 +476,11 @@ int compressed_decoder (
 #define DVA2PA(addr) ((addr)-DMEM_BASE)
 #define DPA2VA(addr) ((addr)+DMEM_BASE)
 
+#ifdef RV32E_ENABLED
+#define SYS T0
+#else
+#define SYS A7
+#endif
+
 #endif // __OPCODE_H__
 

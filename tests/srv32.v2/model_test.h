@@ -13,6 +13,18 @@
 
 //RV_COMPLIANCE_HALT
 // this will dump the results via the system call
+#ifdef __riscv_32e
+#define RVMODEL_HALT                                                          \
+        la      a0, begin_signature;                                          \
+        la      a1, end_signature;                                            \
+        li      t0, 0xbeef0000;                                               \
+        addi    t0, t0, 0x88;                                                 \
+        ecall;                                                                \
+        li      t0, 0xbeef0000;                                               \
+        addi    t0, t0, 0x5d;                                                 \
+        ecall;                                                                \
+1:      j       1b;
+#else
 #define RVMODEL_HALT                                                          \
         la      a0, begin_signature;                                          \
         la      a1, end_signature;                                            \
@@ -23,6 +35,7 @@
         addi    a7, a7, 0x5d;                                                 \
         ecall;                                                                \
 1:      j       1b;
+#endif
 
 // declare the start of your signature region here. Nothing else to be used here.
 // The .align 4 ensures that the signature ends at a 16-byte boundary

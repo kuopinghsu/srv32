@@ -10,7 +10,7 @@ This is not a RISC-V core available for production.
 ## Features
 
 1.  Three-stage pipeline processor
-2.  RV32IM instruction sets
+2.  RV32IM/RV32E instruction sets
 3.  Pass RV32IM [architecture test](https://github.com/riscv-non-isa/riscv-arch-test)
 4.  Trap exception
 5.  Interrupt handler
@@ -32,7 +32,7 @@ Install RISCV toolchains.
     
     mkdir build; cd build
     ../configure --prefix=/opt/riscv --with-isa-spec=20191213 \
-        --with-multilib-generator="rv32i-ilp32--;rv32im-ilp32--;rv32imac-ilp32--;rv32im_zicsr-ilp32--;rv32imac_zicsr-ilp32--;rv64imac-lp64--;rv64imac_zicsr-lp64--"
+        --with-multilib-generator="rv32i-ilp32--;rv32im-ilp32--;rv32imac-ilp32--;rv32im_zicsr-ilp32--;rv32imac_zicsr-ilp32--;rv64imac-lp64--;rv64imac_zicsr-lp64--;rv32e_zicsr-ilp32e--;rv32em_zicsr-ilp32e--;rv32ea_zicsr-ilp32e--;rv32emac_zicsr-ilp32e--"
     make -j$(nproc)
 
 Notes: change the default ISA to 20191213, refer to [RISC-V GNU toolchain bumping default ISA spec to 20191213](https://groups.google.com/a/groups.riscv.org/g/sw-dev/c/aE1ZeHHCYf4) for detail.
@@ -101,6 +101,7 @@ Only running make without parameters will get help.
     make distclean   clean all
 
     rv32c=1          enable RV32C (default off)
+    rv32e=1          enable RV32E (default off)
     debug=1          enable waveform dump (default off)
     coverage=1       enable coverage test (default off)
     test_v=[1|2]     run test compliance v1 or v2 (default)
@@ -111,6 +112,7 @@ Only running make without parameters will get help.
     make test_v=2 tests-all    run all tests with test compliance v2
     make coverage=1 tests-all  run all tests with code coverage report
     make debug=1 hello         run hello with waveform dump
+    make rv32e=1 dhrystone     run dhrystone with RV32E
 
 Supports following parameter when running the simulation.
 

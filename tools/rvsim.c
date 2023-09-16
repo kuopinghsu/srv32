@@ -278,91 +278,119 @@ void prog_exit(int exitcode) {
     } \
 }
 
-int csr_rw(int regs, int mode, int val, int update, int *result) {
+int csr_rw(int regs, int mode, int val, int update, int *legal) {
     COUNTER counter;
+    int result = 0;
+    *legal = 1;
     switch(regs) {
         case CSR_RDCYCLE    : counter.c = csr.cycle.c - 1;
-                              *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.cycle.d.lo, val);
+                              result = counter.d.lo; // UPDATE_CSR(update, mode, csr.cycle.d.lo, val);
                               break;
         case CSR_RDCYCLEH   : counter.c = csr.cycle.c - 1;
-                              *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.cycle.d.hi, val);
+                              result = counter.d.hi; // UPDATE_CSR(update, mode, csr.cycle.d.hi, val);
                               break;
         /*
         case CSR_RDTIME     : counter.c = csr.time.c - 1;
-                              *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.time.d.lo, val);
+                              result = counter.d.lo; // UPDATE_CSR(update, mode, csr.time.d.lo, val);
                               break;
         case CSR_RDTIMEH    : counter.c = csr.time.c - 1;
-                              *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.time.d.hi, val);
+                              result = counter.d.hi; // UPDATE_CSR(update, mode, csr.time.d.hi, val);
                               break;
         */
         case CSR_RDINSTRET  : counter.c = csr.instret.c - 1;
-                              *result = counter.d.lo; // UPDATE_CSR(update, mode, csr.instret.d.lo, val);
+                              result = counter.d.lo; // UPDATE_CSR(update, mode, csr.instret.d.lo, val);
                               break;
         case CSR_RDINSTRETH : counter.c = csr.instret.c - 1;
-                              *result = counter.d.hi; // UPDATE_CSR(update, mode, csr.instret.d.hi, val);
+                              result = counter.d.hi; // UPDATE_CSR(update, mode, csr.instret.d.hi, val);
                               break;
-        case CSR_MVENDORID  : *result = csr.mvendorid; // UPDATE_CSR(update, mode, csr.mvendorid, val);
+        case CSR_MVENDORID  : result = csr.mvendorid; // UPDATE_CSR(update, mode, csr.mvendorid, val);
                               break;
-        case CSR_MARCHID    : *result = csr.marchid; // UPDATE_CSR(update, mode, csr.marchid, val);
+        case CSR_MARCHID    : result = csr.marchid; // UPDATE_CSR(update, mode, csr.marchid, val);
                               break;
-        case CSR_MIMPID     : *result = csr.mimpid; // UPDATE_CSR(update, mode, csr.mimpid, val);
+        case CSR_MIMPID     : result = csr.mimpid; // UPDATE_CSR(update, mode, csr.mimpid, val);
                               break;
-        case CSR_MHARTID    : *result = csr.mhartid; // UPDATE_CSR(update, mode, csr.mhartid, val);
+        case CSR_MHARTID    : result = csr.mhartid; // UPDATE_CSR(update, mode, csr.mhartid, val);
                               break;
-        case CSR_MSCRATCH   : *result = csr.mscratch; UPDATE_CSR(update, mode, csr.mscratch, val);
+        case CSR_MSCRATCH   : result = csr.mscratch; UPDATE_CSR(update, mode, csr.mscratch, val);
                               break;
-        case CSR_MSTATUS    : *result = csr.mstatus; UPDATE_CSR(update, mode, csr.mstatus, val);
+        case CSR_MSTATUS    : result = csr.mstatus; UPDATE_CSR(update, mode, csr.mstatus, val);
                               break;
-        case CSR_MISA       : *result = csr.misa; UPDATE_CSR(update, mode, csr.misa, val);
+        case CSR_MISA       : result = csr.misa; UPDATE_CSR(update, mode, csr.misa, val);
                               break;
-        case CSR_MIE        : *result = csr.mie; UPDATE_CSR(update, mode, csr.mie, val);
+        case CSR_MIE        : result = csr.mie; UPDATE_CSR(update, mode, csr.mie, val);
                               break;
-        case CSR_MIP        : *result = csr.mip; UPDATE_CSR(update, mode, csr.mip, val);
+        case CSR_MIP        : result = csr.mip; UPDATE_CSR(update, mode, csr.mip, val);
                               break;
-        case CSR_MTVEC      : *result = csr.mtvec; UPDATE_CSR(update, mode, csr.mtvec, val);
+        case CSR_MTVEC      : result = csr.mtvec; UPDATE_CSR(update, mode, csr.mtvec, val);
                               break;
-        case CSR_MEPC       : *result = csr.mepc; UPDATE_CSR(update, mode, csr.mepc, val);
+        case CSR_MEPC       : result = csr.mepc; UPDATE_CSR(update, mode, csr.mepc, val);
                               break;
-        case CSR_MCAUSE     : *result = csr.mcause; UPDATE_CSR(update, mode, csr.mcause, val);
+        case CSR_MCAUSE     : result = csr.mcause; UPDATE_CSR(update, mode, csr.mcause, val);
                               break;
-        case CSR_MTVAL      : *result = csr.mtval; UPDATE_CSR(update, mode, csr.mtval, val);
+        case CSR_MTVAL      : result = csr.mtval; UPDATE_CSR(update, mode, csr.mtval, val);
                               break;
 #ifdef XV6_SUPPORT
-        case CSR_MEDELEG    : *result = csr.medeleg; UPDATE_CSR(update, mode, csr.medeleg, val);
+        case CSR_MEDELEG    : result = csr.medeleg; UPDATE_CSR(update, mode, csr.medeleg, val);
                               break;
-        case CSR_MIDELEG    : *result = csr.mideleg; UPDATE_CSR(update, mode, csr.mideleg, val);
+        case CSR_MIDELEG    : result = csr.mideleg; UPDATE_CSR(update, mode, csr.mideleg, val);
                               break;
-        case CSR_MCOUNTEREN : *result = csr.mcounteren; UPDATE_CSR(update, mode, csr.mcounteren, val);
+        case CSR_MCOUNTEREN : result = csr.mcounteren; UPDATE_CSR(update, mode, csr.mcounteren, val);
                               break;
-        case CSR_SSTATUS    : *result = csr.sstatus; UPDATE_CSR(update, mode, csr.sstatus, val);
+        case CSR_SSTATUS    : result = csr.sstatus; UPDATE_CSR(update, mode, csr.sstatus, val);
                               break;
-        case CSR_SIE        : *result = csr.sie; UPDATE_CSR(update, mode, csr.sie, val);
+        case CSR_SIE        : result = csr.sie; UPDATE_CSR(update, mode, csr.sie, val);
                               break;
-        case CSR_STVEC      : *result = csr.stvec; UPDATE_CSR(update, mode, csr.stvec, val);
+        case CSR_STVEC      : result = csr.stvec; UPDATE_CSR(update, mode, csr.stvec, val);
                               break;
-        case CSR_SSCRATCH   : *result = csr.sscratch; UPDATE_CSR(update, mode, csr.sscratch, val);
+        case CSR_SSCRATCH   : result = csr.sscratch; UPDATE_CSR(update, mode, csr.sscratch, val);
                               break;
-        case CSR_SEPC       : *result = csr.sepc; UPDATE_CSR(update, mode, csr.sepc, val);
+        case CSR_SEPC       : result = csr.sepc; UPDATE_CSR(update, mode, csr.sepc, val);
                               break;
-        case CSR_SCAUSE     : *result = csr.scause; UPDATE_CSR(update, mode, csr.scause, val);
+        case CSR_SCAUSE     : result = csr.scause; UPDATE_CSR(update, mode, csr.scause, val);
                               break;
-        case CSR_STVAL      : *result = csr.stval; UPDATE_CSR(update, mode, csr.stval, val);
+        case CSR_STVAL      : result = csr.stval; UPDATE_CSR(update, mode, csr.stval, val);
                               break;
-        case CSR_SIP        : *result = csr.sip; UPDATE_CSR(update, mode, csr.sip, val);
+        case CSR_SIP        : result = csr.sip; UPDATE_CSR(update, mode, csr.sip, val);
                               break;
-        case CSR_SATP       : *result = csr.satp; UPDATE_CSR(update, mode, csr.satp, val);
+        case CSR_SATP       : result = csr.satp; UPDATE_CSR(update, mode, csr.satp, val);
                               break;
 #endif
-        default: *result = 0; // FIXME
+        default: result = 0; // FIXME
                  printf("Unsupport CSR register 0x%03x at PC 0x%08x\n", regs, pc);
-                 return 0;
+                 *legal = 0;
     }
-    return 1;
+    return result;
 }
+
+#ifdef RV32E_ENABLED
+static int regs[16];
+#else
+static int regs[32];
+#endif
+
+#ifdef RV32E_ENABLED
+static inline int REGS(int n) {
+    if (n > 15) {
+        printf("RV32E: can not access registers %d\n", n);
+        return 0;
+    } else {
+        return regs[n];
+    }
+}
+static inline void REGS_W(int n, int v) {
+    if (n > 15) {
+        printf("RV32E: can not access registers %d\n", n);
+    } else {
+        regs[n] = v;
+    }
+}
+#else
+#  define REGS(n)      regs[n]
+#  define REGS_W(n, v) regs[n] = (v)
+#endif
 
 int main(int argc, char **argv) {
     FILE *ft = NULL;
-    static int regs[32];
 
     int i;
     int result;
@@ -483,7 +511,7 @@ int main(int argc, char **argv) {
 
     // Registers initialize
     for(i=0; i<sizeof(regs)/sizeof(int); i++) {
-        regs[i] = 0;
+        REGS_W(i, 0);
     }
 
     csr.mvendorid  = MVENDORID;
@@ -520,7 +548,7 @@ int main(int argc, char **argv) {
         mtime_update = 0;
 
         // keep x0 always zero
-        regs[0] = 0;
+        REGS_W(0, 0);
 
         if (timer_irq && (csr.mstatus & (1 << MIE))) {
             INT(INT_MTIME, MTIP);
@@ -616,21 +644,21 @@ int main(int argc, char **argv) {
 
         switch(inst.r.op) {
         case OP_AUIPC: { // U-Type
-            regs[inst.u.rd] = pc + to_imm_u(inst.u.imm);
+            REGS_W(inst.u.rd, pc + to_imm_u(inst.u.imm));
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n", pc, inst.inst,
-                       inst.u.rd, regname[inst.u.rd], regs[inst.u.rd] TRACE_END;
+                       inst.u.rd, regname[inst.u.rd], REGS(inst.u.rd) TRACE_END;
             break;
         }
         case OP_LUI: { // U-Type
-            regs[inst.u.rd] = to_imm_u(inst.u.imm);
+            REGS_W(inst.u.rd, to_imm_u(inst.u.imm));
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n", pc, inst.inst,
-                      inst.u.rd, regname[inst.u.rd], regs[inst.u.rd] TRACE_END;
+                      inst.u.rd, regname[inst.u.rd], REGS(inst.u.rd) TRACE_END;
             break;
         }
         case OP_JAL: { // J-Type
-            regs[inst.j.rd] = compressed ? pc + 2 : pc + 4;
+            REGS_W(inst.j.rd, compressed ? pc + 2 : pc + 4);
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n", pc, inst.inst,
-                      inst.j.rd, regname[inst.j.rd], regs[inst.j.rd] TRACE_END;
+                      inst.j.rd, regname[inst.j.rd], REGS(inst.j.rd) TRACE_END;
             pc += to_imm_j(inst.j.imm);
             if (to_imm_j(inst.j.imm) == 0) {
                 printf("Warning: forever loop detected at PC 0x%08x\n", pc);
@@ -643,10 +671,10 @@ int main(int argc, char **argv) {
         case OP_JALR: { // I-Type
             int new_pc = compressed ? pc + 2 : pc + 4;
             TIME_LOG; TRACE_LOG "%08x ", pc TRACE_END;
-            pc = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
-            regs[inst.i.rd] = new_pc;
+            pc = REGS(inst.i.rs1) + to_imm_i(inst.i.imm);
+            REGS_W(inst.i.rd, new_pc);
             TRACE_LOG "%08x x%02u (%s) <= 0x%08x\n", inst.inst, inst.i.rd,
-                      regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
+                      regname[inst.i.rd], REGS(inst.i.rd) TRACE_END;
             if ((pc&3) == 0)
                 CYCLE_ADD(branch_penalty);
             continue;
@@ -656,7 +684,7 @@ int main(int argc, char **argv) {
             int offset = to_imm_b(inst.b.imm2, inst.b.imm1);
             switch(inst.b.func3) {
                 case OP_BEQ:
-                    if (regs[inst.b.rs1] == regs[inst.b.rs2]) {
+                    if (REGS(inst.b.rs1) == REGS(inst.b.rs2)) {
                         pc += offset;
                         if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
@@ -664,7 +692,7 @@ int main(int argc, char **argv) {
                     }
                     break;
                 case OP_BNE:
-                    if (regs[inst.b.rs1] != regs[inst.b.rs2]) {
+                    if (REGS(inst.b.rs1) != REGS(inst.b.rs2)) {
                         pc += offset;
                         if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
@@ -672,7 +700,7 @@ int main(int argc, char **argv) {
                     }
                     break;
                 case OP_BLT:
-                    if (regs[inst.b.rs1] < regs[inst.b.rs2]) {
+                    if (REGS(inst.b.rs1) < REGS(inst.b.rs2)) {
                         pc += offset;
                         if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
@@ -680,7 +708,7 @@ int main(int argc, char **argv) {
                     }
                     break;
                 case OP_BGE:
-                    if (regs[inst.b.rs1] >= regs[inst.b.rs2]) {
+                    if (REGS(inst.b.rs1) >= REGS(inst.b.rs2)) {
                         pc += offset;
                         if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
@@ -688,7 +716,7 @@ int main(int argc, char **argv) {
                     }
                     break;
                 case OP_BLTU:
-                    if (((unsigned int)regs[inst.b.rs1]) < ((unsigned int)regs[inst.b.rs2])) {
+                    if (((unsigned int)REGS(inst.b.rs1)) < ((unsigned int)REGS(inst.b.rs2))) {
                         pc += offset;
                         if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
@@ -696,7 +724,7 @@ int main(int argc, char **argv) {
                     }
                     break;
                 case OP_BGEU:
-                    if (((unsigned int)regs[inst.b.rs1]) >= ((unsigned int)regs[inst.b.rs2])) {
+                    if (((unsigned int)REGS(inst.b.rs1)) >= ((unsigned int)REGS(inst.b.rs2))) {
                         pc += offset;
                         if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
@@ -714,7 +742,7 @@ int main(int argc, char **argv) {
             COUNTER counter;
             int memaddr;
             int data;
-            int address = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
+            int address = REGS(inst.i.rs1) + to_imm_i(inst.i.imm);
             memaddr = address;
             if (singleram) CYCLE_ADD(1);
             TIME_LOG; TRACE_LOG "%08x %08x", pc, inst.inst TRACE_END;
@@ -809,16 +837,16 @@ int main(int argc, char **argv) {
                     TRAP(TRAP_INST_ILL, inst.inst);
                     continue;
             }
-            regs[inst.i.rd] = data;
+            REGS_W(inst.i.rd, data);
             TRACE_LOG " read 0x%08x, x%02u (%s) <= 0x%08x\n",
                       memaddr, inst.i.rd,
-                      regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
+                      regname[inst.i.rd], REGS(inst.i.rd) TRACE_END;
             break;
         }
         case OP_STORE: { // S-Type
-            int address = regs[inst.s.rs1] +
+            int address = REGS(inst.s.rs1) +
                           to_imm_s(inst.s.imm2, inst.s.imm1);
-            int data = regs[inst.s.rs2];
+            int data = REGS(inst.s.rs2);
             int mask = (inst.s.func3 == OP_SB) ? 0xff :
                        (inst.s.func3 == OP_SH) ? 0xffff :
                        (inst.s.func3 == OP_SW) ? 0xffffffff :
@@ -924,37 +952,37 @@ int main(int argc, char **argv) {
         case OP_ARITHI: { // I-Type
             switch(inst.i.func3) {
                 case OP_ADD:
-                    regs[inst.i.rd] = regs[inst.i.rs1] + to_imm_i(inst.i.imm);
+                    REGS_W(inst.i.rd, REGS(inst.i.rs1) + to_imm_i(inst.i.imm));
                     break;
                 case OP_SLT:
-                    regs[inst.i.rd] = regs[inst.i.rs1] < to_imm_i(inst.i.imm) ? 1 : 0;
+                    REGS_W(inst.i.rd, REGS(inst.i.rs1) < to_imm_i(inst.i.imm) ? 1 : 0);
                     break;
                 case OP_SLTU:
                     //FIXME: to pass compliance test, the IMM should be singed
                     //extension, and compare with unsigned.
                     //regs[inst.i.rd] = ((unsigned int)regs[inst.i.rs1]) <
                     //                ((unsigned int)to_imm_iu(inst.i.imm)) ? 1 : 0;
-                    regs[inst.i.rd] = ((unsigned int)regs[inst.i.rs1]) <
-                                      ((unsigned int)to_imm_i(inst.i.imm)) ? 1 : 0;
+                    REGS_W(inst.i.rd, ((unsigned int)REGS(inst.i.rs1)) <
+                                      ((unsigned int)to_imm_i(inst.i.imm)) ? 1 : 0);
                     break;
                 case OP_XOR:
-                    regs[inst.i.rd] = regs[inst.i.rs1] ^ to_imm_i(inst.i.imm);
+                    REGS_W(inst.i.rd, REGS(inst.i.rs1) ^ to_imm_i(inst.i.imm));
                     break;
                 case OP_OR:
-                    regs[inst.i.rd] = regs[inst.i.rs1] | to_imm_i(inst.i.imm);
+                    REGS_W(inst.i.rd, REGS(inst.i.rs1) | to_imm_i(inst.i.imm));
                     break;
                 case OP_AND:
-                    regs[inst.i.rd] = regs[inst.i.rs1] & to_imm_i(inst.i.imm);
+                    REGS_W(inst.i.rd, REGS(inst.i.rs1) & to_imm_i(inst.i.imm));
                     break;
                 case OP_SLL:
-                    regs[inst.i.rd] = regs[inst.i.rs1] << (inst.i.imm&0x1f);
+                    REGS_W(inst.i.rd, REGS(inst.i.rs1) << (inst.i.imm&0x1f));
                     break;
                 case OP_SR:
                     if (inst.r.func7 == 0)
-                        regs[inst.i.rd] = ((unsigned int)regs[inst.i.rs1]) >>
-                                          (inst.i.imm&0x1f);
+                        REGS_W(inst.i.rd, ((unsigned int)REGS(inst.i.rs1)) >>
+                                          (inst.i.imm&0x1f));
                     else
-                        regs[inst.i.rd] = regs[inst.i.rs1] >> (inst.i.imm&0x1f);
+                        REGS_W(inst.i.rd, REGS(inst.i.rs1) >> (inst.i.imm&0x1f));
                     break;
                 default:
                     printf("Unknown instruction at PC 0x%08x\n", pc);
@@ -963,15 +991,15 @@ int main(int argc, char **argv) {
             }
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                       pc, inst.inst, inst.i.rd, regname[inst.i.rd],
-                      regs[inst.i.rd] TRACE_END;
+                      REGS(inst.i.rd) TRACE_END;
             break;
         }
         case OP_ARITHR: { // R-Type
             if (inst.r.func7 == 1) { // RV32M Multiply Extension
                 switch(inst.r.func3) {
                     case OP_MUL:
-                        regs[inst.r.rd] = regs[inst.r.rs1] *
-                                          regs[inst.r.rs2];
+                        REGS_W(inst.r.rd, REGS(inst.r.rs1) *
+                                          REGS(inst.r.rs2));
                         break;
                     case OP_MULH:
                         {
@@ -979,10 +1007,10 @@ int main(int argc, char **argv) {
                             long long l;
                             struct { int l, h; } n;
                         } a, b, r;
-                        a.l = (long long)regs[inst.r.rs1];
-                        b.l = (long long)regs[inst.r.rs2];
+                        a.l = (long long)REGS(inst.r.rs1);
+                        b.l = (long long)REGS(inst.r.rs2);
                         r.l = a.l * b.l;
-                        regs[inst.r.rd] = r.n.h;
+                        REGS_W(inst.r.rd, r.n.h);
                         }
                         break;
                     case OP_MULSU:
@@ -991,11 +1019,11 @@ int main(int argc, char **argv) {
                             long long l;
                             struct { int l, h; } n;
                         } a, b, r;
-                        a.l = (long long)regs[inst.r.rs1];
-                        b.n.l = regs[inst.r.rs2];
+                        a.l = (long long)REGS(inst.r.rs1);
+                        b.n.l = REGS(inst.r.rs2);
                         b.n.h = 0;
                         r.l = a.l * b.l;
-                        regs[inst.r.rd] = r.n.h;
+                        REGS_W(inst.r.rd, r.n.h);
                         }
                         break;
                     case OP_MULU:
@@ -1004,40 +1032,40 @@ int main(int argc, char **argv) {
                             long long l;
                             struct { int l, h; } n;
                         } a, b, r;
-                        a.n.l = regs[inst.r.rs1]; a.n.h = 0;
-                        b.n.l = regs[inst.r.rs2]; b.n.h = 0;
+                        a.n.l = REGS(inst.r.rs1); a.n.h = 0;
+                        b.n.l = REGS(inst.r.rs2); b.n.h = 0;
                         r.l = ((unsigned long long)a.l) *
                               ((unsigned long long)b.l);
-                        regs[inst.r.rd] = r.n.h;
+                        REGS_W(inst.r.rd, r.n.h);
                         }
                         break;
                     case OP_DIV:
-                        if (regs[inst.r.rs2])
-                            regs[inst.r.rd] = (int)(((long long)regs[inst.r.rs1]) /
-                                                   regs[inst.r.rs2]);
+                        if (REGS(inst.r.rs2))
+                            REGS_W(inst.r.rd, (int)(((long long)REGS(inst.r.rs1)) /
+                                                   REGS(inst.r.rs2)));
                         else
-                            regs[inst.r.rd] = 0xffffffff;
+                            REGS_W(inst.r.rd, 0xffffffff);
                         break;
                     case OP_DIVU:
-                        if (regs[inst.r.rs2])
-                            regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1]) /
-                                                    ((unsigned)regs[inst.r.rs2]));
+                        if (REGS(inst.r.rs2))
+                            REGS_W(inst.r.rd, (int)(((unsigned)REGS(inst.r.rs1)) /
+                                                    ((unsigned)REGS(inst.r.rs2))));
                         else
-                            regs[inst.r.rd] = 0xffffffff;
+                            REGS_W(inst.r.rd, 0xffffffff);
                         break;
                     case OP_REM:
-                        if (regs[inst.r.rs2])
-                            regs[inst.r.rd] = (int)(((long long)regs[inst.r.rs1]) %
-                                                    regs[inst.r.rs2]);
+                        if (REGS(inst.r.rs2))
+                            REGS_W(inst.r.rd, (int)(((long long)REGS(inst.r.rs1)) %
+                                                    REGS(inst.r.rs2)));
                         else
-                            regs[inst.r.rd] = regs[inst.r.rs1];
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1));
                         break;
                     case OP_REMU:
-                        if (regs[inst.r.rs2])
-                            regs[inst.r.rd] = (int)(((unsigned)regs[inst.r.rs1]) %
-                                                    ((unsigned)regs[inst.r.rs2]));
+                        if (REGS(inst.r.rs2))
+                            REGS_W(inst.r.rd, (int)(((unsigned)REGS(inst.r.rs1)) %
+                                                    ((unsigned)REGS(inst.r.rs2))));
                         else
-                            regs[inst.r.rd] = regs[inst.r.rs1];
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1));
                         break;
                     default:
                         printf("Unknown instruction at PC 0x%08x\n", pc);
@@ -1048,36 +1076,36 @@ int main(int argc, char **argv) {
                 switch(inst.r.func3) {
                     case OP_ADD:
                         if (inst.r.func7 == 0)
-                            regs[inst.r.rd] = regs[inst.r.rs1] + regs[inst.r.rs2];
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) + REGS(inst.r.rs2));
                         else
-                            regs[inst.r.rd] = regs[inst.r.rs1] - regs[inst.r.rs2];
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) - REGS(inst.r.rs2));
                         break;
                     case OP_SLL:
-                        regs[inst.r.rd] = regs[inst.r.rs1] << regs[inst.r.rs2];
+                        REGS_W(inst.r.rd, REGS(inst.r.rs1) << REGS(inst.r.rs2));
                         break;
                     case OP_SLT:
-                        regs[inst.r.rd] = regs[inst.r.rs1] < regs[inst.r.rs2] ?
-                                          1 : 0;
+                        REGS_W(inst.r.rd, REGS(inst.r.rs1) < REGS(inst.r.rs2) ?
+                                          1 : 0);
                         break;
                     case OP_SLTU:
-                        regs[inst.r.rd] = ((unsigned int)regs[inst.r.rs1]) <
-                             ((unsigned int)regs[inst.r.rs2]) ? 1 : 0;
+                        REGS_W(inst.r.rd, ((unsigned int)REGS(inst.r.rs1)) <
+                             ((unsigned int)REGS(inst.r.rs2)) ? 1 : 0);
                         break;
                     case OP_XOR:
-                        regs[inst.r.rd] = regs[inst.r.rs1] ^ regs[inst.r.rs2];
+                        REGS_W(inst.r.rd, REGS(inst.r.rs1) ^ REGS(inst.r.rs2));
                         break;
                     case OP_SR:
                         if (inst.r.func7 == 0)
-                            regs[inst.r.rd] = ((unsigned int)regs[inst.r.rs1]) >>
-                                              regs[inst.r.rs2];
+                            REGS_W(inst.r.rd, ((unsigned int)REGS(inst.r.rs1)) >>
+                                              REGS(inst.r.rs2));
                         else
-                            regs[inst.r.rd] = regs[inst.r.rs1] >> regs[inst.r.rs2];
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) >> REGS(inst.r.rs2));
                         break;
                     case OP_OR:
-                        regs[inst.r.rd] = regs[inst.r.rs1] | regs[inst.r.rs2];
+                        REGS_W(inst.r.rd, REGS(inst.r.rs1) | REGS(inst.r.rs2));
                         break;
                     case OP_AND:
-                        regs[inst.r.rd] = regs[inst.r.rs1] & regs[inst.r.rs2];
+                        REGS_W(inst.r.rd, REGS(inst.r.rs1) & REGS(inst.r.rs2));
                         break;
                     default:
                         printf("Unknown instruction at PC 0x%08x\n", pc);
@@ -1087,7 +1115,7 @@ int main(int argc, char **argv) {
             }
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                       pc, inst.inst, inst.r.rd, regname[inst.r.rd],
-                      regs[inst.r.rd] TRACE_END;
+                      REGS(inst.r.rd) TRACE_END;
             break;
         }
         case OP_FENCE: {
@@ -1106,10 +1134,10 @@ int main(int argc, char **argv) {
                     TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
                     switch (inst.i.imm & 3) {
                        case 0: // ecall
-                           res = srv32_syscall(regs[A7], regs[A0],
-                                               regs[A1], regs[A2],
-                                               regs[A3], regs[A4],
-                                               regs[A5]);
+                           res = srv32_syscall(REGS(SYS), REGS(A0),
+                                               REGS(A1), REGS(A2),
+                                               REGS(A3), REGS(A4),
+                                               REGS(A5));
                            // Notes: FreeRTOS will use ecall to perform context switching.
                            // The syscall of newlib will confict with the syscall of
                            // FreeRTOS.
@@ -1117,7 +1145,7 @@ int main(int argc, char **argv) {
                            // FIXME: if it is prefined syscall, excute it.
                            // otherwise raising a trap
                            if (res != -1) {
-                                regs[A0] = res;
+                                REGS_W(A0, res);
                            } else {
                                 TRAP(TRAP_ECALL, 0);
                                 continue;
@@ -1125,7 +1153,7 @@ int main(int argc, char **argv) {
                            break;
                            #else
                            if (res != -1)
-                                regs[A0] = res;
+                                REGS_W(A0, res);
                            TRAP(TRAP_ECALL, 0);
                            continue;
                            #endif
@@ -1158,7 +1186,7 @@ int main(int argc, char **argv) {
                 // to the CSR
                 case OP_CSRRW:
                     csr_op   = 1;
-                    val      = regs[inst.i.rs1];
+                    val      = REGS(inst.i.rs1);
                     update   = 1;
                     csr_type = OP_CSRRW;
                     break;
@@ -1172,7 +1200,7 @@ int main(int argc, char **argv) {
                     break;
                 case OP_CSRRS:
                     csr_op   = 1;
-                    val      = regs[inst.i.rs1];
+                    val      = REGS(inst.i.rs1);
                     update   = (inst.i.rs1 == 0) ? 0 : 1;
                     csr_type = OP_CSRRS;
                     break;
@@ -1184,7 +1212,7 @@ int main(int argc, char **argv) {
                     break;
                 case OP_CSRRC:
                     csr_op   = 1;
-                    val      = regs[inst.i.rs1];
+                    val      = REGS(inst.i.rs1);
                     update   = (inst.i.rs1 == 0) ? 0 : 1;
                     csr_type = OP_CSRRC;
                     break;
@@ -1195,11 +1223,15 @@ int main(int argc, char **argv) {
                     continue;
             }
             if (csr_op) {
-                int result = csr_rw(inst.i.imm, csr_type, val, update, &regs[inst.i.rd]);
+                int legal = 0;
+                int result = csr_rw(inst.i.imm, csr_type, val, update, &legal);
+                //if (legal) { // FIXME
+                    REGS_W(inst.i.rd, result);
+                //}
                 TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                           pc, inst.inst, inst.i.rd,
-                          regname[inst.i.rd], regs[inst.i.rd] TRACE_END;
-                if (!result) {
+                          regname[inst.i.rd], REGS(inst.i.rd) TRACE_END;
+                if (!legal) {
                    TRAP(TRAP_INST_ILL, 0);
                    continue;
                 }

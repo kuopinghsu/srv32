@@ -1,4 +1,5 @@
 rv32c        := 0
+rv32e        := 0
 TARGET_SIM   ?= "$(ROOT_SRV32)/sim/sim +trace"
 TARGET_SWSIM ?= $(ROOT_SRV32)/tools/rvsim
 TARGET_FLAGS ?= $(RISCV_TARGET_FLAGS) -q
@@ -13,9 +14,17 @@ RISCV_OBJCOPY  ?= $(RISCV_PREFIX)objcopy
 RISCV_READELF  ?= $(RISCV_PREFIX)readelf
 
 ifeq ($(rv32c),1)
+ifeq ($(rv32e),1)
+RISCV_GCC_OPTS ?= -static -march=rv32emac_zicsr -mabi=ilp32e $(EXTRA_CFLAGS) -mcmodel=medany -g -fvisibility=hidden -nostdlib -nostartfiles -DXLEN=$(XLEN) $(RVTEST_DEFINES)
+else
 RISCV_GCC_OPTS ?= -static -march=rv32imac_zicsr -mabi=ilp32 $(EXTRA_CFLAGS) -mcmodel=medany -g -fvisibility=hidden -nostdlib -nostartfiles -DXLEN=$(XLEN) $(RVTEST_DEFINES)
+endif
+else
+ifeq ($(rv32e),1)
+RISCV_GCC_OPTS ?= -static -march=rv32em_zicsr -mabi=ilp32e $(EXTRA_CFLAGS) -mcmodel=medany -g -fvisibility=hidden -nostdlib -nostartfiles -DXLEN=$(XLEN) $(RVTEST_DEFINES)
 else
 RISCV_GCC_OPTS ?= -static -march=rv32im_zicsr -mabi=ilp32 $(EXTRA_CFLAGS) -mcmodel=medany -g -fvisibility=hidden -nostdlib -nostartfiles -DXLEN=$(XLEN) $(RVTEST_DEFINES)
+endif
 endif
 
 COMPILE_CMD=\

@@ -60,9 +60,10 @@ assign wadr[ADDRW-1: 0] = waddr[ADDRW+1: 2];
 function [7:0] getb;
     input [31:0] address;
 begin
-    if (address[31:ADDRW+2] != 0) begin
-        $display("Address %08x out of range", address);
-    end
+    // FIXME: verilator master repo takes core dump on the following expression
+    //if (address[31:ADDRW+2] != 0) begin
+    //    $display("Address %08x out of range", address);
+    //end
 
     case(address[1:0])
         0: getb = ram[address[ADDRW+1: 2]][8*0+7:8*0];
@@ -183,9 +184,10 @@ assign wadr[ADDRW-1: 0]  = waddr[ADDRW+1: 2];
 function [7:0] getb;
     input [31:0] address;
 begin
-    if (address[31:ADDRW+2] != 0) begin
-        $display("Address %08x out of range", address);
-    end
+    // FIXME: verilator master repo takes core dump on the following expression
+    //if (address[31:ADDRW+2] != 0) begin
+    //    $display("Address %08x out of range", address);
+    //end
 
     case(address[1:0])
         0: getb = ram[address[ADDRW+1: 2]][8*0+7:8*0];
@@ -317,9 +319,10 @@ assign adr[ADDRW-1: 0] = addr[ADDRW+1: 2];
 function [7:0] getb;
     input [31:0] address;
 begin
-    if (address[31:ADDRW+2] != 0) begin
-        $display("Address %08x out of range", address);
-    end
+    // FIXME: verilator master repo takes core dump on the following expression
+    //if (address[31:ADDRW+2] != 0) begin
+    //    $display("Address %08x out of range", address);
+    //end
 
     case(address[1:0])
         0: getb = ram[address[ADDRW+1: 2]][8*0+7:8*0];

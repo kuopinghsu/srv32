@@ -20,7 +20,10 @@
 // SOFTWARE.
 
 // Define it to enable RV32M multiply extension
-`define RV32M_ENABLED       1
+`define RV32M_ENABLED
+
+// RV32E
+// `define RV32E_ENABLED
 
 // ============================================================
 // RISCV for imem and dmem separate port
@@ -80,7 +83,11 @@ module riscv (
     wire            [31: 0] if_insn;
 
     // register files
+`ifdef RV32E_ENABLED
+    reg             [31: 0] regs [15: 1];
+`else
     reg             [31: 0] regs [31: 1];
+`endif
     wire            [31: 0] reg_rdata1, reg_rdata2;
     wire            [31: 0] alu_op1;
     wire            [31: 0] alu_op2;
@@ -950,9 +957,19 @@ assign reg_rdata2[31: 0]    = (ex_src2_sel == 5'h0) ? 32'h0 :
 // register writing @ write back stage
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
+`ifdef RV32E_ENABLED
+        for(i = 1; i < 15; i = i + 1) regs[i] <= 32'h0;
+`else
         for(i = 1; i < 32; i = i + 1) regs[i] <= 32'h0;
+`endif // RV32E_ENABLED
     end else if (wb_alu2reg && !stall_r && !(wb_stall || wb_flush)) begin
         regs[wb_dst_sel]    <= wb_mem2reg ? wb_rdata : wb_result;
+`ifdef RV32E_ENABLED
+        if (wb_dst_sel > 15) begin
+            $display("RV32E: can not access register %d at PC %08x", wb_dst_sel, wb_pc);
+            $finish(2);
+        end
+`endif // RV32E_ENABLED
     end
 end
 
@@ -978,6 +995,7 @@ end
     wire        [31: 0] x13_a3      = regs[13][31: 0];
     wire        [31: 0] x14_a4      = regs[14][31: 0];
     wire        [31: 0] x15_a5      = regs[15][31: 0];
+`ifndef RV32E_ENABLED
     wire        [31: 0] x16_a6      = regs[16][31: 0];
     wire        [31: 0] x17_a7      = regs[17][31: 0];
     wire        [31: 0] x18_s2      = regs[18][31: 0];
@@ -994,6 +1012,7 @@ end
     wire        [31: 0] x29_t4      = regs[29][31: 0];
     wire        [31: 0] x30_t5      = regs[30][31: 0];
     wire        [31: 0] x31_t6      = regs[31][31: 0];
+`endif
     reg         [31: 0] wb_insn;
     reg         [ 1: 0] wb_break;
     reg         [31: 0] wb_raddress;

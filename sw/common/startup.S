@@ -76,12 +76,14 @@ _trap_handler:
     sw      a3, 44(sp)
     sw      a4, 40(sp)
     sw      a5, 36(sp)
+#ifndef __riscv_32e // TODO
     sw      a6, 32(sp)
     sw      a7, 28(sp)
     sw      t3, 24(sp)
     sw      t4, 20(sp)
     sw      t5, 16(sp)
     sw      t6, 12(sp)
+#endif
     addi    s0, sp, 80
 
     // check user defined handler
@@ -93,9 +95,9 @@ _trap_handler:
 
 1:
     // default handler
-    csrr    t5, mepc
-    addi    t5, t5, 4
-    csrw    mepc, t5
+    csrr    a5, mepc
+    addi    a5, a5, 4
+    csrw    mepc, a5
 
 2:
     // restore registers
@@ -110,12 +112,14 @@ _trap_handler:
     lw      a3, 44(sp)
     lw      a4, 40(sp)
     lw      a5, 36(sp)
+#ifndef __riscv_32e // TODO
     lw      a6, 32(sp)
     lw      a7, 28(sp)
     lw      t3, 24(sp)
     lw      t4, 20(sp)
     lw      t5, 16(sp)
     lw      t6, 12(sp)
+#endif
     addi    sp, sp, 80
 
     mret
@@ -135,12 +139,14 @@ _trap_ecall:
     sw      a3, 44(sp)
     sw      a4, 40(sp)
     sw      a5, 36(sp)
+#ifndef __riscv_32e // TODO
     sw      a6, 32(sp)
     sw      a7, 28(sp)
     sw      t3, 24(sp)
     sw      t4, 20(sp)
     sw      t5, 16(sp)
     sw      t6, 12(sp)
+#endif
     addi    s0, sp, 80
 
     // check user defined handler
@@ -152,9 +158,9 @@ _trap_ecall:
 
 1:
     // default handler
-    csrr    t5, mepc
-    addi    t5, t5, 4
-    csrw    mepc, t5
+    csrr    a5, mepc
+    addi    a5, a5, 4
+    csrw    mepc, a5
 
 2:
     // restore registers
@@ -169,12 +175,14 @@ _trap_ecall:
     lw      a3, 44(sp)
     lw      a4, 40(sp)
     lw      a5, 36(sp)
+#ifndef __riscv_32e // TODO
     lw      a6, 32(sp)
     lw      a7, 28(sp)
     lw      t3, 24(sp)
     lw      t4, 20(sp)
     lw      t5, 16(sp)
     lw      t6, 12(sp)
+#endif
     addi    sp, sp, 80
 
     mret
@@ -194,12 +202,14 @@ _trap_ebreak:
     sw      a3, 44(sp)
     sw      a4, 40(sp)
     sw      a5, 36(sp)
+#ifndef __riscv_32e // TODO
     sw      a6, 32(sp)
     sw      a7, 28(sp)
     sw      t3, 24(sp)
     sw      t4, 20(sp)
     sw      t5, 16(sp)
     sw      t6, 12(sp)
+#endif
     addi    s0, sp, 80
 
     // check user defined handler
@@ -211,9 +221,9 @@ _trap_ebreak:
 
 1:
     // default handler
-    csrr    t5, mepc
-    addi    t5, t5, 4
-    csrw    mepc, t5
+    csrr    a5, mepc
+    addi    a5, a5, 4
+    csrw    mepc, a5
 
 2:
     // restore registers
@@ -228,12 +238,14 @@ _trap_ebreak:
     lw      a3, 44(sp)
     lw      a4, 40(sp)
     lw      a5, 36(sp)
+#ifndef __riscv_32e // TODO
     lw      a6, 32(sp)
     lw      a7, 28(sp)
     lw      t3, 24(sp)
     lw      t4, 20(sp)
     lw      t5, 16(sp)
     lw      t6, 12(sp)
+#endif
     addi    sp, sp, 80
 
     mret
