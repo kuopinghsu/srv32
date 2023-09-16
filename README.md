@@ -112,7 +112,7 @@ Only running make without parameters will get help.
     make test_v=2 tests-all    run all tests with test compliance v2
     make coverage=1 tests-all  run all tests with code coverage report
     make debug=1 hello         run hello with waveform dump
-    make rv32e=1 dhrystone     run dhrystone with RV32E
+    make rv32e=1 dhrystone     run dhrystone for RV32E config
 
 Supports following parameter when running the simulation.
 

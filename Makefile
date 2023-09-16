@@ -64,6 +64,7 @@ help:
 	@echo "$ make test_v=2 tests-all    run all tests with test compliance v2"
 	@echo "$ make coverage=1 tests-all  run all tests with code coverage report"
 	@echo "$ make debug=1 hello         run hello with waveform dump"
+	@echo "$ make rv32e=1 dhrystone     run dhrystone for RV32E config"
 	@echo ""
 
 tests-all: tests-sw tests all all-sw
