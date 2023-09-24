@@ -61,6 +61,20 @@ module testbench();
     localparam      DRAMBASE    = 128*1024;
 `endif
 
+`ifdef RV32M_ENABLE
+    localparam HAVE_RV32M = 1;
+`else
+    localparam HAVE_RV32M = 0;
+`endif
+
+`ifdef RV32E_ENABLE
+    localparam          HAVE_RV32E = 1;
+    localparam  [ 4: 0] REG_SYS    = REG_T0;
+`else
+    localparam          HAVE_RV32E = 0;
+    localparam  [ 4: 0] REG_SYS    = REG_A7;
+`endif
+
 `ifndef SYNTHESIS
 `ifndef VERILATOR
     reg             clk;
@@ -179,7 +193,10 @@ end
           mem_addr == MMIO_GETC ||
           mem_addr == MMIO_EXIT)) ? 1'b0 : mem_ready;
 
-    top top (
+    top #(
+        .RV32M (HAVE_RV32E),
+        .RV32E (HAVE_RV32M)
+    ) top (
         .clk        (clk),
         .resetb     (resetb),
 

@@ -21,7 +21,8 @@ tests: riscv-arch-test
 	export TARGET_SWSIM="$(ROOT_SRV32)/tools/rvsim --memsize $(memsize)"; \
 	export RISCV_PREFIX=$(CROSS_COMPILE); \
 	export RISCV_TARGET=srv32; \
-	$(MAKE) rv32c=$(rv32c) -C riscv-arch-test.v$(test_v)
+	export RISCV_DEVICE=I; \
+	$(MAKE) rv32c=$(rv32c) rv32e=$(rv32e) -C riscv-arch-test.v$(test_v)
 
 tests-sw: riscv-arch-test
 	export ROOT_SRV32=$(ROOT_SRV32); \
@@ -29,7 +30,7 @@ tests-sw: riscv-arch-test
 	export TARGET_SWSIM="$(ROOT_SRV32)/tools/rvsim --memsize $(memsize)"; \
 	export RISCV_PREFIX=$(CROSS_COMPILE); \
 	export RISCV_TARGET=srv32; \
-	$(MAKE) rv32c=$(rv32c) -C riscv-arch-test.v$(test_v)
+	$(MAKE) rv32c=$(rv32c) rv32e=$(rv32e) -C riscv-arch-test.v$(test_v)
 
 riscv-arch-test:
 	if [ "$(test_v)" = "1" ]; then \

@@ -19,16 +19,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Define it to enable RV32M multiply extension
-`define RV32M_ENABLED
-
-// RV32E
-// `define RV32E_ENABLED
-
 // ============================================================
 // RISCV for imem and dmem separate port
 // ============================================================
-module riscv (
+module riscv #(
+    parameter RV32M = 1,
+    parameter RV32E = 0
+)(
     input                   clk,
     input                   resetb,
 
@@ -83,11 +80,7 @@ module riscv (
     wire            [31: 0] if_insn;
 
     // register files
-`ifdef RV32E_ENABLED
-    reg             [31: 0] regs [15: 1];
-`else
-    reg             [31: 0] regs [31: 1];
-`endif
+    reg             [31: 0] regs [(RV32E == 1 ? 15 : 31): 1];
     wire            [31: 0] reg_rdata1, reg_rdata2;
     wire            [31: 0] alu_op1;
     wire            [31: 0] alu_op2;
@@ -130,11 +123,7 @@ module riscv (
     wire                    ex_timer_irq;
     wire                    ex_sw_irq;
     wire                    ex_interrupt;
-
-`ifdef RV32M_ENABLED
     reg                     ex_mul;
-`endif // RV32M_ENABLED
-
     reg                     wb_alu2reg;
     reg             [31: 0] wb_result;
     reg             [ 2: 0] wb_alu_op;
@@ -256,9 +245,7 @@ always @(posedge clk or negedge resetb) begin
         ex_system_op        <= 1'b0;
         ex_pc               <= RESETVEC;
         ex_illegal          <= 1'b0;
-        `ifdef RV32M_ENABLED
         ex_mul              <= 1'b0;
-        `endif // RV32M_ENABLED
     end else if (!if_stall) begin
         ex_imm              <= imm;
         ex_imm_sel          <= (inst[`OPCODE] == OP_JALR  ) ||
@@ -309,14 +296,12 @@ always @(posedge clk or negedge resetb) begin
                                  (inst[`OPCODE] == OP_ARITHI)||
                                  ((inst[`OPCODE] == OP_ARITHR) &&
                                   (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20)) ||
-                                 `ifdef RV32M_ENABLED
-                                 ((inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h01)) ||
-                                 `endif // RV32M_ENABLED
+                                 ((inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h01) &&
+                                  (RV32M == 1)) ||
                                  (inst[`OPCODE] == OP_FENCE )||
                                  (inst[`OPCODE] == OP_SYSTEM));
-        `ifdef RV32M_ENABLED
-        ex_mul              <= (inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h1);
-        `endif // RV32M_ENABLED
+        ex_mul              <= (inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h1) &&
+                               (RV32M == 1);
     end
 end
 
@@ -367,9 +352,12 @@ assign ex_st_align_excp     = ex_memwr && !ex_flush && (
                               );
 assign ex_inst_ill_excp     = !ex_flush && (ex_ill_branch || ex_ill_csr || ex_illegal);
 assign ex_inst_align_excp   = !ex_flush && |next_pc[1:0];
-assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE] && !ex_system_op && !ex_flush;
-assign ex_sw_irq            = sw_irq && csr_mstatus[MIE] && csr_mie[MSIE] && !ex_system_op && !ex_flush;
-assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE] && !ex_system_op && !ex_flush;
+assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE] &&
+                              !ex_system_op && !ex_flush;
+assign ex_sw_irq            = sw_irq && csr_mstatus[MIE] && csr_mie[MSIE] &&
+                              !ex_system_op && !ex_flush;
+assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE] &&
+                              !ex_system_op && !ex_flush;
 
 assign ex_stall             = stall_r || if_stall ||
                               (ex_mem2reg && !dmem_rvalid);
@@ -435,7 +423,9 @@ always @* begin
     endcase
 end
 
-`ifdef RV32M_ENABLED
+//----------
+// RV32M
+//----------
     wire            [63: 0] result_mul;
     wire            [63: 0] result_mulsu;
     wire            [63: 0] result_mulu;
@@ -444,26 +434,42 @@ end
     wire            [31: 0] result_rem;
     wire            [31: 0] result_remu;
 
-assign result_mul[63: 0]    = $signed  ({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
-                              $signed  ({{32{alu_op2[31]}}, alu_op2[31: 0]});
-assign result_mulu[63: 0]   = $unsigned({{32{1'b0}},        alu_op1[31: 0]}) *
-                              $unsigned({{32{1'b0}},        alu_op2[31: 0]});
-assign result_mulsu[63: 0]  = $signed  ({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
-                              $unsigned({{32{1'b0}},        alu_op2[31: 0]});
+generate
+if (RV32M == 1)
+begin: have_rv32m
+    assign result_mul[63: 0]    = $signed  ({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
+                                  $signed  ({{32{alu_op2[31]}}, alu_op2[31: 0]});
+    assign result_mulu[63: 0]   = $unsigned({{32{1'b0}},        alu_op1[31: 0]}) *
+                                  $unsigned({{32{1'b0}},        alu_op2[31: 0]});
+    assign result_mulsu[63: 0]  = $signed  ({{32{alu_op1[31]}}, alu_op1[31: 0]}) *
+                                  $unsigned({{32{1'b0}},        alu_op2[31: 0]});
 
-// The result of divided by zero and (-MAX / -1) cannot be represented in twos complement.
-// Assign the value to pass RISC-V compliance test.
-assign result_div[31: 0]    = (alu_op2 == 32'h00000000) ? 32'hffffffff :
-                              ((alu_op1 == 32'h80000000) && (alu_op2 == 32'hffffffff)) ? 32'h80000000 :
-                              $signed  ($signed  (alu_op1) / $signed  (alu_op2));
-assign result_divu[31: 0]   = (alu_op2 == 32'h00000000) ? 32'hffffffff :
-                              $unsigned($unsigned(alu_op1) / $unsigned(alu_op2));
-assign result_rem[31: 0]    = (alu_op2 == 32'h00000000) ? alu_op1 :
-                              ((alu_op1 == 32'h80000000) && (alu_op2 == 32'hffffffff)) ? 32'h00000000 :
-                              $signed  ($signed  (alu_op1) % $signed  (alu_op2));
-assign result_remu[31: 0]   = (alu_op2 == 32'h00000000) ? alu_op1 :
-                              $unsigned($unsigned(alu_op1) % $unsigned(alu_op2));
-`endif // RV32M_ENABLED
+    // The result of divided by zero and (-MAX / -1) cannot be represented in twos complement.
+    // Assign the value to pass RISC-V compliance test.
+    assign result_div[31: 0]    = (alu_op2 == 32'h00000000) ? 32'hffffffff :
+                                  ((alu_op1 == 32'h80000000) && (alu_op2 == 32'hffffffff)) ?
+                                  32'h80000000 :
+                                  $signed  ($signed  (alu_op1) / $signed  (alu_op2));
+    assign result_divu[31: 0]   = (alu_op2 == 32'h00000000) ? 32'hffffffff :
+                                  $unsigned($unsigned(alu_op1) / $unsigned(alu_op2));
+    assign result_rem[31: 0]    = (alu_op2 == 32'h00000000) ? alu_op1 :
+                                  ((alu_op1 == 32'h80000000) && (alu_op2 == 32'hffffffff)) ?
+                                  32'h00000000 :
+                                  $signed  ($signed  (alu_op1) % $signed  (alu_op2));
+    assign result_remu[31: 0]   = (alu_op2 == 32'h00000000) ? alu_op1 :
+                                  $unsigned($unsigned(alu_op1) % $unsigned(alu_op2));
+end
+else
+begin: no_rv32m
+    assign result_mul[63: 0]    = 0;
+    assign result_mulu[63: 0]   = 0;
+    assign result_mulsu[63: 0]  = 0;
+    assign result_div[31: 0]    = 0;
+    assign result_divu[31: 0]   = 0;
+    assign result_rem[31: 0]    = 0;
+    assign result_remu[31: 0]   = 0;
+end
+endgenerate
 
 always @* begin
     case(1'b1)
@@ -473,7 +479,6 @@ always @* begin
         ex_lui:     ex_result           = ex_imm;
         ex_auipc:   ex_result           = ex_pc + ex_imm;
         ex_csr:     ex_result           = ex_csr_read;
-        `ifdef RV32M_ENABLED
         ex_mul:
             case(ex_alu_op)
                 OP_MUL   : ex_result    = result_mul  [31: 0];
@@ -486,7 +491,6 @@ always @* begin
                 // OP_REMU
                 default  : ex_result    = result_remu [31: 0];
             endcase
-        `endif // RV32M_ENABLED
         ex_alu:
             case(ex_alu_op)
                 OP_ADD : if (ex_subtype == 1'b0)
@@ -499,10 +503,10 @@ always @* begin
                 OP_SLT : ex_result      = result_subs[32] ? 'd1 : 'd0;
                 OP_SLTU: ex_result      = result_subu[32] ? 'd1 : 'd0;
                 OP_XOR : ex_result      = alu_op1 ^ alu_op2;
-                OP_SR  : if (ex_subtype == 1'b0)
-                            ex_result   = alu_op1 >>> alu_op2[4:0]; // shift more than 32 is undefined
+                OP_SR  : if (ex_subtype == 1'b0) // notes: shift more than 32 is undefined
+                            ex_result   = alu_op1 >>> alu_op2[4:0];
                          else
-                            ex_result   = $signed(alu_op1) >>> alu_op2[4:0]; // shift more than 32 is undefined
+                            ex_result   = $signed(alu_op1) >>> alu_op2[4:0];
                 OP_OR  : ex_result      = alu_op1 | alu_op2;
                 // OP_AND
                 default: ex_result      = alu_op1 & alu_op2;
@@ -537,9 +541,7 @@ always @(posedge clk or negedge resetb) begin
         wb_result           <= ex_result;
         wb_alu2reg          <= ex_alu || ex_lui || ex_auipc || ex_jal || ex_jalr ||
                                ex_csr ||
-                               `ifdef RV32M_ENABLED
                                ex_mul ||
-                               `endif
                                (ex_mem2reg && !ex_ld_align_excp);
         wb_dst_sel          <= ex_dst_sel;
         wb_branch           <= branch_taken || ex_trap;
@@ -695,7 +697,8 @@ always @* begin
     endcase
 end
 
-assign ex_ret_pc = (ex_jal || ex_jalr || (ex_branch && branch_taken)) ? next_pc[31: 1] : ex_pc[31: 1] + 31'd2;
+assign ex_ret_pc = (ex_jal || ex_jalr || (ex_branch && branch_taken)) ?
+                   next_pc[31: 1] : ex_pc[31: 1] + 31'd2;
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
@@ -957,19 +960,15 @@ assign reg_rdata2[31: 0]    = (ex_src2_sel == 5'h0) ? 32'h0 :
 // register writing @ write back stage
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
-`ifdef RV32E_ENABLED
-        for(i = 1; i < 15; i = i + 1) regs[i] <= 32'h0;
-`else
-        for(i = 1; i < 32; i = i + 1) regs[i] <= 32'h0;
-`endif // RV32E_ENABLED
+        for(i = 1; i < (RV32E==1 ? 16 : 32); i = i + 1) regs[i] <= 32'h0;
     end else if (wb_alu2reg && !stall_r && !(wb_stall || wb_flush)) begin
         regs[wb_dst_sel]    <= wb_mem2reg ? wb_rdata : wb_result;
-`ifdef RV32E_ENABLED
-        if (wb_dst_sel > 15) begin
+        `ifndef SYNTHESIS
+        if ((wb_dst_sel > 15) && (RV32E == 1)) begin
             $display("RV32E: can not access register %d at PC %08x", wb_dst_sel, wb_pc);
             $finish(2);
         end
-`endif // RV32E_ENABLED
+        `endif
     end
 end
 
@@ -995,29 +994,54 @@ end
     wire        [31: 0] x13_a3      = regs[13][31: 0];
     wire        [31: 0] x14_a4      = regs[14][31: 0];
     wire        [31: 0] x15_a5      = regs[15][31: 0];
-`ifndef RV32E_ENABLED
-    wire        [31: 0] x16_a6      = regs[16][31: 0];
-    wire        [31: 0] x17_a7      = regs[17][31: 0];
-    wire        [31: 0] x18_s2      = regs[18][31: 0];
-    wire        [31: 0] x19_s3      = regs[19][31: 0];
-    wire        [31: 0] x20_s4      = regs[20][31: 0];
-    wire        [31: 0] x21_s5      = regs[21][31: 0];
-    wire        [31: 0] x22_s6      = regs[22][31: 0];
-    wire        [31: 0] x23_s7      = regs[23][31: 0];
-    wire        [31: 0] x24_s8      = regs[24][31: 0];
-    wire        [31: 0] x25_s9      = regs[25][31: 0];
-    wire        [31: 0] x26_s10     = regs[26][31: 0];
-    wire        [31: 0] x27_s11     = regs[27][31: 0];
-    wire        [31: 0] x28_t3      = regs[28][31: 0];
-    wire        [31: 0] x29_t4      = regs[29][31: 0];
-    wire        [31: 0] x30_t5      = regs[30][31: 0];
-    wire        [31: 0] x31_t6      = regs[31][31: 0];
-`endif
+
+    reg         [31: 0] x16_a6;
+    reg         [31: 0] x17_a7;
+    reg         [31: 0] x18_s2;
+    reg         [31: 0] x19_s3;
+    reg         [31: 0] x20_s4;
+    reg         [31: 0] x21_s5;
+    reg         [31: 0] x22_s6;
+    reg         [31: 0] x23_s7;
+    reg         [31: 0] x24_s8;
+    reg         [31: 0] x25_s9;
+    reg         [31: 0] x26_s10;
+    reg         [31: 0] x27_s11;
+    reg         [31: 0] x28_t3;
+    reg         [31: 0] x29_t4;
+    reg         [31: 0] x30_t5;
+    reg         [31: 0] x31_t6;
+
     reg         [31: 0] wb_insn;
     reg         [ 1: 0] wb_break;
     reg         [31: 0] wb_raddress;
     reg                 wb_system;
     reg                 wb_ld_align_excp;
+
+generate
+if (RV32E == 0)
+begin: no_rv32e_regs
+    always @*
+    begin
+        x16_a6  = regs[16][31: 0];
+        x17_a7  = regs[17][31: 0];
+        x18_s2  = regs[18][31: 0];
+        x19_s3  = regs[19][31: 0];
+        x20_s4  = regs[20][31: 0];
+        x21_s5  = regs[21][31: 0];
+        x22_s6  = regs[22][31: 0];
+        x23_s7  = regs[23][31: 0];
+        x24_s8  = regs[24][31: 0];
+        x25_s9  = regs[25][31: 0];
+        x26_s10 = regs[26][31: 0];
+        x27_s11 = regs[27][31: 0];
+        x28_t3  = regs[28][31: 0];
+        x29_t4  = regs[29][31: 0];
+        x30_t5  = regs[30][31: 0];
+        x31_t6  = regs[31][31: 0];
+    end
+end
+endgenerate
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin

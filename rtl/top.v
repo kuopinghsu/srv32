@@ -22,7 +22,10 @@
 // ============================================================
 // RISC-V top module
 // ============================================================
-module top (
+module top #(
+    parameter RV32M = 1,
+    parameter RV32E = 0
+)(
     input                   clk,
     input                   resetb,
 
@@ -106,7 +109,10 @@ begin
         data_sel            <= (draddr[31:28] == MMIO_BASE) ? 1'b1 : 1'b0;
 end
 
-    riscv riscv(
+    riscv #(
+        .RV32M (RV32M),
+        .RV32E (RV32E)
+    ) riscv (
         .clk                (clk),
         .resetb             (resetb),
 

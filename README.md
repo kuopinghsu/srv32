@@ -313,6 +313,8 @@ Default is to run compliance test v1, run the following command to run complianc
     make test_v=2 tests     # run the compliance test for RTL
     make test_v=2 tests-sw  # run the compliance test for ISS simulator
 
+Notes: no complicance test for RV32E configuration.
+
 ## FreeRTOS support
 
 Reference code on <https://github.com/kuopinghsu/FreeRTOS-RISCV>.

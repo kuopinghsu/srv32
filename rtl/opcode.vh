@@ -227,9 +227,3 @@ localparam  [31: 0] MTIME_BASE    = 32'h9000_0000,
                     MMIO_GETC     = 32'h9000_0020,
                     MMIO_EXIT     = 32'h9000_002c;
 
-`ifdef RV32E_ENABLED
-localparam  [ 4: 0] REG_SYS = REG_T0;
-`else
-localparam  [ 4: 0] REG_SYS = REG_A7;
-`endif
-
