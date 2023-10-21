@@ -105,9 +105,9 @@ typedef struct _CSR {
 } CSR;
 
 CSR csr;
-int pc = 0;
+int32_t pc = 0;
+
 int mode = MMODE;
-int prev_pc = 0;
 int mem_base = 0;
 int singleram = 0;
 int branch_penalty = BRANCH_PENALTY;
@@ -986,22 +986,18 @@ int main(int argc, char **argv) {
                             switch (inst.r.rs2) {
                                 case 0: // CLZ
                                     {
-#if 0
-                                        int32_t n = 32, c = 16;
+                                        int32_t r = 0;
                                         int32_t x = REGS(inst.i.rs1);
-                                        do {
-                                            uint32_t y = x >> c;
-                                            if (y) {
-                                                n -= c;
-                                                x = y;
-                                            }
-                                            c >>= 1;
-                                        } while (c);
-                                        REGS_W(inst.i.rd, n - x);
-#else
-                                        int32_t n = REGS(inst.i.rs1);
-                                        REGS_W(inst.i.rd, __builtin_clz(n));
-#endif
+                                        if (!x) {
+                                            r = 32;
+                                        } else {
+                                            if (!(x & 0xffff0000)) { x <<= 16; r += 16; }
+                                            if (!(x & 0xff000000)) { x <<=  8; r +=  8; }
+                                            if (!(x & 0xf0000000)) { x <<=  4; r +=  4; }
+                                            if (!(x & 0xc0000000)) { x <<=  2; r +=  2; }
+                                            if (!(x & 0x80000000)) { x <<=  1; r +=  1; }
+                                        }
+                                        REGS_W(inst.i.rd, r);
                                     }
                                     break;
                                 case 2: // CPOP
@@ -1017,16 +1013,13 @@ int main(int argc, char **argv) {
                                     break;
                                 case 1: // CTZ
                                     {
-#if 0
-                                        int32_t c = 0;
-                                        int32_t n = REGS(inst.i.rs1);
-                                        for(int i = 5; n / i >= 1; i *= 5)
-                                            c += n / i;
-                                        REGS_W(inst.i.rd, c);
-#else
-                                        int32_t n = REGS(inst.i.rs1);
-                                        REGS_W(inst.i.rd, __builtin_ctz(n));
-#endif
+                                        int32_t x = REGS(inst.i.rs1);
+	                                    static const uint8_t table[32] = {
+		                                    0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+		                                    31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
+	                                    };
+                                        int32_t n = (!x) ? 32 : (int32_t)table[((uint32_t)((x & -x) * 0x077CB531U)) >> 27];
+	                                    REGS_W(inst.i.rd, n);
                                     }
                                     break;
                                 case 4: // SEXT.B
@@ -1106,13 +1099,6 @@ int main(int argc, char **argv) {
                                                ((n >>  8) & 0x0000ff00) |
                                                ((n <<  8) & 0x00ff0000) |
                                                ((n << 24) & 0xff000000));
-                                    }
-                                    break;
-                                case 0x07: // REV.B
-                                    // FIXME: no riscv-arch-test test
-                                    {
-                                        uint32_t n = REGS(inst.i.rs1);
-                                        REGS_W(inst.i.rd, n);
                                     }
                                     break;
                                 default:
