@@ -1,12 +1,14 @@
 rv32c   ?= 0
 rv32e   ?= 0
+rv32b   ?= 0
 
 ifndef CROSS_COMPILE
 export CROSS_COMPILE = riscv64-unknown-elf-
 endif
 
 CC      := $(CROSS_COMPILE)gcc
-CPP     := $(CROSS_COMPILE)g++
+C++     := $(CROSS_COMPILE)g++
+CPP     := $(CROSS_COMPILE)cpp
 AS      := $(CROSS_COMPILE)as
 AR      := $(CROSS_COMPILE)ar
 OBJDUMP := $(CROSS_COMPILE)objdump
@@ -19,17 +21,21 @@ else
 ABI     := ilp32
 endif
 
+ifeq ($(rv32b), 1)
+BEXT    := _zba_zbb_zbc_zbs
+endif
+
 ifeq ($(rv32c), 1)
 ifeq ($(rv32e), 1)
 ARCH    := -march=rv32emac_zicsr -mabi=ilp32e $(EXTRA_CFLAGS)
 else
-ARCH    := -march=rv32imac_zicsr -mabi=ilp32 $(EXTRA_CFLAGS)
+ARCH    := -march=rv32imac_zicsr$(BEXT) -mabi=ilp32 $(EXTRA_CFLAGS)
 endif
 else
 ifeq ($(rv32e), 1)
 ARCH    := -march=rv32em_zicsr -mabi=ilp32e $(EXTRA_CFLAGS)
 else
-ARCH    := -march=rv32im_zicsr -mabi=$(ABI) $(EXTRA_CFLAGS)
+ARCH    := -march=rv32im_zicsr$(BEXT) -mabi=$(ABI) $(EXTRA_CFLAGS)
 endif
 endif
 

@@ -29,13 +29,29 @@ Install RISCV toolchains.
     
     git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
     cd riscv-gnu-toolchain
-    
+
     mkdir build; cd build
-    ../configure --prefix=/opt/riscv --with-isa-spec=20191213 \
-        --with-multilib-generator="rv32i-ilp32--;rv32im-ilp32--;rv32imac-ilp32--;rv32im_zicsr-ilp32--;rv32imac_zicsr-ilp32--;rv64imac-lp64--;rv64imac_zicsr-lp64--;rv32e_zicsr-ilp32e--;rv32em_zicsr-ilp32e--;rv32ea_zicsr-ilp32e--;rv32emac_zicsr-ilp32e--"
+
+    ../configure --prefix=/opt/riscv \
+       --with-isa-spec=20191213 \
+       --with-multilib-generator="\
+         rv32i_zicsr-ilp32--;\
+         rv32im_zicsr-ilp32--;\
+         rv32imac_zicsr-ilp32--;\
+         rv32i_zicsr_zba_zbb_zbc_zbs-ilp32--;\
+         rv32im_zicsr_zba_zbb_zbc_zbs-ilp32--;\
+         rv32imac_zicsr_zba_zbb_zbc_zbs-ilp32--;\
+         rv32e_zicsr-ilp32e--;\
+         rv32em_zicsr-ilp32e--;\
+         rv32emac_zicsr-ilp32e--;\
+         rv64gc_zicsr-lp64--;\
+         rv64gc_zicsr_zba_zbb_zbc_zbs-lp64--"
+
     make -j$(nproc)
 
-Notes: change the default ISA to 20191213, refer to [RISC-V GNU toolchain bumping default ISA spec to 20191213](https://groups.google.com/a/groups.riscv.org/g/sw-dev/c/aE1ZeHHCYf4) for detail.
+Note: change the default ISA to 20191213, refer to [RISC-V GNU toolchain bumping default ISA spec to 20191213](https://groups.google.com/a/groups.riscv.org/g/sw-dev/c/aE1ZeHHCYf4) for detail.
+
+Note: To build the Zba/Zbb/Zbc/Zbs extension, you must use the gcc-13 branch or latter, otherwise a build error will occur. Or if the B extension is not used, remove the corresponding multilib.
 
 The default tools uses riscv64-unknown-elf-. If you would like to use others toolchains, you can define an environment to override it. For example,
 

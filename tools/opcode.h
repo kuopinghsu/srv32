@@ -216,6 +216,7 @@ enum {
     OP_SW      = 2
 };
 
+// bit 14...12
 enum {
     OP_ADD     = 0,
     OP_SLL     = 1,
@@ -225,6 +226,23 @@ enum {
     OP_SR      = 5,
     OP_OR      = 6,
     OP_AND     = 7
+};
+
+// bit 31...25
+enum {
+    FN_RV32I   = 0x00,
+    FN_RV32M   = 0x01,
+    FN_SRL     = 0x00,
+    FN_SRA     = 0x20,
+    FN_ZEXT    = 0x04,
+    FN_MINMAX  = 0x05,
+    FN_SHADD   = 0x10,
+    FN_BSET    = 0x14,
+    FN_ANDN    = 0x20,
+    FN_BCLR    = 0x24,
+    FN_CLZ     = 0x30,
+    FN_BINV    = 0x34,
+    FN_REV     = 0x34
 };
 
 enum {
@@ -276,6 +294,24 @@ enum {
     OP_CSUB         = 4,
     OP_CNOP         = 0,
     OP_CEBREAK      = 4
+};
+
+// constant on inst[14:12] for B extension
+enum {
+    OP_CLMUL        = 1,
+    OP_CLMULH       = 3,
+    OP_CLMULR       = 2,
+    OP_MAX          = 6,
+    OP_MAXU         = 7,
+    OP_MIN          = 4,
+    OP_MINU         = 5,
+    OP_SH1ADD       = 2,
+    OP_SH2ADD       = 4,
+    OP_SH3ADD       = 6,
+    OP_BCLR         = 1,
+    OP_BEXT         = 5,
+    OP_ROL          = 1,
+    OP_ROR          = 5,
 };
 
 enum {
@@ -480,7 +516,7 @@ int compressed_decoder (
 #define SYS T0
 #else
 #define SYS A7
-#endif
+#endif // RV32E_ENABLED
 
 #endif // __OPCODE_H__
 

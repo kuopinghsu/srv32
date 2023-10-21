@@ -181,7 +181,7 @@ int elfloader(char *file, char *mem,
 }
 
 #if LIBRARY == 0
-int memsize = 128 * 1024;
+int memsize = 256 * 1024;
 
 int main(int argc, char **argv)
 {

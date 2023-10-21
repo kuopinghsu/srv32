@@ -19,7 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#if defined(RV32C_ENABLED)
+#ifdef RV32C_ENABLED
 #include <string.h>
 #include <stdint.h>
 #include "opcode.h"

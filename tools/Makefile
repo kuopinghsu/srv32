@@ -1,9 +1,11 @@
 DEBUG    ?= 0
 top      ?= 0
 coverage ?= 0
-memsize  ?= 128
+memsize  ?= 256
+rv32m    ?= 1
 rv32c    ?= 0
 rv32e    ?= 0
+rv32b    ?= 0
 CC        = gcc
 SYS      := $(shell gcc -dumpmachine)
 
@@ -26,12 +28,20 @@ ifeq ($(top), 1)
 CFLAGS  += -DSINGLE_RAM
 endif
 
+ifeq ($(rv32m), 1)
+CFLAGS  += -DRV32M_ENABLED=1
+endif
+
 ifeq ($(rv32c), 1)
-CFLAGS  += -DRV32C_ENABLED
+CFLAGS  += -DRV32C_ENABLED=1
 endif
 
 ifeq ($(rv32e), 1)
-CFLAGS  += -DRV32E_ENABLED
+CFLAGS  += -DRV32E_ENABLED=1
+endif
+
+ifeq ($(rv32b), 1)
+CFLAGS  += -DRV32B_ENABLED=1
 endif
 
 SRC      = rvsim.c decompress.c syscall.c elfloader.c getch.c

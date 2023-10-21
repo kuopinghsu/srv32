@@ -133,4 +133,6 @@ _bss_clear:                                                                   \
 #define RVMODEL_CLEAR_MTIMER_INT
 #define RVMODEL_CLEAR_MEXT_INT
 
+#define CANARY
+
 #endif // _COMPLIANCE_MODEL_H

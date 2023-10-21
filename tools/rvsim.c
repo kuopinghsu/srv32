@@ -32,10 +32,6 @@
 
 #include "opcode.h"
 
-#ifndef RV32C_ENABLED
-#define RV32C_ENABLED 0
-#endif
-
 int mem_size = 128*1024; // default memory size
 
 #define PRINT_TIMELOG 1
@@ -78,34 +74,34 @@ typedef struct _CSR {
     COUNTER instret;
     COUNTER mtime;
     COUNTER mtimecmp;
-    int mvendorid;
-    int marchid;
-    int mimpid;
-    int mhartid;
-    int mscratch;
-    int mstatus;
-    int misa;
-    int mie;
-    int mtvec;
-    int mepc;
-    int mcause;
-    int mip;
-    int mtval;
-    int msip;
+    int32_t mvendorid;
+    int32_t marchid;
+    int32_t mimpid;
+    int32_t mhartid;
+    int32_t mscratch;
+    int32_t mstatus;
+    int32_t misa;
+    int32_t mie;
+    int32_t mtvec;
+    int32_t mepc;
+    int32_t mcause;
+    int32_t mip;
+    int32_t mtval;
+    int32_t msip;
 #ifdef XV6_SUPPORT
-    int medeleg;
-    int mideleg;
-    int mcounteren;
-    int sstatus;
-    int sie;
-    int stvec;
-    int sscratch;
-    int sepc;
-    int scause;
-    int stval;
-    int sip;
-    int satp;
-#endif
+    int32_t medeleg;
+    int32_t mideleg;
+    int32_t mcounteren;
+    int32_t sstatus;
+    int32_t sie;
+    int32_t stvec;
+    int32_t sscratch;
+    int32_t sepc;
+    int32_t scause;
+    int32_t stval;
+    int32_t sip;
+    int32_t satp;
+#endif // XV6_SUPPORT
 } CSR;
 
 CSR csr;
@@ -123,9 +119,9 @@ int *mem;
 int *imem;
 int *dmem;
 
-#if RV32C_ENABLED
+#ifdef RV32C_ENABLED
 int overhead = 0;
-#endif
+#endif // RV32C_ENABLED
 
 int quiet = 0;
 
@@ -177,7 +173,7 @@ void aligned_free( void *mem )
 #include <malloc.h>
 #define aligned_malloc memalign
 #define aligned_free free
-#endif
+#endif // MACOX
 
 #ifndef __STDC_WANT_LIB_EXT1__ 
 char *strncpy_s(char *dest, size_t n, const char *src, size_t count) {
@@ -189,31 +185,31 @@ char *strncpy_s(char *dest, size_t n, const char *src, size_t count) {
 }
 #endif // __STDC_WANT_LIB_EXT1__
 
-static inline int to_imm_i(unsigned int n) {
+static inline int to_imm_i(uint32_t n) {
     return (int)((n & (1<<11)) ? (n | 0xfffff000) : n);
 }
 
 /*
-static inline int to_imm_iu(unsigned int n) {
+static inline int to_imm_iu(uint32_t n) {
     return (int)(n);
 }
 */
 
-static inline int to_imm_s(unsigned int n1, unsigned int n2) {
-    unsigned int n = (n1 << 5) + n2;
+static inline int to_imm_s(uint32_t n1, uint32_t n2) {
+    uint32_t n = (n1 << 5) + n2;
     return (int)((n & (1<<11)) ? (n | 0xfffff000) : n);
 }
 
-static inline int to_imm_b(unsigned int n1, unsigned int n2) {
-    unsigned int m;
+static inline int to_imm_b(uint32_t n1, uint32_t n2) {
+    uint32_t m;
     union {
-        unsigned int n;
+        uint32_t n;
         struct {
-            unsigned int a0 : 1;
-            unsigned int a1 : 4;
-            unsigned int a2 : 6;
-            unsigned int a3 : 1;
-            //unsigned int a4 : 20; // no used
+            uint32_t a0 : 1;
+            uint32_t a1 : 4;
+            uint32_t a2 : 6;
+            uint32_t a3 : 1;
+            //uint32_t a4 : 20; // no used
         } m;
     } r;
     r.n = (n1 << 5) + n2;
@@ -221,16 +217,16 @@ static inline int to_imm_b(unsigned int n1, unsigned int n2) {
     return (int)((m & (1<<12)) ? (m | 0xffffe000) : m);
 }
 
-static inline int to_imm_j(unsigned int n) {
-    unsigned int m;
+static inline int to_imm_j(uint32_t n) {
+    uint32_t m;
     union {
-        unsigned int n;
+        uint32_t n;
         struct {
-            unsigned int a0 : 8;
-            unsigned int a1 : 1;
-            unsigned int a2 : 10;
-            unsigned int a3 : 1;
-            // unsigned int a4 : 12; // no used
+            uint32_t a0 : 8;
+            uint32_t a1 : 1;
+            uint32_t a2 : 10;
+            uint32_t a3 : 1;
+            // uint32_t a4 : 12; // no used
         } m;
     } r;
     r.n = n;
@@ -238,7 +234,7 @@ static inline int to_imm_j(unsigned int n) {
     return (int)((m & (1<<20)) ? (m | 0xffe00000) : m);
 }
 
-static inline int to_imm_u(unsigned int n) {
+static inline int to_imm_u(uint32_t n) {
     return (int)(n << 12);
 }
 
@@ -249,13 +245,13 @@ void prog_exit(int exitcode) {
     diff = (double)(time_end.tv_sec-time_start.tv_sec) + (time_end.tv_usec-time_start.tv_usec)/1000000.0;
 
     if (!quiet) {
-#if RV32C_ENABLED
+#ifdef RV32C_ENABLED
         printf("\nExcuting %lld instructions, %lld cycles, %1.3f CPI, %1.3f%% overhead\n", csr.instret.c,
                csr.cycle.c, ((float)csr.cycle.c)/csr.instret.c, (overhead*100.0)/csr.instret.c);
 #else
         printf("\nExcuting %lld instructions, %lld cycles, %1.3f CPI\n", csr.instret.c,
                csr.cycle.c, ((float)csr.cycle.c)/csr.instret.c);
-#endif
+#endif // RV32C_ENABLED
 
         printf("Program terminate\n");
 
@@ -354,7 +350,7 @@ int csr_rw(int regs, int mode, int val, int update, int *legal) {
                               break;
         case CSR_SATP       : result = csr.satp; UPDATE_CSR(update, mode, csr.satp, val);
                               break;
-#endif
+#endif // XV6_SUPPORT
         default: result = 0; // FIXME
                  printf("Unsupport CSR register 0x%03x at PC 0x%08x\n", regs, pc);
                  *legal = 0;
@@ -363,13 +359,13 @@ int csr_rw(int regs, int mode, int val, int update, int *legal) {
 }
 
 #ifdef RV32E_ENABLED
-static int regs[16];
+static int32_t regs[16];
 #else
-static int regs[32];
-#endif
+static int32_t regs[32];
+#endif // RV32E_ENABLED
 
 #ifdef RV32E_ENABLED
-static inline int REGS(int n) {
+static inline int32_t REGS(int n) {
     if (n > 15) {
         printf("RV32E: can not access registers %d\n", n);
         return 0;
@@ -377,7 +373,7 @@ static inline int REGS(int n) {
         return regs[n];
     }
 }
-static inline void REGS_W(int n, int v) {
+static inline void REGS_W(int n, int32_t v) {
     if (n > 15) {
         printf("RV32E: can not access registers %d\n", n);
     } else {
@@ -387,7 +383,7 @@ static inline void REGS_W(int n, int v) {
 #else
 #  define REGS(n)      regs[n]
 #  define REGS_W(n, v) regs[n] = (v)
-#endif
+#endif // RV32E_ENABLED
 
 int main(int argc, char **argv) {
     FILE *ft = NULL;
@@ -404,9 +400,9 @@ int main(int argc, char **argv) {
     int ext_irq;
     int ext_irq_next;
     int compressed = 0;
-#if RV32C_ENABLED
+#ifdef RV32C_ENABLED
     int compressed_prev = 0;
-#endif
+#endif // RV32C_ENABLED
 
     const char *optstring = "hb:pl:qm:n:s";
     int c;
@@ -445,10 +441,10 @@ int main(int argc, char **argv) {
                 quiet = 1;
                 break;
             case 'm':
-                sscanf(optarg, "%i", (unsigned int*)&mem_base);
+                sscanf(optarg, "%i", (uint32_t*)&mem_base);
                 break;
             case 'n':
-                sscanf(optarg, "%i", (unsigned int*)&mem_size);
+                sscanf(optarg, "%i", (uint32_t*)&mem_size);
                 mem_size *= 1024;
                 break;
             case 's':
@@ -538,7 +534,7 @@ int main(int argc, char **argv) {
     while(1) {
         INST inst;
 
-#if RV32C_ENABLED
+#ifdef RV32C_ENABLED
         INSTC instc;
         int illegal;
 
@@ -569,7 +565,7 @@ int main(int argc, char **argv) {
             TRAP(TRAP_INST_FAIL, pc);
         }
 
-#if RV32C_ENABLED
+#ifdef RV32C_ENABLED
         if ((pc&1) != 0) {
             printf("PC 0x%08x alignment error\n", pc);
             TRAP(TRAP_INST_ALIGN, pc);
@@ -585,7 +581,7 @@ int main(int argc, char **argv) {
                      (imem[IVA2PA(pc)/4+1] << 16) | ((imem[IVA2PA(pc)/4] >> 16) & 0xffff) :
                      imem[IVA2PA(pc)/4];
 
-#if RV32C_ENABLED
+#ifdef RV32C_ENABLED
         instc.inst = (IVA2PA(pc) & 2) ?
                      (short)(imem[IVA2PA(pc)/4] >> 16) :
                      (short)imem[IVA2PA(pc)/4];
@@ -623,7 +619,7 @@ int main(int argc, char **argv) {
 
         prev_pc = pc;
 
-#if RV32C_ENABLED
+#ifdef RV32C_ENABLED
         compressed = compressed_decoder(instc, &inst, &illegal);
 
         // one more cycle when the instruction type changes
@@ -635,7 +631,7 @@ int main(int argc, char **argv) {
         compressed_prev = compressed;
 
         if (compressed && 0)
-            TRACE_LOG "           Translate 0x%04x => 0x%08x\n", (unsigned short)instc.inst, inst.inst TRACE_END;
+            TRACE_LOG "           Translate 0x%04x => 0x%08x\n", (uint16_t)instc.inst, inst.inst TRACE_END;
 
         if (illegal) {
             TRAP(TRAP_INST_ILL, (int)instc.inst);
@@ -716,7 +712,7 @@ int main(int argc, char **argv) {
                     }
                     break;
                 case OP_BLTU:
-                    if (((unsigned int)REGS(inst.b.rs1)) < ((unsigned int)REGS(inst.b.rs2))) {
+                    if (((uint32_t)REGS(inst.b.rs1)) < ((uint32_t)REGS(inst.b.rs2))) {
                         pc += offset;
                         if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
@@ -724,7 +720,7 @@ int main(int argc, char **argv) {
                     }
                     break;
                 case OP_BGEU:
-                    if (((unsigned int)REGS(inst.b.rs1)) >= ((unsigned int)REGS(inst.b.rs2))) {
+                    if (((uint32_t)REGS(inst.b.rs1)) >= ((uint32_t)REGS(inst.b.rs2))) {
                         pc += offset;
                         if ((!branch_predict || offset > 0) && (pc&3) == 0)
                             CYCLE_ADD(branch_penalty);
@@ -960,10 +956,10 @@ int main(int argc, char **argv) {
                 case OP_SLTU:
                     //FIXME: to pass compliance test, the IMM should be singed
                     //extension, and compare with unsigned.
-                    //regs[inst.i.rd] = ((unsigned int)regs[inst.i.rs1]) <
-                    //                ((unsigned int)to_imm_iu(inst.i.imm)) ? 1 : 0;
-                    REGS_W(inst.i.rd, ((unsigned int)REGS(inst.i.rs1)) <
-                                      ((unsigned int)to_imm_i(inst.i.imm)) ? 1 : 0);
+                    //REGS_W(inst.i.rd, ((uint32_t)REGS(inst.i.rs1)) <
+                    //                ((uint32_t)to_imm_iu(inst.i.imm)) ? 1 : 0);
+                    REGS_W(inst.i.rd, ((uint32_t)REGS(inst.i.rs1)) <
+                                      ((uint32_t)to_imm_i(inst.i.imm)) ? 1 : 0);
                     break;
                 case OP_XOR:
                     REGS_W(inst.i.rd, REGS(inst.i.rs1) ^ to_imm_i(inst.i.imm));
@@ -975,14 +971,162 @@ int main(int argc, char **argv) {
                     REGS_W(inst.i.rd, REGS(inst.i.rs1) & to_imm_i(inst.i.imm));
                     break;
                 case OP_SLL:
-                    REGS_W(inst.i.rd, REGS(inst.i.rs1) << (inst.i.imm&0x1f));
+                    switch (inst.r.func7) {
+                        case FN_RV32I:
+                            REGS_W(inst.i.rd, REGS(inst.i.rs1) << (inst.i.imm&0x1f));
+                            break;
+                        #ifdef RV32B_ENABLED
+                        case FN_BSET:
+                            REGS_W(inst.i.rd, REGS(inst.i.rs1) | (1 << (inst.i.imm&0x1f)));
+                            break;
+                        case FN_BCLR:
+                            REGS_W(inst.i.rd, REGS(inst.i.rs1) & ~(1 << (inst.i.imm&0x1f)));
+                            break;
+                        case FN_CLZ:
+                            switch (inst.r.rs2) {
+                                case 0: // CLZ
+                                    {
+#if 0
+                                        int32_t n = 32, c = 16;
+                                        int32_t x = REGS(inst.i.rs1);
+                                        do {
+                                            uint32_t y = x >> c;
+                                            if (y) {
+                                                n -= c;
+                                                x = y;
+                                            }
+                                            c >>= 1;
+                                        } while (c);
+                                        REGS_W(inst.i.rd, n - x);
+#else
+                                        int32_t n = REGS(inst.i.rs1);
+                                        REGS_W(inst.i.rd, __builtin_clz(n));
+#endif
+                                    }
+                                    break;
+                                case 2: // CPOP
+                                    {
+                                        uint32_t c = 0;
+                                        int32_t n = REGS(inst.i.rs1);
+                                        while (n) {
+                                            n &= (n - 1);
+                                            c++;
+                                        }
+                                        REGS_W(inst.i.rd, c);
+                                    }
+                                    break;
+                                case 1: // CTZ
+                                    {
+#if 0
+                                        int32_t c = 0;
+                                        int32_t n = REGS(inst.i.rs1);
+                                        for(int i = 5; n / i >= 1; i *= 5)
+                                            c += n / i;
+                                        REGS_W(inst.i.rd, c);
+#else
+                                        int32_t n = REGS(inst.i.rs1);
+                                        REGS_W(inst.i.rd, __builtin_ctz(n));
+#endif
+                                    }
+                                    break;
+                                case 4: // SEXT.B
+                                    {
+                                        uint32_t n = REGS(inst.i.rs1) & 0xff;
+                                        if (n&0x80)
+                                            n |= 0xffffff00;
+                                        REGS_W(inst.i.rd, n);
+                                    }
+                                    break;
+                                case 5: // SEXT.H
+                                    {
+                                        uint32_t n = REGS(inst.i.rs1) & 0xffff;
+                                        if (n&0x8000)
+                                            n |= 0xffff0000;
+                                        REGS_W(inst.i.rd, n);
+                                    }
+                                    break;
+                                default:
+                                    printf("Unknown instruction at PC 0x%08x\n", pc);
+                                    TRAP(TRAP_INST_ILL, inst.inst);
+                                    continue;
+                            }
+                            break;
+                        case FN_BINV:
+                            REGS_W(inst.i.rd, REGS(inst.i.rs1) ^ (1 << (inst.i.imm&0x1f)));
+                            break;
+                        #endif // RV32B_ENABLED
+                        default:
+                            printf("Unknown instruction at PC 0x%08x\n", pc);
+                            TRAP(TRAP_INST_ILL, inst.inst);
+                            continue;
+                    }
                     break;
                 case OP_SR:
-                    if (inst.r.func7 == 0)
-                        REGS_W(inst.i.rd, ((unsigned int)REGS(inst.i.rs1)) >>
-                                          (inst.i.imm&0x1f));
-                    else
-                        REGS_W(inst.i.rd, REGS(inst.i.rs1) >> (inst.i.imm&0x1f));
+                    switch (inst.r.func7) {
+                        case FN_SRL: // SRLI
+                            REGS_W(inst.i.rd, ((uint32_t)REGS(inst.i.rs1)) >>
+                                               (inst.i.imm&0x1f));
+                            break;
+                        case FN_SRA: // SRAI
+                            REGS_W(inst.i.rd, REGS(inst.i.rs1) >> (inst.i.imm&0x1f));
+                            break;
+                        #ifdef RV32B_ENABLED
+                        case FN_BSET:
+                            if (inst.r.rs2 == 7) { // ORC.B
+                                int32_t n = 0;
+                                int32_t v = REGS(inst.i.rs1);
+                                if (v & 0x000000ff) n |= 0x000000ff;
+                                if (v & 0x0000ff00) n |= 0x0000ff00;
+                                if (v & 0x00ff0000) n |= 0x00ff0000;
+                                if (v & 0xff000000) n |= 0xff000000;
+                                REGS_W(inst.i.rd, n);
+                            } else {
+                                printf("Unknown instruction at PC 0x%08x\n", pc);
+                                TRAP(TRAP_INST_ILL, inst.inst);
+                                continue;
+                            }
+                            break;
+                        case FN_BCLR: // BCLRI
+                            REGS_W(inst.i.rd, (REGS(inst.i.rs1) >> (inst.i.imm&0x1f)) & 1);
+                            break;
+                        case FN_CLZ: // RORI
+                            {
+                                uint32_t n = REGS(inst.i.rs1);
+                                REGS_W(inst.i.rd, (n >> (inst.i.imm&0x1f)) |
+                                                  (n << (32 - (inst.i.imm&0x1f))));
+                            }
+                            break;
+                        case FN_REV:
+                            switch(inst.i.imm&0x1f) {
+                                case 0x18: // REV.8
+                                    {
+                                        uint32_t n = REGS(inst.i.rs1);
+                                        REGS_W(inst.i.rd,
+                                               ((n >> 24) & 0x000000ff) |
+                                               ((n >>  8) & 0x0000ff00) |
+                                               ((n <<  8) & 0x00ff0000) |
+                                               ((n << 24) & 0xff000000));
+                                    }
+                                    break;
+                                case 0x07: // REV.B
+                                    // FIXME: no riscv-arch-test test
+                                    {
+                                        uint32_t n = REGS(inst.i.rs1);
+                                        REGS_W(inst.i.rd, n);
+                                    }
+                                    break;
+                                default:
+                                    printf("Unknown instruction at PC 0x%08x\n", pc);
+                                    TRAP(TRAP_INST_ILL, inst.inst);
+                                    continue;
+                            }
+                            break;
+                        #endif // RV32B_ENABLED
+                        default:
+                            printf("Unknown instruction at PC 0x%08x\n", pc);
+                            TRAP(TRAP_INST_ILL, inst.inst);
+                            continue;
+                    }
                     break;
                 default:
                     printf("Unknown instruction at PC 0x%08x\n", pc);
@@ -995,123 +1139,297 @@ int main(int argc, char **argv) {
             break;
         }
         case OP_ARITHR: { // R-Type
-            if (inst.r.func7 == 1) { // RV32M Multiply Extension
-                switch(inst.r.func3) {
-                    case OP_MUL:
-                        REGS_W(inst.r.rd, REGS(inst.r.rs1) *
-                                          REGS(inst.r.rs2));
-                        break;
-                    case OP_MULH:
-                        {
-                        union {
-                            long long l;
-                            struct { int l, h; } n;
-                        } a, b, r;
-                        a.l = (long long)REGS(inst.r.rs1);
-                        b.l = (long long)REGS(inst.r.rs2);
-                        r.l = a.l * b.l;
-                        REGS_W(inst.r.rd, r.n.h);
-                        }
-                        break;
-                    case OP_MULSU:
-                        {
-                        union {
-                            long long l;
-                            struct { int l, h; } n;
-                        } a, b, r;
-                        a.l = (long long)REGS(inst.r.rs1);
-                        b.n.l = REGS(inst.r.rs2);
-                        b.n.h = 0;
-                        r.l = a.l * b.l;
-                        REGS_W(inst.r.rd, r.n.h);
-                        }
-                        break;
-                    case OP_MULU:
-                        {
-                        union {
-                            long long l;
-                            struct { int l, h; } n;
-                        } a, b, r;
-                        a.n.l = REGS(inst.r.rs1); a.n.h = 0;
-                        b.n.l = REGS(inst.r.rs2); b.n.h = 0;
-                        r.l = ((unsigned long long)a.l) *
-                              ((unsigned long long)b.l);
-                        REGS_W(inst.r.rd, r.n.h);
-                        }
-                        break;
-                    case OP_DIV:
-                        if (REGS(inst.r.rs2))
-                            REGS_W(inst.r.rd, (int)(((long long)REGS(inst.r.rs1)) /
-                                                   REGS(inst.r.rs2)));
-                        else
-                            REGS_W(inst.r.rd, 0xffffffff);
-                        break;
-                    case OP_DIVU:
-                        if (REGS(inst.r.rs2))
-                            REGS_W(inst.r.rd, (int)(((unsigned)REGS(inst.r.rs1)) /
-                                                    ((unsigned)REGS(inst.r.rs2))));
-                        else
-                            REGS_W(inst.r.rd, 0xffffffff);
-                        break;
-                    case OP_REM:
-                        if (REGS(inst.r.rs2))
-                            REGS_W(inst.r.rd, (int)(((long long)REGS(inst.r.rs1)) %
-                                                    REGS(inst.r.rs2)));
-                        else
-                            REGS_W(inst.r.rd, REGS(inst.r.rs1));
-                        break;
-                    case OP_REMU:
-                        if (REGS(inst.r.rs2))
-                            REGS_W(inst.r.rd, (int)(((unsigned)REGS(inst.r.rs1)) %
-                                                    ((unsigned)REGS(inst.r.rs2))));
-                        else
-                            REGS_W(inst.r.rd, REGS(inst.r.rs1));
-                        break;
-                    default:
-                        printf("Unknown instruction at PC 0x%08x\n", pc);
-                        TRAP(TRAP_INST_ILL, inst.inst);
-                        continue;
-                }
-            } else {
-                switch(inst.r.func3) {
-                    case OP_ADD:
-                        if (inst.r.func7 == 0)
-                            REGS_W(inst.r.rd, REGS(inst.r.rs1) + REGS(inst.r.rs2));
-                        else
-                            REGS_W(inst.r.rd, REGS(inst.r.rs1) - REGS(inst.r.rs2));
-                        break;
-                    case OP_SLL:
-                        REGS_W(inst.r.rd, REGS(inst.r.rs1) << REGS(inst.r.rs2));
-                        break;
-                    case OP_SLT:
-                        REGS_W(inst.r.rd, REGS(inst.r.rs1) < REGS(inst.r.rs2) ?
-                                          1 : 0);
-                        break;
-                    case OP_SLTU:
-                        REGS_W(inst.r.rd, ((unsigned int)REGS(inst.r.rs1)) <
-                             ((unsigned int)REGS(inst.r.rs2)) ? 1 : 0);
-                        break;
-                    case OP_XOR:
-                        REGS_W(inst.r.rd, REGS(inst.r.rs1) ^ REGS(inst.r.rs2));
-                        break;
-                    case OP_SR:
-                        if (inst.r.func7 == 0)
-                            REGS_W(inst.r.rd, ((unsigned int)REGS(inst.r.rs1)) >>
+            switch (inst.r.func7) {
+                #ifdef RV32M_ENABLED
+                case FN_RV32M: // RV32M Multiply Extension
+                    switch(inst.r.func3) {
+                        case OP_MUL:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) *
                                               REGS(inst.r.rs2));
-                        else
+                            break;
+                        case OP_MULH:
+                            {
+                            union {
+                                int64_t l;
+                                struct { int32_t l, h; } n;
+                            } a, b, r;
+                            a.l = (int64_t)REGS(inst.r.rs1);
+                            b.l = (int64_t)REGS(inst.r.rs2);
+                            r.l = a.l * b.l;
+                            REGS_W(inst.r.rd, r.n.h);
+                            }
+                            break;
+                        case OP_MULSU:
+                            {
+                            union {
+                                int64_t l;
+                                struct { int32_t l, h; } n;
+                            } a, b, r;
+                            a.l = (int64_t)REGS(inst.r.rs1);
+                            b.n.l = REGS(inst.r.rs2);
+                            b.n.h = 0;
+                            r.l = a.l * b.l;
+                            REGS_W(inst.r.rd, r.n.h);
+                            }
+                            break;
+                        case OP_MULU:
+                            {
+                            union {
+                                int64_t l;
+                                struct { int32_t l, h; } n;
+                            } a, b, r;
+                            a.n.l = REGS(inst.r.rs1); a.n.h = 0;
+                            b.n.l = REGS(inst.r.rs2); b.n.h = 0;
+                            r.l = ((uint64_t)a.l) *
+                                  ((uint64_t)b.l);
+                            REGS_W(inst.r.rd, r.n.h);
+                            }
+                            break;
+                        case OP_DIV:
+                            if (REGS(inst.r.rs2))
+                                REGS_W(inst.r.rd, (int32_t)(((int64_t)REGS(inst.r.rs1)) /
+                                                            REGS(inst.r.rs2)));
+                            else
+                                REGS_W(inst.r.rd, 0xffffffff);
+                            break;
+                        case OP_DIVU:
+                            if (REGS(inst.r.rs2))
+                                REGS_W(inst.r.rd, (int32_t)(((uint32_t)REGS(inst.r.rs1)) /
+                                                            ((uint32_t)REGS(inst.r.rs2))));
+                            else
+                                REGS_W(inst.r.rd, 0xffffffff);
+                            break;
+                        case OP_REM:
+                            if (REGS(inst.r.rs2))
+                                REGS_W(inst.r.rd, (int32_t)(((int64_t)REGS(inst.r.rs1)) %
+                                                            REGS(inst.r.rs2)));
+                            else
+                                REGS_W(inst.r.rd, REGS(inst.r.rs1));
+                            break;
+                        case OP_REMU:
+                            if (REGS(inst.r.rs2))
+                                REGS_W(inst.r.rd, (int32_t)(((uint32_t)REGS(inst.r.rs1)) %
+                                                            ((uint32_t)REGS(inst.r.rs2))));
+                            else
+                                REGS_W(inst.r.rd, REGS(inst.r.rs1));
+                            break;
+                        default:
+                            printf("Unknown instruction at PC 0x%08x\n", pc);
+                            TRAP(TRAP_INST_ILL, inst.inst);
+                            continue;
+                    }
+                break;
+                #endif // RV32M_ENABLED
+
+                case FN_RV32I:
+                    switch(inst.r.func3) {
+                        case OP_ADD:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) + REGS(inst.r.rs2));
+                            break;
+                        case OP_SLL:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) << REGS(inst.r.rs2));
+                            break;
+                        case OP_SLT:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) < REGS(inst.r.rs2) ?
+                                              1 : 0);
+                            break;
+                        case OP_SLTU:
+                            REGS_W(inst.r.rd, ((uint32_t)REGS(inst.r.rs1)) <
+                                 ((uint32_t)REGS(inst.r.rs2)) ? 1 : 0);
+                            break;
+                        case OP_XOR:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) ^ REGS(inst.r.rs2));
+                            break;
+                        case OP_SR:
+                            REGS_W(inst.r.rd, ((uint32_t)REGS(inst.r.rs1)) >>
+                                              REGS(inst.r.rs2));
+                            break;
+                        case OP_OR:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) | REGS(inst.r.rs2));
+                            break;
+                        case OP_AND:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) & REGS(inst.r.rs2));
+                            break;
+                        default:
+                            printf("Unknown instruction at PC 0x%08x\n", pc);
+                            TRAP(TRAP_INST_ILL, inst.inst);
+                            continue;
+                    }
+                break;
+
+                case FN_ANDN:
+                    switch(inst.r.func3) {
+                        case OP_ADD: // SUB
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) - REGS(inst.r.rs2));
+                            break;
+                        case OP_SR: // SRA
                             REGS_W(inst.r.rd, REGS(inst.r.rs1) >> REGS(inst.r.rs2));
-                        break;
-                    case OP_OR:
-                        REGS_W(inst.r.rd, REGS(inst.r.rs1) | REGS(inst.r.rs2));
-                        break;
-                    case OP_AND:
-                        REGS_W(inst.r.rd, REGS(inst.r.rs1) & REGS(inst.r.rs2));
-                        break;
-                    default:
-                        printf("Unknown instruction at PC 0x%08x\n", pc);
-                        TRAP(TRAP_INST_ILL, inst.inst);
-                        continue;
-                }
+                            break;
+                        #ifdef RV32B_ENABLED
+                        case OP_AND: // ANDN
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) & ~(REGS(inst.r.rs2)));
+                            break;
+                        case OP_OR: // ORN
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) | ~(REGS(inst.r.rs2)));
+                            break;
+                        case OP_XOR: // XNOR
+                            REGS_W(inst.r.rd, ~(REGS(inst.r.rs1) ^ REGS(inst.r.rs2)));
+                            break;
+                        #endif // RV32B_ENABLED
+                        default:
+                            printf("Unknown instruction at PC 0x%08x\n", pc);
+                            TRAP(TRAP_INST_ILL, inst.inst);
+                            continue;
+                    }
+                    break;
+
+                #ifdef RV32B_ENABLED
+                case FN_ZEXT:
+                    REGS_W(inst.r.rd, REGS(inst.r.rs1) & 0xffff);
+                    break;
+
+                case FN_MINMAX:
+                    switch(inst.r.func3) {
+                        case OP_CLMUL:
+                            {
+                                int32_t a = REGS(inst.r.rs1);
+                                int32_t b = REGS(inst.r.rs2);
+                                int32_t n = 0;
+
+                                for(int i = 0; i <= 31; i++)
+                                    if ((b >> i) & 1) n ^= (a << i);
+
+                                REGS_W(inst.r.rd, n);
+                            }
+                            break;
+                        case OP_CLMULH:
+                            {
+                                uint32_t a = REGS(inst.r.rs1);
+                                uint32_t b = REGS(inst.r.rs2);
+                                int32_t n = 0;
+
+                                for(int i = 1; i < 32; i++)
+                                    if ((b >> i) & 1) n ^= (a >> (32 - i));
+
+                                REGS_W(inst.r.rd, n);
+                            }
+                            break;
+                        case OP_CLMULR:
+                            {
+                                uint32_t a = REGS(inst.r.rs1);
+                                uint32_t b = REGS(inst.r.rs2);
+                                int32_t n = 0;
+
+                                for(int i = 0; i < 32; i++)
+                                    if ((b >> i) & 1) n ^= (a >> (32 - i - 1));
+
+                                REGS_W(inst.r.rd, n);
+                            }
+                            break;
+                        case OP_MAX:
+                            {
+                                int32_t a = REGS(inst.r.rs1);
+                                int32_t b = REGS(inst.r.rs2);
+                                REGS_W(inst.r.rd, a > b ? a : b);
+                            }
+                            break;
+                        case OP_MAXU:
+                            {
+                                uint32_t a = REGS(inst.r.rs1);
+                                uint32_t b = REGS(inst.r.rs2);
+                                REGS_W(inst.r.rd, a > b ? a : b);
+                            }
+                            break;
+                        case OP_MIN:
+                            {
+                                int32_t a = REGS(inst.r.rs1);
+                                int32_t b = REGS(inst.r.rs2);
+                                REGS_W(inst.r.rd, a < b ? a : b);
+                            }
+                            break;
+                        case OP_MINU:
+                            {
+                                uint32_t a = REGS(inst.r.rs1);
+                                uint32_t b = REGS(inst.r.rs2);
+                                REGS_W(inst.r.rd, a < b ? a : b);
+                            }
+                            break;
+                        default:
+                            printf("Unknown instruction at PC 0x%08x\n", pc);
+                            TRAP(TRAP_INST_ILL, inst.inst);
+                            continue;
+                    }
+                    break;
+
+                case FN_SHADD:
+                    switch(inst.r.func3) {
+                        case OP_SH1ADD:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs2) + (REGS(inst.r.rs1) << 1));
+                            break;
+                        case OP_SH2ADD:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs2) + (REGS(inst.r.rs1) << 2));
+                            break;
+                        case OP_SH3ADD:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs2) + (REGS(inst.r.rs1) << 3));
+                            break;
+                        default:
+                            printf("Unknown instruction at PC 0x%08x\n", pc);
+                            TRAP(TRAP_INST_ILL, inst.inst);
+                            continue;
+                    }
+                    break;
+
+                case FN_BSET:
+                    REGS_W(inst.r.rd, REGS(inst.r.rs1) | (1 << (REGS(inst.r.rs2) & 0x1f)));
+                    break;
+
+                case FN_BCLR:
+                    switch(inst.r.func3) {
+                        case OP_BCLR:
+                            REGS_W(inst.r.rd, REGS(inst.r.rs1) & ~(1 << (REGS(inst.r.rs2) & 0x1f)));
+                            break;
+                        case OP_BEXT:
+                            REGS_W(inst.r.rd, (REGS(inst.r.rs1) >> (REGS(inst.r.rs2) & 0x1f)) & 1);
+                            break;
+                        default:
+                            printf("Unknown instruction at PC 0x%08x\n", pc);
+                            TRAP(TRAP_INST_ILL, inst.inst);
+                            continue;
+                    }
+                    break;
+
+                case FN_CLZ:
+                    switch(inst.r.func3) {
+                        case OP_ROL:
+                            {
+                                uint32_t n = REGS(inst.r.rs2) & 0x1f;
+                                REGS_W(inst.r.rd, (REGS(inst.r.rs1) << n) |
+                                                  ((uint32_t)REGS(inst.r.rs1) >> (32 - n)));
+                            }
+                            break;
+                        case OP_ROR:
+                            {
+                                uint32_t n = REGS(inst.r.rs2) & 0x1f;
+                                REGS_W(inst.r.rd, ((uint32_t)REGS(inst.r.rs1) >> n) |
+                                                  (REGS(inst.r.rs1) << (32 - n)));
+                            }
+                            break;
+                        default:
+                            printf("Unknown instruction at PC 0x%08x\n", pc);
+                            TRAP(TRAP_INST_ILL, inst.inst);
+                            continue;
+                    }
+                    break;
+
+                case FN_BINV:
+                    REGS_W(inst.r.rd, REGS(inst.r.rs1) ^ (1 << (REGS(inst.r.rs2) & 0x1f)));
+                    break;
+                #endif // RV32B_ENABLED
+
+                default:
+                    printf("Unknown instruction at PC 0x%08x\n", pc);
+                    TRAP(TRAP_INST_ILL, inst.inst);
+                    continue;
             }
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                       pc, inst.inst, inst.r.rd, regname[inst.r.rd],

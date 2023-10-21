@@ -1,5 +1,9 @@
 include common/Makefile.common
 
+memsize ?= 256
+
+MAKE_FLAGS = memsize=$(memsize)
+
 dirs = $(filter %/, $(wildcard [^_]*/))
 SUBDIRS = $(subst /,,$(subst common,,$(dirs)))
 
@@ -9,11 +13,11 @@ all: $(SUBDIRS)
 
 $(SUBDIRS): common
 	@if [ -f $@/Makefile ]; then \
-		$(MAKE) -C $@; \
+		$(MAKE) $(MAKE_FLAGS) -C $@; \
 	fi
 
 common:
-	$(MAKE) -C $@
+	$(MAKE) $(MAKE_FLAGS) -C $@
 
 update:
 	@for i in $(dirs:%/=%); do \
@@ -31,7 +35,7 @@ update:
 clean:
 	@for i in $(SUBDIRS) common _*; do \
 		if [ -f $$i/Makefile ]; then \
-			$(MAKE) -C $$i clean; \
+			$(MAKE) $(MAKE_FLAGS) -C $$i clean; \
 		fi; \
 	done
 

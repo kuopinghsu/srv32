@@ -5,11 +5,13 @@
    notice and this notice are preserved.  */
 ENTRY(_start)
 _start = 0;
+_MEMSIZE = MEMSIZE * 1024;
+_START_ADDR = 0x00000000;
 
 MEMORY
 {
-  imem : ORIGIN = 0x00000000,       LENGTH = 128K
-  dmem : ORIGIN = 0x00000000 +128K, LENGTH = 128K
+  imem : ORIGIN = _START_ADDR,            LENGTH = _MEMSIZE
+  dmem : ORIGIN = _START_ADDR + _MEMSIZE, LENGTH = _MEMSIZE
 }
 
 SECTIONS
@@ -202,7 +204,7 @@ SECTIONS
   _end = .; PROVIDE (end = .);
   . = DATA_SEGMENT_END (.);
 
-  PROVIDE(_stack = (128K * 2));
+  PROVIDE(_stack = (_MEMSIZE * 2));
 
   /* Stabs debugging sections.  */
   .stab          0 : { *(.stab) }

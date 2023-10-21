@@ -67,3 +67,5 @@ sim/sim
 sim/sim_cc
 *.dis
 *.symbol
+*.elf
+default.ld

@@ -1,13 +1,18 @@
 include Makefile.common
 
+memsize ?= 256
+
 OBJECTS = startup.o syscall.o
 TARGET = libsys.a
 
-.PHONY: all clean
+.PHONY: all clean default.ld
 
-all: $(TARGET)
+all: $(TARGET) default.ld
 
 .SUFFIXES: .c .S .h .o
+
+default.ld: default.lds
+	$(CPP) -DMEMSIZE=$(memsize) -o $@ -E $<
 
 %.o: %.S %.h
 	$(AS) $(ASFLAGS) -o $@ -c $<
@@ -19,4 +24,5 @@ $(TARGET): $(OBJECTS)
 	$(AR) rcs $@ *.o
 
 clean:
-	$(RM) $(OBJECTS) $(TARGET)
+	$(RM) $(OBJECTS) $(TARGET) default.ld
+
