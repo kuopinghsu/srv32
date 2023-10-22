@@ -4,7 +4,7 @@
 
 This is a simple RISC-V 3-stage pipeline processor and supports FreeRTOS.
 I wrote this code to understand the RV32IM instruction set, just for fun.
-The performance is 1.959 DMIPS/MHz and 3.270 Coremark/MHz.
+The performance is 1.945 DMIPS/MHz and 3.170 Coremark/MHz.
 This is not a RISC-V core available for production.
 
 ## Features
