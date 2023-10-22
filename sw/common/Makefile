@@ -12,7 +12,7 @@ all: $(TARGET) default.ld
 .SUFFIXES: .c .S .h .o
 
 default.ld: default.lds
-	$(CPP) -DMEMSIZE=$(memsize) -o $@ -E $<
+	$(CPP) -DMEMSIZE=$(memsize) -E $< | grep -v "^#" > $@
 
 %.o: %.S %.h
 	$(AS) $(ASFLAGS) -o $@ -c $<

@@ -52,7 +52,7 @@ volatile ee_s32 seed5_volatile = 0;
    increase this value.
         */
 #define NSECS_PER_SEC              CLOCKS_PER_SEC
-#define CORETIMETYPE               clock_t
+#define CORETIMETYPE               int
 #define GETMYTIME(_t)              (*_t = clock())
 #define MYTIMEDIFF(fin, ini)       ((fin) - (ini))
 #define TIMER_RES_DIVIDER          1

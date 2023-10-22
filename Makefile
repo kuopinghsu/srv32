@@ -95,23 +95,23 @@ tests-sw:
 
 build:
 	for i in sw sim tools; do \
-		$(MAKE) $(MAKE_FLAGS) -C $$i; \
+		$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) -C $$i; \
 	done
 
 $(SUBDIRS):
-	@$(MAKE) $(MAKE_FLAGS) -C sw $@
+	@$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) -C sw $@
 	@$(MAKE) $(if $(_verilator), verilator=1) \
 			 $(if $(_coverage), coverate=1) \
-			 $(if $(_top), top=1) $(MAKE_FLAGS) debug=$(debug) -C sim $@.elf
-	@$(MAKE) $(if $(_top), top=1) $(MAKE_FLAGS) -C tools $@.elf
+			 $(if $(_top), top=1) $(MAKE_FLAGS) memsize=$(memsize) debug=$(debug) -C sim $@.elf
+	@$(MAKE) $(if $(_top), top=1) $(MAKE_FLAGS) memsize=$(memsize) -C tools $@.elf
 	@echo "Compare the trace between RTL and ISS simulator"
 	@diff --brief sim/trace.log tools/trace.log
 	@echo === Simulation passed ===
 
 coverage: clean
-	@$(MAKE) $(MAKE_FLAGS) coverage=1 all
+	@$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) coverage=1 all
 	@mv sim/*_cov.dat coverage/.
-	@$(MAKE) $(MAKE_FLAGS) coverage=1 tests
+	@$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) coverage=1 tests
 	@if [ "$(test_v)" = "1" ]; then \
 	    mv tests/riscv-arch-test.v1/work/rv32i/*_cov.dat coverage/.; \
 	    mv tests/riscv-arch-test.v1/work/rv32im/*_cov.dat coverage/.; \
@@ -123,8 +123,8 @@ coverage: clean
 	        mv tests/riscv-arch-test.v2/work/rv32i_m/B/*_cov.dat coverage/.; \
 	    fi; \
 	fi
-	@$(MAKE) $(MAKE_FLAGS) -C coverage
-	@$(MAKE) $(MAKE_FLAGS) -C tools coverage
+	@$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) -C coverage
+	@$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) -C tools coverage
 
 clean:
 	@for i in sw sim tools tests coverage; do \
