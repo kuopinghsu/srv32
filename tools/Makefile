@@ -60,7 +60,7 @@ $(RVSIM): $(OBJECTS)
 
 %.elf: $(RVSIM)
 	@if [ ! -f ../sw/$*/$*.elf ]; then \
-		make -C ../sw $*; \
+		$(MAKE) memsize=$(memsize) -C ../sw $*; \
 	fi
 	./$(RVSIM) --memsize $(memsize) -l trace.log ../sw/$*/$*.elf
 	@./log2dis.pl -q trace.log ../sw/$*/$*.elf
