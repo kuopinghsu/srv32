@@ -14,12 +14,10 @@ Install spike:
     $ mkdir build
     $ cd build
     $ ../configure --prefix=/path/to/install
-    $ make
-    $ [sudo] make install
+    $ make install
 
 ## TODO
 
 Run the architectural tests:
 
     $ make
-
