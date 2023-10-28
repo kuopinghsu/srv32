@@ -442,10 +442,10 @@ int main(int argc, char **argv) {
                 quiet = 1;
                 break;
             case 'm':
-                sscanf(optarg, "%i", (uint32_t*)&mem_base);
+                sscanf(optarg, "%i", (int32_t*)&mem_base);
                 break;
             case 'n':
-                sscanf(optarg, "%i", (uint32_t*)&mem_size);
+                sscanf(optarg, "%i", (int32_t*)&mem_size);
                 mem_size *= 1024;
                 break;
             case 's':
@@ -996,7 +996,7 @@ int main(int argc, char **argv) {
                                             if (!(x & 0xff000000)) { x <<=  8; r +=  8; }
                                             if (!(x & 0xf0000000)) { x <<=  4; r +=  4; }
                                             if (!(x & 0xc0000000)) { x <<=  2; r +=  2; }
-                                            if (!(x & 0x80000000)) { x <<=  1; r +=  1; }
+                                            if (!(x & 0x80000000)) {           r +=  1; }
                                         }
                                         REGS_W(inst.i.rd, r);
                                     }
