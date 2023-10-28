@@ -62,23 +62,22 @@ FILELIST    = -f filelist.txt $(if $(_top), ../rtl/top_s.v, ../rtl/top.v)
 all: $(TARGET)
 
 $(TARGET):
-	$(TARGET_SIM) $(BFLAGS) -o $(TARGET) $(FILELIST)
+	CXXFLAGS=-DMEMSIZE=$(memsize) $(TARGET_SIM) $(BFLAGS) -o $(TARGET) $(FILELIST)
 	@if [ "$(verilator)" = "1" ]; then \
 		mv sim_cc/sim .; \
 	fi
 
 %.elf: $(TARGET) checkcode.awk
-	@if [ ! -f ../sw/$*/memory.bin ]; then \
+	@if [ ! -f ../sw/$*/$*.elf ]; then \
 		make -C ../sw $*; \
 	fi
-	@cp ../sw/$*/*.bin .
-	@$(STDBUF) ./$(TARGET) $(RFLAGS) | awk -f $(filter %.awk, $^)
+	@$(STDBUF) ./$(TARGET) $(RFLAGS) ../sw/$*/$*.elf | awk -f $(filter %.awk, $^)
 	@if [ -f coverage.dat ]; then \
 		mv coverage.dat $*_cov.dat; \
 	fi
 
 clean:
-	@$(RM) $(TARGET) wave.* trace.log *.bin dump.txt
+	@$(RM) $(TARGET) wave.* trace.log dump.txt
 	@$(RM) -rf sim_cc *_cov.dat
 
 distclean: clean

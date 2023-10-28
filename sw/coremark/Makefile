@@ -20,9 +20,6 @@ PORT_DIR = riscv
 
 .PHONY: all clean
 all: compile
-	$(OBJCOPY) -j .reset -j .text -O binary $(OUTFILE) imem.bin
-	$(OBJCOPY) -R .reset -R .text -O binary $(OUTFILE) dmem.bin
-	$(OBJCOPY) -O binary $(OUTFILE) memory.bin
 	$(OBJDUMP) -d $(OUTFILE) > coremark.dis
 	$(READELF) -a $(OUTFILE) > coremark.symbol
 
@@ -134,7 +131,7 @@ load: $(OUTFILE)
 .PHONY: clean
 clean:
 	rm -f $(OUTFILE) $(OPATH)*.log *.info $(OPATH)index.html $(PORT_CLEAN)
-	rm -f coremark.dis coremark.symbol [id]mem.bin memory.bin
+	rm -f coremark.dis coremark.symbol
 
 .PHONY: force_rebuild
 force_rebuild:

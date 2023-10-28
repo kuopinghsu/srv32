@@ -51,9 +51,6 @@ Mkfile.old
 dkms.conf
 
 # dumpfile
-imem.bin
-dmem.bin
-memory.bin
 trace.log
 dump.txt
 

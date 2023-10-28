@@ -132,9 +132,12 @@ Only running make without parameters will get help.
 
 Supports following parameter when running the simulation.
 
-    +no-meminit do not memory initialize zero
-    +dump       dump VCD (Icarus Verilog) / FST (Verilator) file
-    +trace      generate tracelog
+    Usage: sim [+help] [+no-meminit] [+dump] [+trace] [prog.elf]
+
+        +help         usage help
+        +no-meminit   memory uninitialized
+        +dump         dump vcd file
+        +trace        generate trace log
 
 For example, following command will generate the VCD dump.
 

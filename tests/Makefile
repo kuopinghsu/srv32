@@ -46,7 +46,7 @@ riscv-arch-test:
 		if [ "$(rv32b)" = "0" ]; then \
 			rm -rf riscv-arch-test.v1/riscv-target/srv32/device/rv32i_m/B; \
 		fi; \
-	else \
+	elif [ "$(test_v)" = "2" ]; then \
 		if [ ! -d riscv-arch-test.v2 ]; then \
 			git clone -b 2.7.4 https://github.com/riscv/riscv-arch-test.git riscv-arch-test.v2; \
 		fi; \
@@ -59,6 +59,11 @@ riscv-arch-test:
 		if [ "$(rv32b)" = "0" ]; then \
 			rm -rf riscv-arch-test.v2/riscv-target/srv32/device/rv32i_m/B; \
 		fi; \
+	elif [ "$(test_v)" = "3" ]; then \
+		$(MAKE) memsize=$(memsize) rv32b=$(rv32b) rv32c=$(rv32c) rv32m=$(rv32m) -C riscof; \
+	else \
+		echo "No support test_v"; \
+		exit 1; \
 	fi
 
 clean:

@@ -107,7 +107,9 @@ endtask
 `ifndef SYNTHESIS
 initial begin
     if ($test$plusargs("help") != 0) begin
+        $display("Usage: sim [+help] [+no-meminit] [+dump] [+trace] [prog.elf]");
         $display("");
+        $display("    +help         usage help");
         $display("    +no-meminit   memory uninitialized");
         $display("    +dump         dump vcd file");
         $display("    +trace        generate trace log");

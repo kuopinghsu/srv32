@@ -37,11 +37,7 @@ COMPILE_CMD=\
 		-I$(ROOTDIR)/riscv-test-suite/env/ \
 		-I$(TARGETDIR)/$(RISCV_TARGET)/ \
 		-T$(TARGETDIR)/$(RISCV_TARGET)/env/link.ld $$< \
-		-o $$@; \
-	$$(RISCV_OBJCOPY) -O binary $$@ $$@.bin; \
-	$$(RISCV_OBJCOPY) -O binary -j .text $$@ $$@.imem.bin; \
-	$$(RISCV_OBJCOPY) -O binary -j .data $$@ $$@.dmem.bin; \
-	$$(RISCV_OBJCOPY) -O binary $$@ $$@.memory.bin
+		-o $$@
 
 OBJ_CMD = $$(RISCV_OBJDUMP) $$@ -D > $$@.objdump; \
 		  $$(RISCV_OBJDUMP) $$@ --source > $$@.debug; \
@@ -65,9 +61,8 @@ RUN_CMD=\
 	$(TARGET_SIM)
 
 RUN_TARGET=\
-	cp $(*).elf.imem.bin imem.bin; cp $(*).elf.dmem.bin dmem.bin; cp $(*).elf.memory.bin memory.bin; \
-	$(RUN_CMD) $(TARGET_FLAGS) $< 2> $@; mv trace.log $(*).trace.log; rm -f imem.bin dmem.bin memory.bin; \
+	$(RUN_CMD) $(TARGET_FLAGS) $(*).elf $< 2> $@; mv trace.log $(*).trace.log; \
 	mv dump.txt $(*).signature.output; if [ -f coverage.dat ]; then mv coverage.dat $(*)_cov.dat; fi; \
-	$(TARGET_SWSIM) -l $(*).trace_sw.log $(TARGET_FLAGS) $< 2> $@; \
+	$(TARGET_SWSIM) -l $(*).trace_sw.log $(TARGET_FLAGS) $(*).elf $< 2> $@; \
 	diff --brief $(*).trace.log $(*).trace_sw.log
 

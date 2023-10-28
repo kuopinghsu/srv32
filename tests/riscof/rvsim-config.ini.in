@@ -1,0 +1,14 @@
+[RISCOF]
+ReferencePlugin=spike
+ReferencePluginPath={PWD}/spike
+DUTPlugin=rvsim
+DUTPluginPath={PWD}/rvsim
+
+[rvsim]
+pluginpath={PWD}/rvsim
+ispec={PWD}/rvsim/rvsim_isa.yaml
+pspec={PWD}/rvsim/rvsim_platform.yaml
+target_run=1
+
+[spike]
+pluginpath={PWD}/spike

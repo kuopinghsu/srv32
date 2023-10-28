@@ -10,6 +10,13 @@
 
 #define RESOLUTION 4
 
+extern "C"
+int elfloader(char *file, char *mem,
+              int imem_base, int dmem_base,
+              int imem_size, int dmem_size);
+
+#include "../tools/elfloader.c"
+
 vluint64_t main_time = 0;
 
 double sc_time_stamp(void)
@@ -17,14 +24,61 @@ double sc_time_stamp(void)
     return main_time;
 }
 
+void elfread(char *filename)
+{
+    FILE *fp;
+    char *mem;
+    int memsize = MEMSIZE * 1024;
+
+    if ((mem = (char*)malloc(memsize*2)) == NULL) {
+        printf("memory allocate failure\n");
+        exit(1);
+    }
+    if (elfloader(filename, (char*)mem, 0, memsize, memsize, memsize) == 0) {
+        printf("Can not read elf file %s\n", filename);
+        exit(1);
+    }
+
+    if ((fp = fopen("imem.bin", "wb")) == NULL) {
+        printf("file imem.bin creates fail\n");
+        exit(1);
+    }
+
+    if (memsize != fwrite(mem, sizeof(char), memsize, fp)) {
+        printf("file write fail\n");
+        exit(1);
+    }
+
+    fclose(fp);
+
+    if ((fp = fopen("dmem.bin", "wb")) == NULL) {
+        printf("file dmem.bin creates fail\n");
+        exit(1);
+    }
+
+    if (memsize != fwrite(&mem[memsize], sizeof(char), memsize, fp)) {
+        printf("file write fail\n");
+        exit(1);
+    }
+
+    fclose(fp);
+    free(mem);
+}
+
 int main(int argc, char** argv)
 {
+    int elf_loaded = 0;
     Verilated::commandArgs(argc,argv);
     Verilated::traceEverOn(true);
 
     #ifdef HAVE_CHRONO
     std::chrono::steady_clock::time_point time_begin;
     #endif
+
+    if (argc >= 2 && argv[argc-1][0] != '+' && argv[argc-1][0] != '-') {
+        elfread(argv[argc-1]);
+        elf_loaded = 1;
+    }
 
     Vriscv *top = new Vriscv;
 
@@ -76,6 +130,11 @@ int main(int argc, char** argv)
 
     top->final();
     delete top;
+
+    if (elf_loaded) {
+        unlink("imem.bin");
+        unlink("dmem.bin");
+    }
 
     return 0;
 }
