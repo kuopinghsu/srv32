@@ -66,16 +66,7 @@ __trap_handler:                                                               \
         csrw    mepc, t5;                                                     \
         mret;                                                                 \
                                                                               \
-_start:                                                                       \
-        la      t0, _bss_start;                                               \
-        la      t1, _bss_end;                                                 \
-                                                                              \
-_bss_clear:                                                                   \
-        sw      zero,0(t0);                                                   \
-        addi    t0, t0, 4;                                                    \
-        bltu    t0, t1, _bss_clear;                                           \
-                                                                              \
-        la      sp, _stack
+_start:
 #else
 #define RVMODEL_BOOT                                                          \
 core_init:                                                                    \
@@ -109,16 +100,7 @@ __trap_handler_irq:                                                           \
         addi    sp, sp, -8;                                                   \
         mret;                                                                 \
                                                                               \
-_start:                                                                       \
-        la      t0, _bss_start;                                               \
-        la      t1, _bss_end;                                                 \
-                                                                              \
-_bss_clear:                                                                   \
-        sw      zero,0(t0);                                                   \
-        addi    t0, t0, 4;                                                    \
-        bltu    t0, t1, _bss_clear;                                           \
-                                                                              \
-        la      sp, _stack
+_start:
 #endif // RV32C_ENABLED
 
 #define RVMODEL_IO_INIT

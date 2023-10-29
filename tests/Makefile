@@ -38,13 +38,13 @@ riscv-arch-test:
 		if [ ! -d riscv-arch-test.v1 ]; then \
 			git clone -b 1.0 https://github.com/riscv/riscv-arch-test.git riscv-arch-test.v1; \
 		fi; \
-		rm -rf riscv-arch-test.v1/riscv-target/srv32; \
+		$(RM) -rf riscv-arch-test.v1/riscv-target/srv32; \
 		if [ ! -d riscv-arch-test.v1/riscv-test-suite/rv32i_m/B ]; then \
 			cp -r riscv-test-suite/rv32i_m/B riscv-arch-test.v1/riscv-test-suite/rv32i_m/. ; \
 		fi; \
 		cp -r srv32.v1 riscv-arch-test.v1/riscv-target/srv32; \
 		if [ "$(rv32b)" = "0" ]; then \
-			rm -rf riscv-arch-test.v1/riscv-target/srv32/device/rv32i_m/B; \
+			$(RM) -rf riscv-arch-test.v1/riscv-target/srv32/device/rv32i_m/B; \
 		fi; \
 	elif [ "$(test_v)" = "2" ]; then \
 		if [ ! -d riscv-arch-test.v2 ]; then \
@@ -54,10 +54,10 @@ riscv-arch-test:
 			cp -r riscv-test-suite/rv32i_m/B riscv-arch-test.v2/riscv-test-suite/rv32i_m/. ; \
 		fi; \
 		$(POST_PATCH); \
-		rm -rf riscv-arch-test.v2/riscv-target/srv32; \
+		$(RM) -rf riscv-arch-test.v2/riscv-target/srv32; \
 		cp -r srv32.v2 riscv-arch-test.v2/riscv-target/srv32; \
 		if [ "$(rv32b)" = "0" ]; then \
-			rm -rf riscv-arch-test.v2/riscv-target/srv32/device/rv32i_m/B; \
+			$(RM) -rf riscv-arch-test.v2/riscv-target/srv32/device/rv32i_m/B; \
 		fi; \
 	elif [ "$(test_v)" = "3" ]; then \
 		$(MAKE) memsize=$(memsize) rv32b=$(rv32b) rv32c=$(rv32c) rv32m=$(rv32m) -C riscof; \
@@ -67,8 +67,9 @@ riscv-arch-test:
 	fi
 
 clean:
-	rm -rf riscv-arch-test.v$(test_v)/work
+	$(RM) -rf riscv-arch-test.v$(test_v)/work
 
 distclean:
-	rm -rf riscv-arch-test.v*
+	$(RM) -rf riscv-arch-test.v*
+	$(MAKE) -C riscof distclean
 
