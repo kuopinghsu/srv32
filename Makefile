@@ -89,7 +89,6 @@ tests:
 
 tests-sw:
 	$(MAKE) coverage=$(coverage) clean
-	$(MAKE) $(MAKE_FLAGS) memsize=$(if $(filter 1,$(test_v)),256,1716) -C sim
 	$(MAKE) $(MAKE_FLAGS) memsize=$(if $(filter 1,$(test_v)),256,1716) -C tools
 	$(MAKE) $(MAKE_FLAGS) memsize=$(if $(filter 1,$(test_v)),256,1716) test_v=$(test_v) -C tests tests-sw
 

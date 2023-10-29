@@ -28,7 +28,7 @@ tests: riscv-arch-test
 tests-sw: riscv-arch-test
 	export ROOT_SRV32=$(ROOT_SRV32); \
 	export TARGET_SIM="$(ROOT_SRV32)/tools/rvsim --memsize $(memsize) -l trace.log"; \
-	export TARGET_SWSIM="$(ROOT_SRV32)/tools/rvsim --memsize $(memsize)"; \
+	export TARGET_SWSIM=""; \
 	export RISCV_PREFIX=$(CROSS_COMPILE); \
 	export RISCV_TARGET=srv32; \
 	$(MAKE) rv32c=$(rv32c) rv32e=$(rv32e) rv32b=$(rv32b) -C riscv-arch-test.v$(test_v)
