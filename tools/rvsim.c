@@ -33,7 +33,7 @@
 
 #include "opcode.h"
 
-int mem_size = 128*1024; // default memory size
+int mem_size = 256*1024; // default memory size
 
 #define PRINT_TIMELOG 1
 #define MAXLEN      1024
