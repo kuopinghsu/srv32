@@ -10,7 +10,7 @@ verilator ?= 1
 top       ?= 0
 coverage  ?= 0
 debug     ?= 0
-memsize   ?= 128
+memsize   ?= 256
 
 # set 1 for compliance test v1, 2 for v2
 test_v    ?= 2
