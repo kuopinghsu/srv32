@@ -354,16 +354,16 @@ enum {
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
 enum {
-    SYS_OPEN        = 0xbeef0031,
-    SYS_LSEEK       = 0xbeef0032,
-    SYS_CLOSE       = 0xbeef0039,
-    SYS_READ        = 0xbeef003f,
-    SYS_WRITE       = 0xbeef0040,
-    SYS_FSTAT       = 0xbeef0050,
-    SYS_EXIT        = 0xbeef005d,
-    SYS_SBRK        = 0xbeef00d6,
-    SYS_DUMP        = 0xbeef0088,
-    SYS_DUMP_BIN    = 0xbeef0099
+    SYS_OPEN        = 0x0031,
+    SYS_LSEEK       = 0x0032,
+    SYS_CLOSE       = 0x0039,
+    SYS_READ        = 0x003f,
+    SYS_WRITE       = 0x0040,
+    SYS_FSTAT       = 0x0050,
+    SYS_EXIT        = 0x005d,
+    SYS_SBRK        = 0x00d6,
+    SYS_DUMP        = 0x0088,
+    SYS_DUMP_BIN    = 0x0099
 };
 
 // Exception code
@@ -474,12 +474,13 @@ enum {
 #define MARCHID       0
 #define MIMPID        0
 #define MHARTID       0
-#define MMIO_PUTC     0x9000001c
-#define MMIO_GETC     0x90000020
-#define MMIO_EXIT     0x9000002c
-#define MMIO_MTIME    0x90000000
-#define MMIO_MTIMECMP 0x90000008
-#define MMIO_MSIP     0x90000010
+#define MMIO_PUTC     0x9000001c /* 32-bits */
+#define MMIO_GETC     0x90000020 /* 32-bits */
+#define MMIO_EXIT     0x9000002c /* 32-bits */
+#define MMIO_TOHOST   0x90000030 /* 32-bits */
+#define MMIO_MTIME    0x90000000 /* 64-bits */
+#define MMIO_MTIMECMP 0x90000008 /* 64-bits */
+#define MMIO_MSIP     0x90000010 /* 32-bits */
 #define STDIN  0
 #define STDOUT 1
 #define STDERR 2

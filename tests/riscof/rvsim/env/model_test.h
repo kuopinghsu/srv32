@@ -1,5 +1,6 @@
 #ifndef _COMPLIANCE_MODEL_H
 #define _COMPLIANCE_MODEL_H
+
 #define RVMODEL_DATA_SECTION \
         .pushsection .tohost,"aw",@progbits;                            \
         .align 8; .global tohost; tohost: .dword 0;                     \
@@ -8,57 +9,47 @@
         .align 8; .global begin_regstate; begin_regstate:               \
         .word 128;                                                      \
         .align 8; .global end_regstate; end_regstate:                   \
-        .word 4;
+        .word 4;                                                        \
+        .align 4; .global htif_mem; htif_mem:                           \
+        .word 8;
 
-//RV_COMPLIANCE_HALT
 #define RVMODEL_HALT                                                    \
-        la      a0, begin_signature;                                    \
-        la      a1, end_signature;                                      \
-        li      a7, 0xbeef0000;                                         \
-        addi    a7, a7, 0x88;                                           \
-        ecall;                                                          \
-        li      a7, 0xbeef0000;                                         \
-        addi    a7, a7, 0x5d;                                           \
-        ecall;                                                          \
+        la      a1, htif_mem;                                           \
+        la      a2, begin_signature;                                    \
+        la      a3, end_signature;                                      \
+        li      a4, 0x90000000;                                         \
+        addi    a4, a4, 0x30;                                           \
+__dump:                                                                 \
+        li      a0, 0x88;                                               \
+        sw      a0, 0(a1);                                              \
+        sw      a2, 4(a1);                                              \
+        sw      a3, 8(a1);                                              \
+        sw      a1, 0(a4);                                              \
+__exit:                                                                 \
+        li      a0, 0x5d;                                               \
+        sw      a0, 0(a1);                                              \
+        sw      zero, 4(a1);                                            \
+        sw      a1, 0(a4);                                              \
 1:      j       1b;
 
-#define RVMODEL_BOOT                                                    \
-core_init:                                                              \
-        la      t0, __trap_handler;                                     \
-        csrw    mtvec, t0;                                              \
-        j       _start;                                                 \
-                                                                        \
-        .balign 4;                                                      \
-__trap_handler:                                                         \
-        csrr    t5, mepc;                                               \
-        addi    t5, t5, 4;                                              \
-        csrw    mepc, t5;                                               \
-        mret;                                                           \
-                                                                        \
-_start:                                                                 \
+#define RVMODEL_BOOT
 
-//RV_COMPLIANCE_DATA_BEGIN
 #define RVMODEL_DATA_BEGIN                                              \
   RVMODEL_DATA_SECTION                                                  \
   .align 4;                                                             \
-  .global begin_signature; begin_signature:
+  .global begin_signature;                                              \
+begin_signature:
 
-//RV_COMPLIANCE_DATA_END
 #define RVMODEL_DATA_END                                                \
   .align 4;                                                             \
-  .global end_signature; end_signature:  
+  .global end_signature;                                                \
+end_signature:
 
-//RVTEST_IO_INIT
 #define RVMODEL_IO_INIT
-//RVTEST_IO_WRITE_STR
 #define RVMODEL_IO_WRITE_STR(_R, _STR)
-//RVTEST_IO_CHECK
 #define RVMODEL_IO_CHECK()
-//RVTEST_IO_ASSERT_GPR_EQ
 #define RVMODEL_IO_ASSERT_GPR_EQ(_S, _R, _I)
-//RVTEST_IO_ASSERT_SFPR_EQ
 #define RVMODEL_IO_ASSERT_SFPR_EQ(_F, _R, _I)
-//RVTEST_IO_ASSERT_DFPR_EQ
 #define RVMODEL_IO_ASSERT_DFPR_EQ(_D, _R, _I)
 
 #define RVMODEL_SET_MSW_INT

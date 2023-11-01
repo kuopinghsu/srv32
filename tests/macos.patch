@@ -1,5 +1,11 @@
---- riscv-arch-test.v2/riscv-test-env/verify.sh	2022-04-20 21:01:28.000000000 +0800
-+++ riscv-arch-test.v2/riscv-test-env/verify.sh.patch	2022-04-20 21:02:10.000000000 +0800
+--- riscv-arch-test.v2/riscv-test-env/verify.sh	2023-10-29 17:26:04
++++ riscv-arch-test.v2/riscv-test-env/verify.sh.patch	2023-10-29 17:29:43
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+
+ printf "\n\nCompare to reference files ... \n\n";
+ FAIL=0
 @@ -29,7 +29,7 @@
          continue
      fi

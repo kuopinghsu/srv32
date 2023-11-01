@@ -44,7 +44,7 @@ ifeq ($(rv32b), 1)
 CFLAGS  += -DRV32B_ENABLED=1
 endif
 
-SRC      = rvsim.c decompress.c syscall.c elfloader.c getch.c
+SRC      = rvsim.c decompress.c syscall.c elfloader.c getch.c htif.c
 OBJECTS  = $(SRC:.c=.o)
 RVSIM   = rvsim
 

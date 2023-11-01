@@ -191,9 +191,10 @@ end
 
     assign ready =
         (mem_ready && mem_we &&
-         (mem_addr == MMIO_PUTC ||
-          mem_addr == MMIO_GETC ||
-          mem_addr == MMIO_EXIT)) ? 1'b0 : mem_ready;
+         (mem_addr == MMIO_PUTC  ||
+          mem_addr == MMIO_GETC  ||
+          mem_addr == MMIO_EXIT  ||
+          mem_addr == MMIO_TOHOST)) ? 1'b0 : mem_ready;
 
     top #(
         .RV32M (HAVE_RV32E),
@@ -254,6 +255,9 @@ end
             printStatistics();
             $finish(1);
         end
+        else if (mem_ready && mem_we && mem_addr == MMIO_TOHOST) begin
+            // TODO
+        end
         else if (mem_ready &&
                  mem_addr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
             $display("DMEM address %x out of range", mem_addr);
@@ -295,7 +299,7 @@ end
     end
 `endif // SYNTHESIS
 
-`else // SINGLE_RAM
+`else // IRAM and DRAM seperate
 
     wire            imem_ready;
     wire            imem_valid;
@@ -325,9 +329,10 @@ end
 
     assign wready =
         (dmem_wready &&
-         (dmem_waddr == MMIO_PUTC ||
-          dmem_waddr == MMIO_GETC ||
-          dmem_waddr == MMIO_EXIT)) ? 1'b0 : dmem_wready;
+         (dmem_waddr == MMIO_PUTC  ||
+          dmem_waddr == MMIO_GETC  ||
+          dmem_waddr == MMIO_EXIT  ||
+          dmem_waddr == MMIO_TOHOST)) ? 1'b0 : dmem_wready;
 
     top top(
         .clk        (clk),
@@ -451,6 +456,47 @@ assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
         else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_EXIT) begin
             printStatistics();
             $finish(1);
+        end
+        else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_TOHOST) begin
+            case (dmem.getw(dmem_wdata-IRAMSIZE))
+                //SYS_OPEN:  // TODO
+                //SYS_LSEEK: // TODO
+                //SYS_CLOSE: // TODO
+                //SYS_READ:  // TODO
+                SYS_WRITE:
+                begin
+                    if (dmem.getw(dmem_wdata-IRAMSIZE+'h4) == 32'h1) begin // STDOUT
+                        for (i = 0; i < dmem.getw(dmem_wdata-IRAMSIZE+'hc); i = i + 1) begin
+                            $write("%c", dmem.getb(dmem.getw(dmem_wdata-IRAMSIZE+'h8) - IRAMSIZE + i));
+                        end
+                    end
+                end
+                //SYS_FSTAT: // TODO
+                SYS_EXIT:
+                begin
+                    printStatistics();
+                    $finish(2);
+                end
+                //SYS_SBRK: // TODO
+                SYS_DUMP:
+                begin
+                    if (dump != 0) begin
+                        for (i = dmem.getw(dmem_wdata-IRAMSIZE+'h4); i < dmem.getw(dmem_wdata-IRAMSIZE+'h8); i = i + 4) begin
+                            $fdisplay(dump, "%08x", dmem.getw(i - IRAMSIZE));
+                        end
+                    end
+                end
+                SYS_DUMP_BIN:
+                begin
+                    if (dump != 0) begin
+                        for (i = dmem.getw(dmem_wdata-IRAMSIZE+'h4); i < dmem.getw(dmem_wdata-IRAMSIZE+'h8); i = i + 1) begin
+                            $fdisplay(dump, "%c", dmem.getb(i - IRAMSIZE));
+                        end
+                    end
+                end
+                default:
+                    $display("Unknown TOHOST command %x", dmem.getw(dmem_wdata-IRAMSIZE));
+            endcase
         end
         else if (dmem_wready &&
                  dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin

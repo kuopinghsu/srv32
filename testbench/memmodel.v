@@ -73,6 +73,20 @@ begin
 end
 endfunction
 
+function [31:0] getw;
+    input [31:0] address;
+begin
+    if (address[31:ADDRW+2] != 0) begin
+        $display("Address %08x out of range", address);
+    end
+    if (address[1:0] != 0) begin
+        $display("Address %08x is not aligned", address);
+    end
+
+    getw = ram[address[ADDRW+1: 2]][31:0];
+end
+endfunction
+
 function [7:0] setb;
     input [31:0] address;
     input [7:0] din;

@@ -133,16 +133,16 @@ localparam  [11: 0] CSR_MVENDORID   = 12'hF11,    // Vender ID
                     CSR_RDINSTRETH  = 12'hc82;    // upper 32-bits of instruction-retired counter
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
-localparam  [31: 0] SYS_OPEN        = 32'hbeef0031,
-                    SYS_LSEEK       = 32'hbeef0032,
-                    SYS_CLOSE       = 32'hbeef0039,
-                    SYS_READ        = 32'hbeef003f,
-                    SYS_WRITE       = 32'hbeef0040,
-                    SYS_FSTAT       = 32'hbeef0050,
-                    SYS_EXIT        = 32'hbeef005d,
-                    SYS_SBRK        = 32'hbeef00d6,
-                    SYS_DUMP        = 32'hbeef0088,
-                    SYS_DUMP_BIN    = 32'hbeef0099;
+localparam  [31: 0] SYS_OPEN        = 32'h0031,
+                    SYS_LSEEK       = 32'h0032,
+                    SYS_CLOSE       = 32'h0039,
+                    SYS_READ        = 32'h003f,
+                    SYS_WRITE       = 32'h0040,
+                    SYS_FSTAT       = 32'h0050,
+                    SYS_EXIT        = 32'h005d,
+                    SYS_SBRK        = 32'h00d6,
+                    SYS_DUMP        = 32'h0088,
+                    SYS_DUMP_BIN    = 32'h0099;
 
 // Exception code
 localparam  [31: 0] TRAP_INST_ALIGN = 32'h0,        // Instruction address misaligned
@@ -225,5 +225,6 @@ localparam  [31: 0] MTIME_BASE    = 32'h9000_0000,
                     MSIP_BASE     = 32'h9000_0010,
                     MMIO_PUTC     = 32'h9000_001c,
                     MMIO_GETC     = 32'h9000_0020,
-                    MMIO_EXIT     = 32'h9000_002c;
+                    MMIO_EXIT     = 32'h9000_002c,
+                    MMIO_TOHOST   = 32'h9000_0030;
 

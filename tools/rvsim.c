@@ -134,6 +134,7 @@ char *regname[32] = {
 };
 
 int srv32_syscall(int func, int a0, int a1, int a2, int a3, int a4, int a5);
+void srv32_tohost(int32_t ptr);
 int elfloader(char *file, char *mem, int imem_base, int dmem_base, int imem_size, int dmem_size);
 int getch(void);
 
@@ -142,6 +143,7 @@ void usage(void) {
 "Instruction Set Simulator for RV32IM, (c) 2020 Kuoping Hsu\n"
 "Usage: rvsim [-h] [-b n] [-m n] [-n n] [-p] [-l logfile] file\n\n"
 "       --help, -h              help\n"
+"       --quiet, -q             quite\n"
 "       --membase n, -m n       memory base\n"
 "       --memsize n, -n n       memory size (in Kb)\n"
 "       --branch n, -b n        branch penalty (default 2)\n"
@@ -867,6 +869,16 @@ int main(int argc, char **argv) {
                                   address, (data & mask) TRACE_END;
                         prog_exit(data);
                         break;
+                    case MMIO_TOHOST:
+                        {
+                            int *htif_mem = (int*)&dmem[DVA2PA(data)/sizeof(int)];
+                            if (htif_mem[0] == SYS_EXIT) {
+                                TRACE_LOG " write 0x%08x <= 0x%08x\n",
+                                          address, (data & mask) TRACE_END;
+                            }
+                        }
+                        srv32_tohost((int32_t)data);
+                        break;
                     case MMIO_MTIME:
                         csr.mtime.d.lo = (csr.mtime.d.lo & ~mask) | data;
                         csr.mtime.c--;
@@ -1432,36 +1444,41 @@ int main(int argc, char **argv) {
             int update;
             int csr_op = 0;
             int csr_type;
-            int res;
             // RDCYCLE, RDTIME and RDINSTRET are read only
             switch(inst.i.func3) {
                 case OP_ECALL:
                     TIME_LOG; TRACE_LOG "%08x %08x\n", pc, inst.inst TRACE_END;
                     switch (inst.i.imm & 3) {
                        case 0: // ecall
-                           res = srv32_syscall(REGS(SYS), REGS(A0),
-                                               REGS(A1), REGS(A2),
-                                               REGS(A3), REGS(A4),
-                                               REGS(A5));
-                           // Notes: FreeRTOS will use ecall to perform context switching.
-                           // The syscall of newlib will confict with the syscall of
-                           // FreeRTOS.
-                           #if 0
-                           // FIXME: if it is prefined syscall, excute it.
-                           // otherwise raising a trap
-                           if (res != -1) {
-                                REGS_W(A0, res);
+                           if (1) { // syscall, to compatible FreeRTOS usage, don't use it.
+                               int res;
+                               res = srv32_syscall(REGS(SYS), REGS(A0),
+                                                   REGS(A1), REGS(A2),
+                                                   REGS(A3), REGS(A4),
+                                                   REGS(A5));
+                               // Notes: FreeRTOS will use ecall to perform context switching.
+                               // The syscall of newlib will confict with the syscall of
+                               // FreeRTOS.
+                               #if 0
+                               // FIXME: if it is prefined syscall, excute it.
+                               // otherwise raising a trap
+                               if (res != -1) {
+                                    REGS_W(A0, res);
+                               } else {
+                                    TRAP(TRAP_ECALL, 0);
+                                    continue;
+                               }
+                               break;
+                               #else
+                               if (res != -1)
+                                    REGS_W(A0, res);
+                               TRAP(TRAP_ECALL, 0);
+                               continue;
+                               #endif
                            } else {
-                                TRAP(TRAP_ECALL, 0);
-                                continue;
+                               TRAP(TRAP_ECALL, 0);
+                               continue;
                            }
-                           break;
-                           #else
-                           if (res != -1)
-                                REGS_W(A0, res);
-                           TRAP(TRAP_ECALL, 0);
-                           continue;
-                           #endif
                        case 1: // ebreak
                            TRAP(TRAP_BREAK, 0);
                            continue;

@@ -1,13 +1,10 @@
 SHELL := /bin/bash
 CWD   := $(shell pwd)
 PATH  := $(CWD)/../../tools:$(PATH)
-DEBUG := --verbose debug
+DEBUG := #--verbose debug
 
 all: pre-build
 	make rv32b=1 memsize=1716 -C ../../tools
-	if [ ! -d riscv-arch-test ]; then \
-		riscof --verbose info arch-test --clone; \
-	fi
 	riscof $(DEBUG) run --config=rvsim-config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
 
 validate: pre-build
@@ -17,6 +14,10 @@ ref: pre-build
 	riscof --verbose info run --no-dut-run --config=rvsim-config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
 
 pre-build:
+	@if [ ! -d riscv-arch-test ]; then \
+        echo "clone riscv-arch-tests ..."; \
+		riscof --verbose info arch-test --clone; \
+	fi
 	@if [ ! -f rvsim-config.ini ]; then \
 		sed s^{PWD}^`pwd`^g rvsim-config.ini.in > rvsim-config.ini; \
 	fi
