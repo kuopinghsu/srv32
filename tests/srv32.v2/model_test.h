@@ -18,7 +18,7 @@
         la      a1, htif_mem;                                           \
         la      a2, begin_signature;                                    \
         la      a3, end_signature;                                      \
-        li      a4, 0x90000000;                                         \
+        li      a4, 0xa0000000;                                         \
         addi    a4, a4, 0x30;                                           \
 __dump:                                                                 \
         li      a0, 0x88;                                               \

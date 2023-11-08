@@ -1,0 +1,14 @@
+[RISCOF]
+ReferencePlugin=spike
+ReferencePluginPath={PWD}/spike
+DUTPlugin=rv32rtl
+DUTPluginPath={PWD}/rv32rtl
+
+[rv32rtl]
+pluginpath={PWD}/rv32rtl
+ispec={PWD}/rv32rtl/rv32rtl_isa.yaml
+pspec={PWD}/rv32rtl/rv32rtl_platform.yaml
+target_run=1
+
+[spike]
+pluginpath={PWD}/spike
