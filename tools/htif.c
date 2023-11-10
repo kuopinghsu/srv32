@@ -39,6 +39,12 @@ void prog_exit(int exitcode);
 
 static int result = 0;
 
+int srv32_fromhost(
+    void)
+{
+    return result;
+}
+
 void srv32_tohost(
     int32_t htif_mem)
 {
@@ -93,7 +99,7 @@ void srv32_tohost(
                }
                fclose(fp);
            }
-           result = a1;
+           result = 0;
            break;
        case SYS_DUMP_BIN: {
                FILE *fp;
@@ -108,7 +114,7 @@ void srv32_tohost(
                }
                fclose(fp);
            }
-           result = a1;
+           result = 0;
            break;
        default:
            break;

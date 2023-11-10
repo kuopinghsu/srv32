@@ -57,6 +57,8 @@ int main(void) {
 
     while((result[0]+result[1]+result[2]) != 3);
 
+    CSRW_MSTATUSH(CSRR_MSTATUSH() | 1<<3);
+
     // test readonly CSR
     CSRW_RDCYCLE(CSRR_RDCYCLE()+1);
     CSRW_RDCYCLEH(CSRR_RDCYCLEH()+1);

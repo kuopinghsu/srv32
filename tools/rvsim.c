@@ -81,6 +81,7 @@ typedef struct _CSR {
     int32_t mhartid;
     int32_t mscratch;
     int32_t mstatus;
+    int32_t mstatush;
     int32_t misa;
     int32_t mie;
     int32_t mtvec;
@@ -135,6 +136,7 @@ char *regname[32] = {
 
 int srv32_syscall(int func, int a0, int a1, int a2, int a3, int a4, int a5);
 void srv32_tohost(int32_t ptr);
+int srv32_fromhost(void);
 int elfloader(char *file, char *mem, int imem_base, int dmem_base, int imem_size, int dmem_size);
 int getch(void);
 
@@ -313,6 +315,8 @@ int csr_rw(int regs, int mode, int val, int update, int *legal) {
         case CSR_MSCRATCH   : result = csr.mscratch; UPDATE_CSR(update, mode, csr.mscratch, val);
                               break;
         case CSR_MSTATUS    : result = csr.mstatus; UPDATE_CSR(update, mode, csr.mstatus, val);
+                              break;
+        case CSR_MSTATUSH   : result = csr.mstatush; UPDATE_CSR(update, mode, csr.mstatush, val);
                               break;
         case CSR_MISA       : result = csr.misa; UPDATE_CSR(update, mode, csr.misa, val);
                               break;
@@ -517,6 +521,7 @@ int main(int argc, char **argv) {
     csr.marchid    = MARCHID;
     csr.mimpid     = MIMPID;
     csr.mhartid    = MHARTID;
+    csr.misa       = MISA;
     csr.time.c     = 0;
     csr.cycle.c    = 0;
     csr.instret.c  = 0;
@@ -663,6 +668,9 @@ int main(int argc, char **argv) {
                 printf("Warning: forever loop detected at PC 0x%08x\n", pc);
                 prog_exit(1);
             }
+
+            pc = pc & ~1; // setting the least-signicant bit of the result to zero
+
             if ((pc&3) == 0)
                 CYCLE_ADD(branch_penalty);
             continue;
@@ -674,6 +682,9 @@ int main(int argc, char **argv) {
             REGS_W(inst.i.rd, new_pc);
             TRACE_LOG "%08x x%02u (%s) <= 0x%08x\n", inst.inst, inst.i.rd,
                       regname[inst.i.rd], REGS(inst.i.rd) TRACE_END;
+
+            pc = pc & ~1; // setting the least-signicant bit of the result to zero
+
             if ((pc&3) == 0)
                 CYCLE_ADD(branch_penalty);
             continue;
@@ -756,6 +767,9 @@ int main(int argc, char **argv) {
                     case MMIO_EXIT:
                         data = 0;
                         break;
+                    case MMIO_FROMHOST:
+                        data = srv32_fromhost();
+                        break;
                     case MMIO_MTIME:
                         counter.c = csr.mtime.c - 1;
                         data = counter.d.lo;
@@ -786,6 +800,7 @@ int main(int argc, char **argv) {
                             TRACE_LOG "\n" TRACE_END;
                             printf("Unknown address 0x%08x to read at PC 0x%08x\n",
                                    address, pc);
+                            // FIXME: not support TRAP_LD_FAIL in hardware
                             TRAP(TRAP_LD_FAIL, address);
                             continue;
                         } else {

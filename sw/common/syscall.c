@@ -7,10 +7,11 @@
 #define HAVE_SYSCALL        0
 #define HAVE_TOHOST         1
 
-#define MEMIO_PUTC          0x9000001c
-#define MEMIO_GETC          0x90000020
-#define MEMIO_EXIT          0x9000002c
-#define MEMIO_TOHOST        0x90000030
+#define MEMIO_PUTC          0xA000001C
+#define MEMIO_GETC          0xA0000020
+#define MEMIO_EXIT          0xA000002C
+#define MEMIO_TOHOST        0xA0000030
+#define MEMIO_FROMHOST      0xA0000034
 
 // system call defined in the file /usr/include/asm-generic/unistd.h
 enum {
@@ -72,7 +73,7 @@ __internal_syscall(
     htif_mem[7] = a6;
     *(volatile int32_t*)MEMIO_TOHOST = (uintptr_t) htif_mem;
 
-    return htif_mem[0];
+    return *(volatile int32_t*)MEMIO_FROMHOST;
 }
 #endif
 
@@ -93,8 +94,8 @@ ssize_t
 _write(int file, const void *ptr, size_t len)
 {
 #if HAVE_SYSCALL || HAVE_TOHOST
-    __internal_syscall(SYS_WRITE, (long)file, (long)ptr, (long)len, 0, 0, 0, 0);
-    return len;
+    int res = __internal_syscall(SYS_WRITE, (long)file, (long)ptr, (long)len, 0, 0, 0, 0);
+    return res;
 #else
     const char *buf = (char*)ptr;
     int i;

@@ -24,7 +24,8 @@
 // ============================================================
 module top #(
     parameter RV32M = 1,
-    parameter RV32E = 0
+    parameter RV32E = 0,
+    parameter RV32B = 0
 )(
     input                   clk,
     input                   resetb,
@@ -89,14 +90,14 @@ module top #(
     reg                     data_sel;
     wire                    sw_irq;
 
-    assign dmem_wready      = dwready && (dwaddr[31:28] != MMIO_BASE);
-    assign dwvalid          = (dwaddr[31:28] == MMIO_BASE) ? twvalid : dmem_wvalid;
+    assign dmem_wready      = dwready && (dwaddr[31:28] != CLINT_BASE);
+    assign dwvalid          = (dwaddr[31:28] == CLINT_BASE) ? twvalid : dmem_wvalid;
     assign dmem_waddr       = dwaddr;
     assign dmem_wdata       = dwdata;
     assign dmem_wstrb       = dwstrb;
 
-    assign dmem_rready      = drready && (draddr[31:28] != MMIO_BASE);
-    assign drvalid          = (draddr[31:28] == MMIO_BASE) ? trvalid : dmem_rvalid;
+    assign dmem_rready      = drready && (draddr[31:28] != CLINT_BASE);
+    assign drvalid          = (draddr[31:28] == CLINT_BASE) ? trvalid : dmem_rvalid;
     assign dmem_raddr       = draddr;
     assign drresp           = 1'b1; // FIXME dmem_rresp;
     assign drdata           = data_sel ? trdata : dmem_rdata; // FIXME
@@ -106,12 +107,13 @@ begin
     if (!resetb)
         data_sel            <= 1'b0;
     else
-        data_sel            <= (draddr[31:28] == MMIO_BASE) ? 1'b1 : 1'b0;
+        data_sel            <= (draddr[31:28] == CLINT_BASE) ? 1'b1 : 1'b0;
 end
 
     riscv #(
         .RV32M (RV32M),
-        .RV32E (RV32E)
+        .RV32E (RV32E),
+        .RV32B (RV32B)
     ) riscv (
         .clk                (clk),
         .resetb             (resetb),
@@ -143,15 +145,19 @@ end
         .dmem_rdata         (drdata)
     );
 
-    assign twready          = dwready && (dwaddr[31:28] == MMIO_BASE);
+    assign twready          = dwready && (dwaddr[31:28] == CLINT_BASE);
     assign twaddr           = dwaddr;
     assign twdata           = dwdata;
     assign twstrb           = dwstrb;
 
-    assign trready          = drready && (draddr[31:28] == MMIO_BASE);
+    assign trready          = drready && (draddr[31:28] == CLINT_BASE);
     assign traddr           = draddr;
 
-    clint clint(
+    clint #(
+        .RV32M (RV32M),
+        .RV32E (RV32E),
+        .RV32B (RV32B)
+    ) clint (
         .clk                (clk),
         .resetb             (resetb),
         .timer_en           (timer_en),

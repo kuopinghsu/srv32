@@ -62,17 +62,23 @@ module testbench();
 `endif
 
 `ifdef RV32M_ENABLE
-    localparam HAVE_RV32M = 1;
+    localparam RV32M = 1;
 `else
-    localparam HAVE_RV32M = 0;
+    localparam RV32M = 0;
 `endif
 
 `ifdef RV32E_ENABLE
-    localparam          HAVE_RV32E = 1;
-    localparam  [ 4: 0] REG_SYS    = REG_T0;
+    localparam          RV32E   = 1;
+    localparam  [ 4: 0] REG_SYS = REG_T0;
 `else
-    localparam          HAVE_RV32E = 0;
-    localparam  [ 4: 0] REG_SYS    = REG_A7;
+    localparam          RV32E   = 0;
+    localparam  [ 4: 0] REG_SYS = REG_A7;
+`endif
+
+`ifdef RV32B_ENABLE
+    localparam RV32B = 1;
+`else
+    localparam RV32B = 0;
 `endif
 
 `ifndef SYNTHESIS
@@ -189,16 +195,13 @@ end
     assign mem_valid = 1'b1;
     assign interrupt = ex_irq;
 
-    assign ready =
-        (mem_ready && mem_we &&
-         (mem_addr == MMIO_PUTC  ||
-          mem_addr == MMIO_GETC  ||
-          mem_addr == MMIO_EXIT  ||
-          mem_addr == MMIO_TOHOST)) ? 1'b0 : mem_ready;
+    assign ready = (mem_ready && mem_we && mem_addr[31:28] == MMIO_BASE) ?
+                   1'b0 : mem_ready;
 
     top #(
-        .RV32M (HAVE_RV32E),
-        .RV32E (HAVE_RV32M)
+        .RV32M (RV32E),
+        .RV32E (RV32M),
+        .RV32B (RV32B)
     ) top (
         .clk        (clk),
         .resetb     (resetb),
@@ -318,8 +321,11 @@ end
     wire    [31: 0] dmem_raddr;
     wire            dmem_rresp;
     wire    [31: 0] dmem_rdata;
+    wire    [31: 0] dmem_rdata0;
+    wire    [31: 0] dmem_rdata1;
 
     wire            wready;
+    reg             rready;
 
     assign imem_valid   = 1'b1;
     assign dmem_rvalid  = 1'b1;
@@ -327,12 +333,11 @@ end
 
     assign interrupt    = ex_irq;
 
-    assign wready =
-        (dmem_wready &&
-         (dmem_waddr == MMIO_PUTC  ||
-          dmem_waddr == MMIO_GETC  ||
-          dmem_waddr == MMIO_EXIT  ||
-          dmem_waddr == MMIO_TOHOST)) ? 1'b0 : dmem_wready;
+    //FIXME
+    //assign dmem_rdata   = rready ? dmem_rdata1 : dmem_rdata0;
+    assign dmem_rdata   = rready ? result : dmem_rdata0;
+
+    assign wready       = (dmem_waddr[31:28] == MMIO_BASE) ?  1'b0 : dmem_wready;
 
     top top(
         .clk        (clk),
@@ -423,7 +428,7 @@ assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
         .rready(dmem_rready & dmem_rvalid),
         .wready(wready & dmem_wvalid),
         .rresp (dmem_rresp),
-        .rdata (dmem_rdata),
+        .rdata (dmem_rdata0),
         .raddr (dmem_raddr_i),
         .waddr (dmem_waddr_i),
         .wdata (dmem_wdata),
@@ -431,6 +436,8 @@ assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
     );
 
 `ifndef SYNTHESIS
+    reg [31: 0] result;
+
     // check memory range
     always @(posedge clk) begin
         if (imem_ready && imem_addr[31:$clog2(IRAMSIZE)] != 'd0) begin
@@ -440,27 +447,21 @@ assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
 
         if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_PUTC) begin
             $write("%c", dmem_wdata[7:0]);
+            result[31: 0] <= 'h1;
             $fflush;
         end
-        /*
-        else if (`TOP.dmem_rready && `TOP.dmem_raddr == MMIO_GETC) begin
-            `ifdef VERILATOR
-            dmem_rdata[ 7: 0] <= getch();
-            `else
-            // TODO
-            dmem_rdata[ 7: 0] <= 8'h78; // $fgetc(STDIN);
-            `endif
-            dmem_rdata[31: 8] <= 'd0;
-        end
-        */
         else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_EXIT) begin
             printStatistics();
+            result[31: 0] <= 'h1;
             $finish(1);
         end
         else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_TOHOST) begin
             case (dmem.getw(dmem_wdata-IRAMSIZE))
                 //SYS_OPEN:  // TODO
-                //SYS_LSEEK: // TODO
+                SYS_LSEEK:
+                begin
+                    result[31: 0] <= 32'hffff_ffff;
+                end
                 //SYS_CLOSE: // TODO
                 //SYS_READ:  // TODO
                 SYS_WRITE:
@@ -470,29 +471,37 @@ assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
                             $write("%c", dmem.getb(dmem.getw(dmem_wdata-IRAMSIZE+'h8) - IRAMSIZE + i));
                         end
                     end
+                    result[31: 0] <= dmem.getw(dmem_wdata-IRAMSIZE+'hc);
                 end
                 //SYS_FSTAT: // TODO
                 SYS_EXIT:
                 begin
                     printStatistics();
+                    result[31: 0] <= 'h0;
                     $finish(2);
                 end
                 //SYS_SBRK: // TODO
                 SYS_DUMP:
                 begin
                     if (dump != 0) begin
-                        for (i = dmem.getw(dmem_wdata-IRAMSIZE+'h4); i < dmem.getw(dmem_wdata-IRAMSIZE+'h8); i = i + 4) begin
+                        for (i = dmem.getw(dmem_wdata-IRAMSIZE+'h4);
+                             i < dmem.getw(dmem_wdata-IRAMSIZE+'h8);
+                             i = i + 4) begin
                             $fdisplay(dump, "%08x", dmem.getw(i - IRAMSIZE));
                         end
                     end
+                    result[31: 0] <= 'h0;
                 end
                 SYS_DUMP_BIN:
                 begin
                     if (dump != 0) begin
-                        for (i = dmem.getw(dmem_wdata-IRAMSIZE+'h4); i < dmem.getw(dmem_wdata-IRAMSIZE+'h8); i = i + 1) begin
+                        for (i = dmem.getw(dmem_wdata-IRAMSIZE+'h4);
+                             i < dmem.getw(dmem_wdata-IRAMSIZE+'h8);
+                             i = i + 1) begin
                             $fdisplay(dump, "%c", dmem.getb(i - IRAMSIZE));
                         end
                     end
+                    result[31: 0] <= 'h0;
                 end
                 default:
                     $display("Unknown TOHOST command %x", dmem.getw(dmem_wdata-IRAMSIZE));
@@ -502,6 +511,30 @@ assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
                  dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
             $display("DMEM address %x out of range", dmem_waddr);
             $finish(2);
+        end
+    end
+
+    always @(posedge clk) begin
+        if (`TOP.dmem_rready && `TOP.dmem_raddr == MMIO_FROMHOST) begin
+            rready <= 1'b1;
+        end else begin
+            rready <= 1'b0;
+        end
+    end
+
+    always @(posedge clk) begin
+        if (`TOP.dmem_rready && `TOP.dmem_raddr == MMIO_FROMHOST) begin
+            dmem_rdata1[31: 0] <= result[31: 0];
+        /*
+        else if (`TOP.dmem_rready && `TOP.dmem_raddr == MMIO_GETC) begin
+            `ifdef VERILATOR
+            dmem_rdata1[ 7: 0] <= getch();
+            `else
+            // TODO
+            dmem_rdata1[ 7: 0] <= 8'h78; // $fgetc(STDIN);
+            `endif
+            dmem_rdata1[31: 8] <= 'd0;
+        */
         end
     end
 

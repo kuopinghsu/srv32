@@ -24,7 +24,8 @@
 // ============================================================
 module riscv #(
     parameter RV32M = 1,
-    parameter RV32E = 0
+    parameter RV32E = 0,
+    parameter RV32B = 0
 )(
     input                   clk,
     input                   resetb,
@@ -148,6 +149,7 @@ module riscv #(
 
     reg             [31: 0] csr_mscratch;
     reg             [31: 0] csr_mstatus;
+    reg             [31: 0] csr_mstatush;
     reg             [31: 0] csr_misa;
     reg             [31: 0] csr_mie;
     reg             [31: 0] csr_mip;
@@ -339,6 +341,8 @@ end
     reg             [31: 0] ex_result;
     reg             [31: 0] next_pc;
     reg                     branch_taken;
+    wire            [31: 0] result_jal;
+    wire            [31: 0] result_jalr;
 
 // Trap Exception
 assign ex_ld_align_excp     = ex_mem2reg && !ex_flush && (
@@ -370,14 +374,17 @@ assign ex_memaddr           = alu_op1 + ex_imm;
 assign ex_flush             = wb_branch || wb_branch_nxt;
 assign ex_systemcall        = ex_system && !ex_flush;
 
+assign result_jal           = ex_pc + ex_imm;
+assign result_jalr          = alu_op1 + ex_imm;
+
 always @* begin
     branch_taken  = !ex_flush;
     next_pc       = fetch_pc + `IF_NEXT_PC;
     ex_ill_branch = 1'b0;
 
     case(1'b1)
-        ex_jal   : next_pc = ex_pc + ex_imm;
-        ex_jalr  : next_pc = alu_op1 + ex_imm;
+        ex_jal   : next_pc = {result_jal[31: 1], 1'b0}; // setting the least-signicant bit of the result to zero
+        ex_jalr  : next_pc = {result_jalr[31: 1], 1'b0}; // setting the least-signicant bit of the result to zero
         ex_branch: begin
             case(ex_alu_op)
                 OP_BEQ : begin
@@ -706,6 +713,7 @@ always @(posedge clk or negedge resetb) begin
         csr_mepc                    <= 32'h0;
         csr_mtval                   <= 32'h0;
         csr_mstatus                 <= 32'h0;
+        csr_mstatush                <= 32'h0;
         csr_mip                     <= 32'h0;
     end else if (!ex_stall && !ex_flush) begin
         case(1'b1)
@@ -738,6 +746,11 @@ always @(posedge clk or negedge resetb) begin
                         csr_mstatus <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
                                        !ex_alu_op[0] ? (csr_mstatus | ex_csr_data) : // CSRRS
                                        (csr_mstatus & ~ex_csr_data); // CSRRC
+                    end
+                    CSR_MSTATUSH: begin
+                        csr_mstatush <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
+                                        !ex_alu_op[0] ? (csr_mstatush | ex_csr_data) : // CSRRS
+                                        (csr_mstatush & ~ex_csr_data); // CSRRC
                     end
                     CSR_MIP    : begin
                         csr_mip     <= !ex_alu_op[1] ? ex_csr_data : // CSRRW
@@ -848,6 +861,7 @@ always @* begin
             CSR_MHARTID    : ex_csr_read = MHARTID;
             CSR_MSCRATCH   : ex_csr_read = csr_mscratch;
             CSR_MSTATUS    : ex_csr_read = csr_mstatus;
+            CSR_MSTATUSH   : ex_csr_read = csr_mstatush;
             CSR_MISA       : ex_csr_read = csr_misa;
             CSR_MIE        : ex_csr_read = csr_mie;
             CSR_MIP        : ex_csr_read = csr_mip;
@@ -871,7 +885,7 @@ end
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
-        csr_misa            <= 32'h0;
+        csr_misa            <= MISA;
         csr_mie             <= 32'h0;
         csr_mtvec           <= 32'h0;
     end else if (!ex_stall && ex_csr_wr && !ex_flush) begin
@@ -881,6 +895,7 @@ always @(posedge clk or negedge resetb) begin
             CSR_MIMPID     : ; // Read only
             CSR_MHARTID    : ; // Read only
             CSR_MSTATUS    : ; // update @ trap/interrupt handler
+            CSR_MSTATUSH   : ; // update @ trap/interrupt handler
             CSR_MSCRATCH   : begin
                 csr_mscratch<= !ex_alu_op[1] ? ex_csr_data : // CSRRW
                                !ex_alu_op[0] ? (csr_mscratch | ex_csr_data) : // CSRRS

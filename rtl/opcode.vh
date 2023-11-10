@@ -108,6 +108,7 @@ localparam  [11: 0] CSR_MVENDORID   = 12'hF11,    // Vender ID
                     CSR_MIE         = 12'h304,    // Machine interrupt-enable register
                     CSR_MTVEC       = 12'h305,    // Machine trap-handler base address
                     CSR_MCOUNTEREN  = 12'h306,    // Machine counter enable
+                    CSR_MSTATUSH    = 12'h310,    // Machine status hi register
 
                     CSR_MSCRATCH    = 12'h340,    // Scratch register for machine trap handlers
                     CSR_MEPC        = 12'h341,    // Machine exception program counter
@@ -217,14 +218,27 @@ localparam  [ 4: 0] REG_ZERO =  0, REG_RA =  1, REG_SP  =  2, REG_GP  =  3,
 localparam  [31: 0] MVENDORID = 32'h0,
                     MARCHID   = 32'h0,
                     MIMPID    = 32'h0,
-                    MHARTID   = 32'h0;
+                    MHARTID   = 32'h0,
+                    MISA      = {               2'h1, // 31..30, XLEN = 32
+                                               17'h0, // 29..13
+                                 RV32M ? 1'h1 : 1'h0, // 12, Integer Multiply/Divide extension
+                                                3'h0, // 11..9
+                                                1'h1, // 8, RV32I/64I/128I base ISA
+                                                3'h0, // 7..5
+                                 RV32E ? 1'h1 : 1'h0, // 4, RV32E base ISA
+                                                1'h0, // 3
+                                                1'h0, // 2, Compressed extension
+                                 RV32B ? 1'h1 : 1'h0, // 1, bit-manipulation extension
+                                                1'b0};// 0, atomic extension
 
-localparam  [ 3: 0] MMIO_BASE     = 4'h9;
+localparam  [ 3: 0] CLINT_BASE    = 4'h9;
+localparam  [ 3: 0] MMIO_BASE     = 4'hA;
 localparam  [31: 0] MTIME_BASE    = 32'h9000_0000,
                     MTIMECMP_BASE = 32'h9000_0008,
                     MSIP_BASE     = 32'h9000_0010,
-                    MMIO_PUTC     = 32'h9000_001c,
-                    MMIO_GETC     = 32'h9000_0020,
-                    MMIO_EXIT     = 32'h9000_002c,
-                    MMIO_TOHOST   = 32'h9000_0030;
+                    MMIO_PUTC     = 32'hA000_001C,
+                    MMIO_GETC     = 32'hA000_0020,
+                    MMIO_EXIT     = 32'hA000_002C,
+                    MMIO_TOHOST   = 32'hA000_0030,
+                    MMIO_FROMHOST = 32'hA000_0034;
 

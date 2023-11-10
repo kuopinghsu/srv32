@@ -1,3 +1,5 @@
+ARCH_TEST_VER := 3.8.1
+
 SHELL := /bin/bash
 CWD   := $(shell pwd)
 PATH  := $(CWD)/../../tools:$(CWD)/../../sim:$(PATH)
@@ -22,7 +24,7 @@ ref: pre-build
 pre-build:
 	@if [ ! -d riscv-arch-test ]; then \
         echo "clone riscv-arch-tests ..."; \
-		riscof --verbose info arch-test --clone; \
+		git clone -b ${ARCH_TEST_VER} https://github.com/riscv-non-isa/riscv-arch-test; \
 	fi
 	@if [ ! -f rvsim-config.ini ]; then \
 		sed s^{PWD}^`pwd`^g rvsim-config.ini.in > rvsim-config.ini; \

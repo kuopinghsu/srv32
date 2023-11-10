@@ -24,6 +24,24 @@
 
 #define _CRT_SECURE_NO_WARNINGS 1
 
+#ifdef RV32M_ENABLED
+#  define RV32M       1
+#else
+#  define RV32M       0
+#endif
+
+#ifdef RV32E_ENABLED
+#  define RV32E       1
+#else
+#  define RV32E       0
+#endif
+
+#ifdef RV32B_ENABLED
+#  define RV32B       1
+#else
+#  define RV32B       0
+#endif
+
 #if defined(__MINGW__) || defined(_MSC_VER)
 #define __STDC_WANT_LIB_EXT1__ 1
 #endif
@@ -327,6 +345,7 @@ enum {
     CSR_MIE         = 0x304,    // Machine interrupt-enable register
     CSR_MTVEC       = 0x305,    // Machine trap-handler base address
     CSR_MCOUNTEREN  = 0x306,    // Machine counter enable
+    CSR_MSTATUSH    = 0x310,    // Machine status hi register
 
     CSR_MSCRATCH    = 0x340,    // Scratch register for machine trap handlers
     CSR_MEPC        = 0x341,    // Machine exception program counter
@@ -474,13 +493,17 @@ enum {
 #define MARCHID       0
 #define MIMPID        0
 #define MHARTID       0
-#define MMIO_PUTC     0x9000001c /* 32-bits */
-#define MMIO_GETC     0x90000020 /* 32-bits */
-#define MMIO_EXIT     0x9000002c /* 32-bits */
-#define MMIO_TOHOST   0x90000030 /* 32-bits */
+#define MISA          ((1<<30)|(RV32M<<12)|(1<<8)|(RV32E<<4)|(RV32B<<1))
+
+#define MMIO_PUTC     0xa000001c /* 32-bits */
+#define MMIO_GETC     0xa0000020 /* 32-bits */
+#define MMIO_EXIT     0xa000002c /* 32-bits */
+#define MMIO_TOHOST   0xa0000030 /* 32-bits */
+#define MMIO_FROMHOST 0xa0000034 /* 32-bits */
 #define MMIO_MTIME    0x90000000 /* 64-bits */
 #define MMIO_MTIMECMP 0x90000008 /* 64-bits */
 #define MMIO_MSIP     0x90000010 /* 32-bits */
+
 #define STDIN  0
 #define STDOUT 1
 #define STDERR 2

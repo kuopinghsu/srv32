@@ -19,7 +19,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-module clint(
+module clint #(
+    parameter RV32M = 1,
+    parameter RV32E = 0,
+    parameter RV32B = 0
+)(
     input                   clk,
     input                   resetb,
     input                   timer_en,

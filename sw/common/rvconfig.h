@@ -14,6 +14,8 @@
 #define _CSRW_MCAUSE(v)     __asm volatile("csrw mcause, %0" : : "r"(v))
 #define _CSRR_MSTATUS()     ({ int result; __asm volatile("csrr %0, mstatus" : "=r"(result)); result; })
 #define _CSRW_MSTATUS(v)    __asm volatile("csrw mstatus, %0" : : "r"(v))
+#define _CSRR_MSTATUSH()    ({ int result; __asm volatile("csrr %0, mstatush" : "=r"(result)); result; })
+#define _CSRW_MSTATUSH(v)   __asm volatile("csrw mstatush, %0" : : "r"(v))
 #define _CSRR_MTVAL()       ({ int result; __asm volatile("csrr %0, mtval" : "=r"(result)); result; })
 #define _CSRW_MTVAL(v)      __asm volatile("csrw mtval, %0" : : "r"(v))
 #define _CSRR_MIE()         ({ int result; __asm volatile("csrr %0, mie" : "=r"(result)); result; })
@@ -52,6 +54,8 @@ static inline int  CSRR_MCAUSE(void)      { return _CSRR_MCAUSE(); }
 static inline void CSRW_MCAUSE(int v)     { _CSRW_MCAUSE(v); }
 static inline int  CSRR_MSTATUS(void)     { return _CSRR_MSTATUS(); }
 static inline void CSRW_MSTATUS(int v)    { _CSRW_MSTATUS(v); }
+static inline int  CSRR_MSTATUSH(void)    { return _CSRR_MSTATUSH(); }
+static inline void CSRW_MSTATUSH(int v)   { _CSRW_MSTATUSH(v); }
 static inline int  CSRR_MTVAL(void)       { return _CSRR_MTVAL(); }
 static inline void CSRW_MTVAL(int v)      { _CSRW_MTVAL(v); }
 static inline int  CSRR_MIE(void)         { return _CSRR_MIE(); }
