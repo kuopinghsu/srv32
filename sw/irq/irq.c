@@ -46,6 +46,7 @@ int main(void) {
 
     CSRW_MIE(1<<11|1<<7|1<<3);
     CSRW_MSTATUS(CSRR_MSTATUS() | 1<<3);
+    CSRW_MSTATUSH(CSRR_MSTATUSH() | 1<<3);
 
     for(i=0; i<20; i++) __asm volatile("nop");
 
@@ -56,8 +57,6 @@ int main(void) {
     *(volatile int*)(MSIP_BASE)       = *(volatile int*)(MSIP_BASE) | 1<<0;
 
     while((result[0]+result[1]+result[2]) != 3);
-
-    CSRW_MSTATUSH(CSRR_MSTATUSH() | 1<<3);
 
     // test readonly CSR
     CSRW_RDCYCLE(CSRR_RDCYCLE()+1);

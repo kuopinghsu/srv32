@@ -901,6 +901,7 @@ int main(int argc, char **argv) {
                         break;
                     case MMIO_MTIME+4:
                         csr.mtime.d.hi = (csr.mtime.d.hi & ~mask) | data;
+                        csr.mtime.c--;
                         mtime_update = 1;
                         break;
                     case MMIO_MTIMECMP:
