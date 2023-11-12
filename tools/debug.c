@@ -81,7 +81,8 @@ static void dump_mem(int32_t addr, int32_t len) {
             printf("  ");
         printf("%s", (i % 16 == 15) ? "\n" : " ");
     }
-    printf("\n");
+    if (total % 16 != 0)
+        printf("\n");
 }
 
 static void dump_regs(void) {
