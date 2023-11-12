@@ -69,46 +69,18 @@ int mem_size = 256*1024; // default memory size
     if (!mtime_update) csr.mtime.c = csr.mtime.c + count; \
 }
 
-typedef struct _CSR {
-    COUNTER time;
-    COUNTER cycle;
-    COUNTER instret;
-    COUNTER mtime;
-    COUNTER mtimecmp;
-    int32_t mvendorid;
-    int32_t marchid;
-    int32_t mimpid;
-    int32_t mhartid;
-    int32_t mscratch;
-    int32_t mstatus;
-    int32_t mstatush;
-    int32_t misa;
-    int32_t mie;
-    int32_t mtvec;
-    int32_t mepc;
-    int32_t mcause;
-    int32_t mip;
-    int32_t mtval;
-    int32_t msip;
-#ifdef XV6_SUPPORT
-    int32_t medeleg;
-    int32_t mideleg;
-    int32_t mcounteren;
-    int32_t sstatus;
-    int32_t sie;
-    int32_t stvec;
-    int32_t sscratch;
-    int32_t sepc;
-    int32_t scause;
-    int32_t stval;
-    int32_t sip;
-    int32_t satp;
-#endif // XV6_SUPPORT
-} CSR;
-
+// processor status
 CSR csr;
 int32_t pc = 0;
+int32_t prev_pc = 0;
 
+#ifdef RV32E_ENABLED
+int32_t regs[16];
+#else
+int32_t regs[32];
+#endif // RV32E_ENABLED
+
+int debug_en = 0;
 int mode = MMODE;
 int mem_base = 0;
 int singleram = 0;
@@ -139,12 +111,14 @@ void srv32_tohost(int32_t ptr);
 int srv32_fromhost(void);
 int elfloader(char *file, char *mem, int imem_base, int dmem_base, int imem_size, int dmem_size);
 int getch(void);
+void debug(void);
 
 void usage(void) {
     printf(
 "Instruction Set Simulator for RV32IM, (c) 2020 Kuoping Hsu\n"
 "Usage: rvsim [-h] [-b n] [-m n] [-n n] [-p] [-l logfile] file\n\n"
 "       --help, -h              help\n"
+"       --debug, -d             interactive debug mode\n"
 "       --quiet, -q             quite\n"
 "       --membase n, -m n       memory base\n"
 "       --memsize n, -n n       memory size (in Kb)\n"
@@ -366,12 +340,6 @@ int csr_rw(int regs, int mode, int val, int update, int *legal) {
 }
 
 #ifdef RV32E_ENABLED
-static int32_t regs[16];
-#else
-static int32_t regs[32];
-#endif // RV32E_ENABLED
-
-#ifdef RV32E_ENABLED
 static inline int32_t REGS(int n) {
     if (n > 15) {
         printf("RV32E: can not access registers %d\n", n);
@@ -400,7 +368,6 @@ int main(int argc, char **argv) {
     char *file = NULL;
     char *tfile = NULL;
     int branch_predict = 0;
-    int prev_pc;
     int timer_irq;
     int sw_irq;
     int sw_irq_next;
@@ -411,10 +378,11 @@ int main(int argc, char **argv) {
     int compressed_prev = 0;
 #endif // RV32C_ENABLED
 
-    const char *optstring = "hb:pl:qm:n:s";
+    const char *optstring = "hdb:pl:qm:n:s";
     int c;
     struct option opts[] = {
         {"help", 0, NULL, 'h'},
+        {"debug", 0, NULL, 'd'},
         {"branch", 1, NULL, 'b'},
         {"predict", 0, NULL, 'p'},
         {"log", 1, NULL, 'l'},
@@ -429,6 +397,9 @@ int main(int argc, char **argv) {
             case 'h':
                 usage();
                 return 1;
+            case 'd':
+                debug_en = 1;
+                break;
             case 'b':
                 branch_penalty = atoi(optarg);
                 break;
@@ -624,6 +595,9 @@ int main(int argc, char **argv) {
         csr.time.c++;
         csr.instret.c++;
         CYCLE_ADD(1);
+
+        if (debug_en)
+            debug();
 
         prev_pc = pc;
 

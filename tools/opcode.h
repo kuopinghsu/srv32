@@ -489,6 +489,43 @@ enum {
     MMODE   = 2         // Machine mode
 };
 
+typedef struct _CSR {
+    COUNTER time;
+    COUNTER cycle;
+    COUNTER instret;
+    COUNTER mtime;
+    COUNTER mtimecmp;
+    int32_t mvendorid;
+    int32_t marchid;
+    int32_t mimpid;
+    int32_t mhartid;
+    int32_t mscratch;
+    int32_t mstatus;
+    int32_t mstatush;
+    int32_t misa;
+    int32_t mie;
+    int32_t mtvec;
+    int32_t mepc;
+    int32_t mcause;
+    int32_t mip;
+    int32_t mtval;
+    int32_t msip;
+#ifdef XV6_SUPPORT
+    int32_t medeleg;
+    int32_t mideleg;
+    int32_t mcounteren;
+    int32_t sstatus;
+    int32_t sie;
+    int32_t stvec;
+    int32_t sscratch;
+    int32_t sepc;
+    int32_t scause;
+    int32_t stval;
+    int32_t sip;
+    int32_t satp;
+#endif // XV6_SUPPORT
+} CSR;
+
 #define MVENDORID     0
 #define MARCHID       0
 #define MIMPID        0
