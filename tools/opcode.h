@@ -575,8 +575,10 @@ int compressed_decoder (
 
 #ifdef RV32E_ENABLED
 #define SYS T0
+#define REGNUM 16
 #else
 #define SYS A7
+#define REGNUM 32
 #endif // RV32E_ENABLED
 
 #endif // __OPCODE_H__

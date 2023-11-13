@@ -73,12 +73,7 @@ int mem_size = 256*1024; // default memory size
 CSR csr;
 int32_t pc = 0;
 int32_t prev_pc = 0;
-
-#ifdef RV32E_ENABLED
-int32_t regs[16];
-#else
-int32_t regs[32];
-#endif // RV32E_ENABLED
+int32_t regs[REGNUM];
 
 int debug_en = 0;
 int mode = MMODE;
@@ -341,7 +336,7 @@ int csr_rw(int regs, int mode, int val, int update, int *legal) {
 
 #ifdef RV32E_ENABLED
 static inline int32_t REGS(int n) {
-    if (n > 15) {
+    if (n >= REGNUM) {
         printf("RV32E: can not access registers %d\n", n);
         return 0;
     } else {
@@ -349,7 +344,7 @@ static inline int32_t REGS(int n) {
     }
 }
 static inline void REGS_W(int n, int32_t v) {
-    if (n > 15) {
+    if (n >= REGNUM) {
         printf("RV32E: can not access registers %d\n", n);
     } else {
         regs[n] = v;

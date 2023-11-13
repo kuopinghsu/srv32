@@ -28,12 +28,7 @@
 
 extern CSR csr;
 extern int32_t pc;
-
-#ifdef RV32E_ENABLED
-extern int32_t regs[16];
-#else
-extern int32_t regs[32];
-#endif // RV32E_ENABLED
+extern int32_t regs[REGNUM];
 
 extern int *mem;
 extern int *imem;
@@ -60,10 +55,13 @@ static void debug_usage(void) {
 static uint8_t get_mem(int addr) {
     char *iptr = (char*)imem;
     char *dptr = (char*)dmem;
+
     if (addr >= IMEM_BASE && addr < IMEM_BASE+IMEM_SIZE)
         return iptr[IVA2PA(addr)];
+
     if (addr >= DMEM_BASE && addr < DMEM_BASE+DMEM_SIZE)
         return dptr[DVA2PA(addr)];
+
     return 0;
 }
 
@@ -75,12 +73,15 @@ static void dump_mem(int32_t addr, int32_t len) {
     for(i = 0; i < total; i++) {
         if (i % 16 == 0)
             printf("%08x ", start+i);
+
         if (start + i >= addr)
             printf("%02x", get_mem(start+i)&0xff);
         else
             printf("  ");
+
         printf("%s", (i % 16 == 15) ? "\n" : " ");
     }
+
     if (total % 16 != 0)
         printf("\n");
 }
@@ -90,11 +91,7 @@ static void dump_regs(void) {
 
     printf("%7s: %08x\n", "pc", pc);
 
-#ifdef RV32E_ENABLED
-    for(i = 0; i < 16; i++) {
-#else
-    for(i = 0; i < 32; i++) {
-#endif
+    for(i = 0; i < REGNUM; i++) {
         printf("%7s: %08x", regname[i], regs[i]);
         printf("%s", (i % 4 == 3) ? "\n" : "    ");
     }
@@ -126,7 +123,8 @@ static void dump_csrs(void) {
 
 static int isspace_ascii(int c)
 {
-  return c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r' || c == ' ';
+    return c == '\t' || c == '\n' || c == '\v' ||
+           c == '\f' || c == '\r' || c == ' ';
 }
 
 static char * trim(char * s, int size) {
@@ -135,10 +133,14 @@ static char * trim(char * s, int size) {
     char *str = s;
 
     while(isspace_ascii((int)s[l - 1])) --l;
+
     while(*s && isspace_ascii((int)s[0])) { ++s, --l; }
+
     for(i = 0; i < l; i++)
         str[i] = s[i];
+
     str[i] = 0;
+
     return str;
 }
 
@@ -172,18 +174,22 @@ void debug(void) {
             printf("(rvsim) ");
             fgets(cmd, sizeof(cmd), stdin);
             trim(cmd, sizeof(cmd));
+
             if (cmd[0] == 0) {
                 strncpy(cmd, cmd_last, sizeof(cmd));
             } else {
                 strncpy(cmd_last, cmd, sizeof(cmd));
             }
+
             if (!strncmp(cmd, "help", sizeof(cmd)) || !strncmp(cmd, "h", sizeof(cmd))) {
                 debug_usage();
                 continue;
             }
+
             if (!strncmp(cmd, "quit", sizeof(cmd)) || !strncmp(cmd, "q", sizeof(cmd))) {
                 exit(0);
             }
+
             if (!strncmp(cmd, "until", sizeof("until")-1)) {
                 until_pc = 0;
                 count_en = 0;
@@ -191,37 +197,48 @@ void debug(void) {
                 running = 1;
                 break;
             }
+
             if (!strncmp(cmd, "regs", sizeof(cmd))) {
                 dump_regs();
                 continue;
             }
+
             if (!strncmp(cmd, "mem", sizeof("mem")-1)) {
                 int addr=0, len=0;
                 sscanf(cmd, "mem %i %i", &addr, &len);
+
                 if (!len) {
                     printf("memory size should be > 0\n");
                     continue;
                 }
+
                 dump_mem(addr, len);
                 continue;
             }
+
             if (!strncmp(cmd, "csrs", sizeof(cmd))) {
                 dump_csrs();
                 continue;
             }
+
             if (!strncmp(cmd, "pc", sizeof(cmd))) {
                 printf("pc %08x\n", pc);
                 continue;
             }
+
             if (!strncmp(cmd, "step", sizeof("step")-1)) {
                 count_en = 1;
                 count = 1;
                 sscanf(cmd, "step %i", &count);
+
                 if (count > 1)
                     running = 1;
+
                 break;
             }
+
             printf("Unknow command %s\n", cmd);
+
         } while(1);
     }
 }

@@ -64,7 +64,6 @@ Adding extra CFLAGS as follows.
 
     export EXTRA_CFLAGS="-misa-spec=2.2 -march=rv32im"
 
-
 ## Files list
 
 | Folder    | Description                                     |
