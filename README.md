@@ -150,16 +150,22 @@ Use +trace to generate a trace log, which can be compared with the log file of t
 
 The rvsim is an instruction set simulator (ISS) that can generate trace logs for comparison with RTL simulation results. It can also set parameters of branch penalty to run benchmarks to see the effect of branch penalty. The branch instructions of hardware is two instructions delay for branch penalties.
 
-    Usage: rvsim [-h] [-b n] [-p] [-l logfile] file
+    Instruction Set Simulator for RV32IM, (c) 2020 Kuoping Hsu
+    Usage: rvsim [-h] [-b n] [-m n] [-n n] [-p] [-l logfile] file
 
            --help, -h              help
+           --debug, -d             interactive debug mode
+           --quiet, -q             quite
+           --membase n, -m n       memory base
+           --memsize n, -n n       memory size (in Kb)
            --branch n, -b n        branch penalty (default 2)
+           --single, -s            single RAM
            --predict, -p           static branch prediction
            --log file, -l file     generate log file
 
            file                    the elf executable file
 
-The ISS simulator and hardware supports RV32IMC instruction sets. (RV32C is disabled by default to pass conformance test v1)
+The ISS simulator and hardware supports RV32IMC instruction sets. (RV32C is disabled by default to pass arch-test)
 
 ## Benchmarks
 
@@ -334,7 +340,7 @@ One instruction memory and one data memory. The instruction memory is read-only 
 
 Provide the Yosys synthesis script in the syn folder.
 
-## Architecture tests
+## Architectural testing
 
 Architecture test for ISS simulator and RTL. This is the architecture test form RISC-V Foundation Compliance Task Group.
 The github repository is at <https://github.com/riscv-non-isa/riscv-arch-test>. Running the following command will clone the repository into tests folder and do the compliance test.
@@ -342,10 +348,10 @@ The github repository is at <https://github.com/riscv-non-isa/riscv-arch-test>. 
     make tests              # run the compliance test for RTL
     make tests-sw           # run the compliance test for ISS simulator
 
-Default is to run compliance test v1, run the following command to run compliance test v2.
+Default is to run compliance test v2, run the following command to run compliance test v1.
 
-    make test_v=2 tests     # run the compliance test for RTL
-    make test_v=2 tests-sw  # run the compliance test for ISS simulator
+    make test_v=1 tests     # run the compliance test for RTL
+    make test_v=1 tests-sw  # run the compliance test for ISS simulator
 
 Notes: no complicance test for RV32E configuration.
 

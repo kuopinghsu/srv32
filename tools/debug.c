@@ -25,6 +25,7 @@
 #include <stdint.h>
 
 #include "opcode.h"
+#include "riscv-disas.h"
 
 extern CSR csr;
 extern int32_t pc;
@@ -43,6 +44,7 @@ static void debug_usage(void) {
 "csrs                       # dunp csr registers\n"
 "mem <addr> <len>           # dump memory\n"
 "help|h                     # help\n"
+"list [count]               # list disassembly code (defualt 16)\n"
 "pc                         # show pc\n"
 "quit|q                     # quit\n"
 "regs                       # dump registers\n"
@@ -52,15 +54,15 @@ static void debug_usage(void) {
     );
 }
 
-static uint8_t get_mem(int addr) {
+static uint8_t *get_mem(int addr) {
     char *iptr = (char*)imem;
     char *dptr = (char*)dmem;
 
     if (addr >= IMEM_BASE && addr < IMEM_BASE+IMEM_SIZE)
-        return iptr[IVA2PA(addr)];
+        return (uint8_t*)&iptr[IVA2PA(addr)];
 
     if (addr >= DMEM_BASE && addr < DMEM_BASE+DMEM_SIZE)
-        return dptr[DVA2PA(addr)];
+        return (uint8_t*)&dptr[DVA2PA(addr)];
 
     return 0;
 }
@@ -75,7 +77,7 @@ static void dump_mem(int32_t addr, int32_t len) {
             printf("%08x ", start+i);
 
         if (start + i >= addr)
-            printf("%02x", get_mem(start+i)&0xff);
+            printf("%02x", *((char*)get_mem(start+i))&0xff);
         else
             printf("  ");
 
@@ -86,10 +88,22 @@ static void dump_mem(int32_t addr, int32_t len) {
         printf("\n");
 }
 
+static int show_pc(int pc) {
+    char buf[80] = {0};
+    rv_inst inst = *((rv_inst*)get_mem(pc));
+
+    disasm_inst(buf, sizeof(buf), rv32, pc, inst);
+    printf("%7s: %08x %s\n", "pc", pc, buf);
+
+    return (int)inst_length(inst);
+}
+
 static void dump_regs(void) {
     int i;
 
-    printf("%7s: %08x\n", "pc", pc);
+    show_pc(pc);
+
+    printf("\n");
 
     for(i = 0; i < REGNUM; i++) {
         printf("%7s: %08x", regname[i], regs[i]);
@@ -163,6 +177,7 @@ void debug(void) {
                 running = 0;
                 count_en = 0;
             } else {
+                show_pc(pc);
                 count--;
             }
         }
@@ -172,7 +187,10 @@ void debug(void) {
         dump_regs();
         do {
             printf("(rvsim) ");
-            fgets(cmd, sizeof(cmd), stdin);
+
+            if (!fgets(cmd, sizeof(cmd), stdin))
+                continue;
+
             trim(cmd, sizeof(cmd));
 
             if (cmd[0] == 0) {
@@ -235,6 +253,20 @@ void debug(void) {
                     running = 1;
 
                 break;
+            }
+
+            if (!strncmp(cmd, "list", sizeof("list")-1)) {
+                int n = 16;
+                int i, addr;
+
+                sscanf(cmd, "list %i", &n);
+
+                for (i = 0, addr = pc; i < n; i++) {
+                    int inst_len = show_pc(addr);
+                    addr += inst_len;
+                }
+
+                continue;
             }
 
             printf("Unknow command %s\n", cmd);
