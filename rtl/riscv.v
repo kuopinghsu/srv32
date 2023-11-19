@@ -112,6 +112,7 @@ module riscv #(
     wire                    ex_flush;
     reg             [31: 0] ex_csr_read;
     wire                    ex_trap;
+    wire                    ex_trap_nop;
     wire            [31: 0] ex_trap_pc;
     wire            [31: 0] ex_csr_data;
     reg             [31: 0] ex_mcause;
@@ -133,6 +134,7 @@ module riscv #(
     reg             [ 4: 0] wb_dst_sel;
     reg                     wb_branch;
     reg                     wb_branch_nxt;
+    reg                     wb_trap_nop;
     reg                     wb_nop;
     reg                     wb_nop_more;
     reg             [31: 0] wb_waddr;
@@ -615,9 +617,11 @@ always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         wb_nop              <= 1'b0;
         wb_nop_more         <= 1'b0;
+        wb_trap_nop         <= 1'b0;
     end else if (!ex_stall && !(wb_memwr && !dmem_wvalid)) begin
         wb_nop              <= wb_branch;
         wb_nop_more         <= wb_nop;
+        wb_trap_nop         <= ex_trap_nop;
     end
 end
 
@@ -666,6 +670,8 @@ end
 // Trap CSR
 ////////////////////////////////////////////////////////////
 // Trap CSR @ execution stage
+assign ex_trap_nop  = (ex_inst_ill_excp || ex_inst_align_excp ||
+                       ex_ld_align_excp || ex_st_align_excp) && !ex_flush;
 assign ex_trap      = (ex_inst_ill_excp || ex_inst_align_excp ||
                        ex_ld_align_excp || ex_st_align_excp ||
                        ex_timer_irq || ex_sw_irq || ex_interrupt ||
@@ -821,7 +827,7 @@ always @(posedge clk or negedge resetb) begin
                     2'b01: begin // EBREAK
                         csr_mcause          <= TRAP_BREAK;
                         csr_mepc            <= {ex_pc[31: 1], 1'b0};
-                        csr_mtval           <= 32'd0; // FIXME
+                        csr_mtval           <= {ex_pc[31: 1], 1'b0};
                         csr_mstatus[MPIE]   <= csr_mstatus[MIE];
                         csr_mstatus[MIE]    <= 1'b0;
                         csr_mip             <= csr_mip;
@@ -976,7 +982,7 @@ assign reg_rdata2[31: 0]    = (ex_src2_sel == 5'h0) ? 32'h0 :
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         for(i = 1; i < (RV32E==1 ? 16 : 32); i = i + 1) regs[i] <= 32'h0;
-    end else if (wb_alu2reg && !stall_r && !(wb_stall || wb_flush)) begin
+    end else if (wb_alu2reg && !stall_r && !(wb_stall || wb_flush) && !wb_trap_nop) begin
         regs[wb_dst_sel]    <= wb_mem2reg ? wb_rdata : wb_result;
         `ifndef SYNTHESIS
         if ((wb_dst_sel > 15) && (RV32E == 1)) begin

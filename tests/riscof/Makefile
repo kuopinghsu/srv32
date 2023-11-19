@@ -1,4 +1,4 @@
-ARCH_TEST_VER := 3.8.1
+ARCH_TEST_VER := main
 
 SHELL := /bin/bash
 CWD   := $(shell pwd)

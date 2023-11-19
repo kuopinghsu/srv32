@@ -68,6 +68,7 @@ riscv-arch-test:
 
 clean:
 	$(RM) -rf riscv-arch-test.v$(test_v)/work
+	$(MAKE) -C riscof clean
 
 distclean:
 	$(RM) -rf riscv-arch-test.v*
