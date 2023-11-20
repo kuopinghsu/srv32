@@ -59,7 +59,9 @@ tests/riscv-arch-test.v1
 tests/riscv-arch-test.v2
 tests/riscof/riscof_work
 tests/riscof/riscv-arch-test
+tests/riscof/rv32rtl-config.ini
 tests/riscof/rvsim-config.ini
+tests/riscof/rv32rtl/__pycache__
 tests/riscof/rvsim/__pycache__
 tests/riscof/spike/__pycache__
 
