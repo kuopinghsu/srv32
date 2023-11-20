@@ -8,10 +8,12 @@ DEBUG := #--verbose debug
 all: tests-sw tests
 
 tests-sw: pre-build
-	make rv32b=1 memsize=1716 -C ../../tools
+	make -C ../../tools clean
+	make rv32c=1 rv32b=1 memsize=1716 -C ../../tools
 	riscof $(DEBUG) run --config=rvsim-config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
 
 tests: pre-build
+	make -C ../../sim clean
 	make memsize=1716 -C ../../sim
 	riscof $(DEBUG) run --config=rv32rtl-config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
 

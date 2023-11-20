@@ -123,6 +123,7 @@ static int elf32_read(FILE *fp, char *mem,
         // LCOV_EXCL_START
         printf("Error: memory %08x with size %d out of range\n",
                (int)ph->p_vaddr, (int)ph->p_memsz);
+        exit(-1);
         // LCOV_EXCL_STOP
     }
 

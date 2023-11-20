@@ -17,7 +17,9 @@ This is not a RISC-V core available for production.
 6.  [FreeRTOS](https://github.com/kuopinghsu/FreeRTOS-RISCV) support
 7.  ISS simulator
 
-## Building toolchains
+## Pre-requisite tools
+
+### Building toolchains
 
 Install RISCV toolchains.
 
@@ -35,17 +37,12 @@ Install RISCV toolchains.
     ../configure --prefix=/opt/riscv \
        --with-isa-spec=20191213 \
        --with-multilib-generator="\
-         rv32i_zicsr-ilp32--;\
          rv32im_zicsr-ilp32--;\
          rv32imac_zicsr-ilp32--;\
-         rv32i_zicsr_zba_zbb_zbc_zbs-ilp32--;\
          rv32im_zicsr_zba_zbb_zbc_zbs-ilp32--;\
          rv32imac_zicsr_zba_zbb_zbc_zbs-ilp32--;\
-         rv32e_zicsr-ilp32e--;\
          rv32em_zicsr-ilp32e--;\
-         rv32emac_zicsr-ilp32e--;\
-         rv64gc_zicsr-lp64--;\
-         rv64gc_zicsr_zba_zbb_zbc_zbs-lp64--"
+         rv32emac_zicsr-ilp32e--"
 
     make -j$(nproc)
 
@@ -63,6 +60,24 @@ The workaround is using -misa-spec=2.2 to force RISC-V GCC using the older ISA s
 Adding extra CFLAGS as follows.
 
     export EXTRA_CFLAGS="-misa-spec=2.2 -march=rv32im"
+
+### Run the RISC-V architectural tests
+
+Refer to [RISCOF](https://riscof.readthedocs.io/en/stable/installation.html) to setup.
+
+Install RISCOF:
+
+    $ pip3 install git+https://github.com/riscv/riscof.git
+
+Install spike:
+
+    $ sudo apt-get install device-tree-compiler
+    $ git clone https://github.com/riscv-software-src/riscv-isa-sim.git
+    $ cd riscv-isa-sim
+    $ mkdir build
+    $ cd build
+    $ ../configure --prefix=/path/to/install
+    $ make install
 
 ## Files list
 
@@ -119,7 +134,7 @@ Only running make without parameters will get help.
     rv32e=1          enable RV32E (default off)
     debug=1          enable waveform dump (default off)
     coverage=1       enable coverage test (default off)
-    test_v=[1|2]     run test compliance v1 or v2 (default)
+    test_v=[1|2|3]   run test compliance v1, v2 (default) or v3
 
     For example
 
@@ -165,7 +180,13 @@ The rvsim is an instruction set simulator (ISS) that can generate trace logs for
 
            file                    the elf executable file
 
-The ISS simulator and hardware supports RV32IMC instruction sets. (RV32C is disabled by default to pass arch-test)
+The ISS simulator supports RV32IMCZicsr_Zba_Zbb_Zbc_Zbs instruction sets. It passes the following arch-tests.
+
+*  rv32i_m/B
+*  rv32i_m/C
+*  rv32i_m/I
+*  rv32i_m/M
+*  rv32i_m/privilege
 
 ## Benchmarks
 

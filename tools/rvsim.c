@@ -824,6 +824,7 @@ int main(int argc, char **argv) {
 
         if (illegal) {
             TRAP(TRAP_INST_ILL, (int)instc.inst);
+            continue;
         }
 #endif // RV32C_ENABLED
 

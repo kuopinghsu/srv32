@@ -114,14 +114,12 @@ int compressed_decoder (
                     r.i.imm   = 0;
 
                 // c.addi -> addi rd, rd, nzimm[5:0]
-                } else if (instc.ci.imm_l != 0 || instc.ci.imm_h != 0) {
+                } else {
                     r.i.op    = OP_ARITHI;
                     r.i.rd    = instc.ci.rd;
                     r.i.func3 = OP_ADD;
                     r.i.rs1   = instc.ci.rd;
                     r.i.imm   = (instc.ci.imm_h ? 0xfe0 : 0) + instc.ci.imm_l;
-                } else {
-                    *illegal = 1;
                 }
                 break;
             case OP_CBEQZ     : // c.beqz -> beq rs1′, x0, offset[8:1]
@@ -310,7 +308,7 @@ int compressed_decoder (
                     r.i.imm   = 0;
                     break;
                 }
-                if (instc.ci.imm_h == 0 && instc.ci.rd != 0 && instc.ci.imm_l != 0) { // c.mv -> add rd, x0, rs2
+                if (instc.ci.imm_h == 0 && instc.ci.imm_l != 0) { // c.mv -> add rd, x0, rs2
                     r.r.op    = OP_ARITHR;
                     r.r.rd    = instc.cr.rd;
                     r.r.func3 = OP_ADD;
@@ -331,7 +329,7 @@ int compressed_decoder (
                     r.i.imm   = 0;
                     break;
                 }
-                if (instc.ci.imm_h == 1 && instc.ci.rd != 0 && instc.ci.imm_l != 0) { // c.add -> add rd, rd, rs2
+                if (instc.ci.imm_h == 1 && instc.ci.imm_l != 0) { // c.add -> add rd, rd, rs2
                     r.r.op    = OP_ARITHR;
                     r.r.rd    = instc.cr.rd;
                     r.r.func3 = OP_ADD;

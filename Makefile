@@ -56,7 +56,7 @@ help:
 	@echo "rv32b=1          enable RV32B (default off)"
 	@echo "debug=1          enable waveform dump (default off)"
 	@echo "coverage=1       enable coverage test (default off)"
-	@echo "test_v=[1|2]     run test compliance v1 or v2 (default)"
+	@echo "test_v=[1|2|3]   run test compliance v1, v2 (default) or v3"
 	@echo ""
 	@echo "For example"
 	@echo ""
@@ -80,7 +80,7 @@ all-sw:
 		$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) -C tools $$i.elf; \
 	done
 
-# Architectural test: v1 needs 256MB, v2 needs 1716MB
+# Architectural test: v1 needs 256MB, v2/v3 needs 1716MB
 tests:
 	$(MAKE) coverage=$(coverage) clean
 	$(MAKE) $(MAKE_FLAGS) memsize=$(if $(filter 1,$(test_v)),256,1716) -C sim
