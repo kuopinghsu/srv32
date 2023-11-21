@@ -134,11 +134,11 @@ Only running make without parameters will get help.
     rv32e=1          enable RV32E (default off)
     debug=1          enable waveform dump (default off)
     coverage=1       enable coverage test (default off)
-    test_v=[1|2|3]   run test compliance v1, v2 (default) or v3
+    test_v=[2|3]     run test compliance v2 or v3 (default)
 
     For example
 
-    make tests-all             run all tests with test compliance v1
+    make tests-all             run all tests with test compliance (default v3)
     make test_v=2 tests-all    run all tests with test compliance v2
     make coverage=1 tests-all  run all tests with code coverage report
     make debug=1 hello         run hello with waveform dump
@@ -366,21 +366,24 @@ Provide the Yosys synthesis script in the syn folder.
 ## Architectural testing
 
 Architecture test for ISS simulator and RTL. This is the architecture test form RISC-V Foundation Compliance Task Group.
-The github repository is at <https://github.com/riscv-non-isa/riscv-arch-test>. Running the following command will clone the repository into tests folder and do the compliance test.
+
+The older 2.x version of the framework was based on Makefile. This is no longer officially supported, but the environment is simpler (no need to install RISCOF) and runs faster. The [RISCOF](https://riscof.readthedocs.io/en/latest/) is the current version of the architectural framework.
+
+The github repository is at [riscv-arch-test](https://github.com/riscv-non-isa/riscv-arch-test). Running the following command will clone the repository into tests folder and do the compliance test.
 
     make tests              # run the compliance test for RTL
     make tests-sw           # run the compliance test for ISS simulator
 
-Default is to run compliance test v2, run the following command to run compliance test v1.
+Default is to run compliance test v3, run the following command to run compliance test v2.
 
-    make test_v=1 tests     # run the compliance test for RTL
-    make test_v=1 tests-sw  # run the compliance test for ISS simulator
+    make test_v=2 tests     # run the compliance test for RTL
+    make test_v=2 tests-sw  # run the compliance test for ISS simulator
 
 Notes: no complicance test for RV32E configuration.
 
 ## FreeRTOS support
 
-Reference code on <https://github.com/kuopinghsu/FreeRTOS-RISCV>.
+Reference code on [FreeRTOS-RISCV](https://github.com/kuopinghsu/FreeRTOS-RISCV).
 
     # build FreeRTOS and demo
     git clone --recursive https://github.com/kuopinghsu/FreeRTOS-RISCV

@@ -1,32 +1,32 @@
-# Compliance Test
+# Run the RISC-V architectural tests
 
-<https://github.com/riscv-non-isa/riscv-arch-test>
+## Architectural tests V3
 
-    export ROOT_SRV32=<root path of simple RISCV>
-    cp -r ${ROOT_SRV32}/tests/srv32 <path of riscv-arch-test>/riscv-target/.
+Refer to [RISCOF](https://riscof.readthedocs.io/en/stable/installation.html) to setup.
 
-    cd ${ROOT_SRV32}
-    make build
+Install RISCOF:
 
-    export CROSS_COMPILE=riscv64-unknown-elf-
-    export TARGET_SIM=${ROOT_SRV32}/sim/sim
-    export RISCV_PREFIX=${CROSS_COMPILE}
-    export RISCV_TARGET=srv32
-    make
+    $ pip3 install git+https://github.com/riscv/riscof.git
 
-    export TARGET_SIM=${ROOT_SRV32}/tools/rvsim
-    export RISCV_PREFIX=${CROSS_COMPILE}
-    export RISCV_TARGET=srv32
-    make
+Install spike:
 
-Requires 1716K of IRAM/DRAM to run architecture test v2, and 128K of IRAM/DRAM for
-compliance test v1.
+    $ sudo apt-get install device-tree-compiler
+    $ git clone https://github.com/riscv-software-src/riscv-isa-sim.git
+    $ cd riscv-isa-sim
+    $ mkdir build
+    $ cd build
+    $ ../configure --prefix=/path/to/install
+    $ make install
+
+## Architectural tests V2
+
+The older 2.x version of the framework was based on Makefile. This is no longer officially supported, but the environment is simpler (no need to install RISCOF) and runs faster.
+
+## Memory requirement
+
+Requires 1716KB of IRAM/DRAM to run architectural tests
 
 ## TODO
 
-In architecture test V2, the following misaligned instruction tests will match targets
-which have compressed extension support enabled by default. Targets without the
-compressed extension support will fail the following tests:
+Passes the rv32i_m/privilege tests for RTL simulation.
 
-*   rv32i_m/privilege/src/misalign-b\[ge\[u\],lt\[u\],eq,ne\]-01.S
-*   rv32i_m/privilege/src/misalign\[1,2\]-jalr-01.S
