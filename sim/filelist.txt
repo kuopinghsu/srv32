@@ -1,8 +1,9 @@
 +incdir+../rtl
 +define+TRACE
-//+define+RV32C_ENABLED=1
+//+define+RV32M_ENABLED=1
 //+define+RV32E_ENABLED=1
 //+define+RV32B_ENABLED=1
+//+define+RV32C_ENABLED=1
 //+define+MEMSIZE=128
 //+define+SINGLE_RAM
 ../rtl/riscv.v

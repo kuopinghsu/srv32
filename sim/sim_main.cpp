@@ -65,6 +65,14 @@ void elfread(char *filename)
     free(mem);
 }
 
+void finish(int dummy)
+{
+    unlink("imem.bin");
+    unlink("dmem.bin");
+    puts("\nCtrl-C...\n");
+    exit(-1);
+}
+
 int main(int argc, char** argv)
 {
     int elf_loaded = 0;
@@ -74,6 +82,8 @@ int main(int argc, char** argv)
     #ifdef HAVE_CHRONO
     std::chrono::steady_clock::time_point time_begin;
     #endif
+
+    signal(SIGINT, finish);
 
     if (argc >= 2 && argv[argc-1][0] != '+' && argv[argc-1][0] != '-') {
         elfread(argv[argc-1]);

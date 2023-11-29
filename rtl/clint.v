@@ -22,7 +22,8 @@
 module clint #(
     parameter RV32M = 1,
     parameter RV32E = 0,
-    parameter RV32B = 0
+    parameter RV32B = 0,
+    parameter RV32C = 0
 )(
     input                   clk,
     input                   resetb,

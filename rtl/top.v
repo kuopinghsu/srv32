@@ -25,7 +25,8 @@
 module top #(
     parameter RV32M = 1,
     parameter RV32E = 0,
-    parameter RV32B = 0
+    parameter RV32B = 0,
+    parameter RV32C = 0
 )(
     input                   clk,
     input                   resetb,
@@ -113,7 +114,8 @@ end
     riscv #(
         .RV32M (RV32M),
         .RV32E (RV32E),
-        .RV32B (RV32B)
+        .RV32B (RV32B),
+        .RV32C (RV32C)
     ) riscv (
         .clk                (clk),
         .resetb             (resetb),
@@ -156,7 +158,8 @@ end
     clint #(
         .RV32M (RV32M),
         .RV32E (RV32E),
-        .RV32B (RV32B)
+        .RV32B (RV32B),
+        .RV32C (RV32C)
     ) clint (
         .clk                (clk),
         .resetb             (resetb),

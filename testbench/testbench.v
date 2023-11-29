@@ -61,13 +61,13 @@ module testbench();
     localparam      DRAMBASE    = 128*1024;
 `endif
 
-`ifdef RV32M_ENABLE
+`ifdef RV32M_ENABLED
     localparam RV32M = 1;
 `else
     localparam RV32M = 0;
 `endif
 
-`ifdef RV32E_ENABLE
+`ifdef RV32E_ENABLED
     localparam          RV32E   = 1;
     localparam  [ 4: 0] REG_SYS = REG_T0;
 `else
@@ -75,10 +75,16 @@ module testbench();
     localparam  [ 4: 0] REG_SYS = REG_A7;
 `endif
 
-`ifdef RV32B_ENABLE
+`ifdef RV32B_ENABLED
     localparam RV32B = 1;
 `else
     localparam RV32B = 0;
+`endif
+
+`ifdef RV32C_ENABLED
+    localparam RV32C = 1;
+`else
+    localparam RV32C = 0;
 `endif
 
 `ifndef SYNTHESIS
@@ -199,9 +205,10 @@ end
                    1'b0 : mem_ready;
 
     top #(
-        .RV32M (RV32E),
-        .RV32E (RV32M),
-        .RV32B (RV32B)
+        .RV32M (RV32M),
+        .RV32E (RV32E),
+        .RV32B (RV32B),
+        .RV32C (RV32C)
     ) top (
         .clk        (clk),
         .resetb     (resetb),
@@ -339,7 +346,12 @@ end
 
     assign wready       = (dmem_waddr[31:28] == MMIO_BASE) ?  1'b0 : dmem_wready;
 
-    top top(
+    top #(
+        .RV32M (RV32M),
+        .RV32E (RV32E),
+        .RV32B (RV32B),
+        .RV32C (RV32C)
+    ) top (
         .clk        (clk),
         .resetb     (resetb),
 
