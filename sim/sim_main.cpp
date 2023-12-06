@@ -1,3 +1,4 @@
+#include <signal.h>
 #include "Vriscv.h"
 #include "verilated.h"
 

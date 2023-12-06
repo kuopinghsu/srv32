@@ -1087,6 +1087,16 @@ always @(posedge clk) begin
     end
 end
 
+// If the exception occurs and csr_mtvec is not initialized (or initialized to 0),
+// exit the simulation
+always @(posedge clk) begin
+    if (!ex_stall && ex_trap && csr_mtvec[31:2] == 'd0) begin
+        $display("Exception cached but mtvec is not initialized (or initialize to 0).");
+        $display("Stop simulation.");
+        $finish(2);
+    end
+end
+
 function [31:0] set_reg;
     input [ 4:0] regn;
     input [31:0] data;
