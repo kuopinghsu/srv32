@@ -53,7 +53,7 @@ RVSIM   = rvsim
 .PHONY: clean
 
 %.o: %.c opcode.h
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -DMEMSIZE=$(memsize) -c -o $@ $< $(CFLAGS)
 
 $(RVSIM): $(OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(RVSIM) $(OBJECTS)

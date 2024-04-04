@@ -7,6 +7,9 @@ rv32c       ?= 0
 rv32e       ?= 0
 rv32b       ?= 0
 
+V2_TAG      := 2.7.4
+V3_TAG      := 3.8.10
+
 PATH        := $(ROOT_SRV32)//tools:$(ROOT_SRV32)/sim:$(PATH)
 DEBUG       := #--verbose debug
 
@@ -55,7 +58,7 @@ pre-build:
 		$(MAKE) rv32m=$(rv32m) rv32c=$(rv32c) rv32b=$(rv32b) memsize=$(memsize) -C $(ROOT_SRV32)/tools; \
 		if [ ! -d riscv-arch-test.v2 ]; then \
             echo "clone riscv-arch-test v2"; \
-			git clone -b 2.7.4 https://github.com/riscv/riscv-arch-test.git riscv-arch-test.v2; \
+			git clone -b $(V2_TAG) https://github.com/riscv/riscv-arch-test.git riscv-arch-test.v2; \
 		fi; \
 		$(POST_PATCH); \
 		$(RM) -rf riscv-arch-test.v2/riscv-target/srv32; \
@@ -64,7 +67,7 @@ pre-build:
 		$(MAKE) rv32m=1 rv32c=1 rv32b=1 memsize=$(memsize) -C $(ROOT_SRV32)/tools; \
 		if [ ! -d riscv-arch-test.v3 ]; then \
             echo "clone riscv-arch-test v3"; \
-			git clone -b main https://github.com/riscv/riscv-arch-test.git riscv-arch-test.v3; \
+			git clone -b $(V3_TAG) https://github.com/riscv/riscv-arch-test.git riscv-arch-test.v3; \
 		fi; \
 		if [ ! -f rvsim-config.ini ]; then \
 			sed s^{PWD}^`pwd`^g rvsim/rvsim-config.ini.in > rvsim-config.ini; \

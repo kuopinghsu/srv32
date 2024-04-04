@@ -581,5 +581,13 @@ int compressed_decoder (
 #define REGNUM 32
 #endif // RV32E_ENABLED
 
+#ifndef MEMSIZE
+#define MEMSIZE (256)
+#endif // MEMSIZE
+
+#ifndef MEMBASE
+#define MEMBASE (0)
+#endif // MEMBASE
+
 #endif // __OPCODE_H__
 

@@ -33,7 +33,7 @@
 
 #include "opcode.h"
 
-int mem_size = 256*1024; // default memory size
+int mem_size = (MEMSIZE)*1024; // default memory size
 
 #define PRINT_TIMELOG 1
 #define MAXLEN      1024
@@ -77,7 +77,7 @@ int32_t regs[REGNUM];
 
 int debug_en = 0;
 int mode = MMODE;
-int mem_base = 0;
+int mem_base = MEMBASE;
 int singleram = 0;
 int branch_penalty = BRANCH_PENALTY;
 int mtime_update = 0;
