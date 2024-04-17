@@ -8,7 +8,7 @@ rv32e       ?= 0
 rv32b       ?= 0
 
 V2_TAG      := 2.7.4
-V3_TAG      := 3.8.10
+V3_TAG      := 3.8.13
 
 PATH        := $(ROOT_SRV32)//tools:$(ROOT_SRV32)/sim:$(PATH)
 DEBUG       := #--verbose debug
