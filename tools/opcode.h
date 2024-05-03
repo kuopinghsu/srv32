@@ -3,7 +3,7 @@
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the “Software”), to deal
-// in the Software without restriction, including without limitation the rights 
+// in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
@@ -562,32 +562,6 @@ int compressed_decoder (
     INST  *inst,
     int   *illegal
 );
-
-#define IMEM_BASE   (0+mem_base)
-#define DMEM_BASE   (mem_size+mem_base)
-#define IMEM_SIZE   mem_size
-#define DMEM_SIZE   mem_size
-
-#define IVA2PA(addr) ((addr)-IMEM_BASE)
-#define IPA2VA(addr) ((addr)+IMEM_BASE)
-#define DVA2PA(addr) ((addr)-DMEM_BASE)
-#define DPA2VA(addr) ((addr)+DMEM_BASE)
-
-#ifdef RV32E_ENABLED
-#define SYS T0
-#define REGNUM 16
-#else
-#define SYS A7
-#define REGNUM 32
-#endif // RV32E_ENABLED
-
-#ifndef MEMSIZE
-#define MEMSIZE (256)
-#endif // MEMSIZE
-
-#ifndef MEMBASE
-#define MEMBASE (0)
-#endif // MEMBASE
 
 #endif // __OPCODE_H__
 

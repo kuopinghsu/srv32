@@ -46,6 +46,6 @@ ARCH    := -march=rv32im$(ISA2_2)$(BEXT) -mabi=$(ABI) $(EXTRA_CFLAGS)
 endif
 endif
 
-CFLAGS  := -O3 -Wall $(ARCH) -nostartfiles
+CFLAGS  := -O3 -g -Wall $(ARCH) -nostartfiles
 ASFLAGS := $(ARCH)
 LDFLAGS := -lsys

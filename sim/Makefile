@@ -54,7 +54,7 @@ BFLAGS      = -O3 -cc -Wall -Wno-STMTDLY -Wno-UNUSED \
               $(if $(_rv32b), +define+RV32B_ENABLED) \
               $(if $(_rv32c), +define+RV32C_ENABLED) \
               $(if $(_coverage), --coverage) \
-              --trace-fst --Mdir sim_cc --build --exe sim_main.cpp getch.cpp
+              --trace-fst --Mdir sim_cc --build --exe sim_main.cpp getch.cpp elfloader.c
 TARGET_SIM  = verilator
 else
 BFLAGS      = $(if $(_top), -D SINGLE_RAM=1) \

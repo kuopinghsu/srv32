@@ -3,7 +3,7 @@
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the “Software”), to deal
-// in the Software without restriction, including without limitation the rights
+// in the Software without restriction, including without limitation the rights 
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
@@ -22,24 +22,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "elf.h"
-#include "opcode.h"
-#include "rvsim.h"
+#include "../tools/elf.h"
 
 #ifndef VERBOSE
 #define VERBOSE 0
 #endif
 
-#ifndef LIBRARY
-#define LIBRARY 1
-#endif
-
-static int elf32_read(FILE *fp, struct rv *rv)
+static int elf32_read(FILE *fp, char *mem,
+                      int imem_base, int dmem_base,
+                      int imem_size, int dmem_size)
 {
     int i;
     Elf32_Ehdr elf32_header;
     Elf32_Phdr *elf32_phdr = NULL;
     Elf32_Phdr *ph;
+    char *imem = NULL, *dmem = NULL;
+
+    if (mem) {
+        imem = (char*)&mem[0];
+        dmem = (char*)&mem[imem_size];
+    }
 
     fseek(fp, 0, SEEK_SET);
     if (!fread(&elf32_header, sizeof(Elf32_Ehdr), 1, fp)) {
@@ -66,42 +68,59 @@ static int elf32_read(FILE *fp, struct rv *rv)
     }
 
     for(i = 0, ph = elf32_phdr; i < elf32_header.e_phnum; i++, ph++) {
-        void *ptr;
         if (VERBOSE) printf("[%d] 0x%08x 0x%08x 0x%08x 0x%08x\n", i,
                             (int)ph->p_type,
                             (int)ph->p_offset,
                             (int)ph->p_vaddr,
                             (int)ph->p_memsz);
 
-        if (ph->p_type != PT_LOAD)
+    if (ph->p_type != PT_LOAD)
+            continue;
+
+        if (!mem)
             continue;
 
         fseek(fp, ph->p_offset, SEEK_SET);
 
-        if ((ptr = malloc(ph->p_memsz)) == NULL) {
-            // LCOV_EXCL_START
-            printf("malloc fail!\n");
-            goto fail;
-            // LCOV_EXCL_STOP
-        }
-        if(!fread((void*)ptr, (int)ph->p_memsz, 1, fp)) {
-            // LCOV_EXCL_START
-            printf("File read fail\n");
-            goto fail;
-            // LCOV_EXCL_STOP
+        // instruction memory
+        if ((int)ph->p_vaddr >= imem_base &&
+            (int)(ph->p_vaddr+ph->p_memsz) <= (imem_base+imem_size)) {
+            int idx = (int)ph->p_vaddr - imem_base;
+
+            if (VERBOSE) printf("load intruction memory, address 0x%08x, size %d\n",
+                                (int)ph->p_vaddr, (int)ph->p_memsz);
+
+            if(!fread((void*)&imem[idx], (int)ph->p_memsz, 1, fp)) {
+                // LCOV_EXCL_START
+                printf("File read fail\n");
+                goto fail;
+                // LCOV_EXCL_STOP
+            }
+            continue;
         }
 
-        if (srv32_write_mem(rv, ph->p_vaddr, ph->p_memsz, (void*)ptr)) {
-            if (VERBOSE) printf("load memory, address 0x%08x, size %d\n",
+        // data memory
+        if ((int)ph->p_vaddr >= dmem_base &&
+            (int)(ph->p_vaddr+ph->p_memsz) <= (dmem_base+dmem_size)) {
+            int idx = (int)ph->p_vaddr - dmem_base;
+
+            if (VERBOSE) printf("load data memory, address 0x%08x, size %d\n",
                                 (int)ph->p_vaddr, (int)ph->p_memsz);
-        } else {
-            // LCOV_EXCL_START
-            printf("Error: memory %08x with size %d out of range\n",
-                    (int)ph->p_vaddr, (int)ph->p_memsz);
-            exit(-1);
-            // LCOV_EXCL_STOP
+
+            if(!fread((void*)&dmem[idx], (int)ph->p_memsz, 1, fp)) {
+                // LCOV_EXCL_START
+                printf("File read fail\n");
+                goto fail;
+                // LCOV_EXCL_STOP
+            }
+            continue;
         }
-        free(ptr);
+
+        // LCOV_EXCL_START
+        printf("Error: memory %08x with size %d out of range\n",
+               (int)ph->p_vaddr, (int)ph->p_memsz);
+        exit(-1);
+        // LCOV_EXCL_STOP
     }
 
     if (elf32_phdr) free(elf32_phdr);
@@ -114,7 +133,10 @@ fail:
 // LCOV_EXCL_STOP
 }
 
-int elfloader(char *file, struct rv *rv)
+extern "C"
+int elfloader(char *file, char *mem,
+              int imem_base, int dmem_base,
+              int imem_size, int dmem_size)
 {
     FILE *fp;
     char elf_header[EI_NIDENT];
@@ -136,7 +158,7 @@ int elfloader(char *file, struct rv *rv)
 
     if (elf_header[0] == 0x7F || elf_header[1] == 'E') {
         if (elf_header[EI_CLASS] == 1) { // ELF32
-            int result = elf32_read(fp, rv);
+            int result = elf32_read(fp, mem, imem_base, dmem_base, imem_size, dmem_size);
             fclose(fp);
             return result;
         } else { // ELF64

@@ -168,19 +168,20 @@ The RTL passes rv32i_m/I and rv32i_m/M arch-tests.
 The rvsim is an instruction set simulator (ISS) that can generate trace logs for comparison with RTL simulation results. It can also set parameters of branch penalty to run benchmarks to see the effect of branch penalty. The branch instructions of hardware is two instructions delay for branch penalties.
 
     Instruction Set Simulator for RV32IM, (c) 2020 Kuoping Hsu
-    Usage: rvsim [-h] [-b n] [-m n] [-n n] [-p] [-l logfile] file
+    Usage: rvsim [-h] [-d] [-g port] [-m n] [-n n] [-b n] [-p] [-l logfile] file
 
-           --help, -h              help
-           --debug, -d             interactive debug mode
-           --quiet, -q             quite
-           --membase n, -m n       memory base
-           --memsize n, -n n       memory size (in Kb)
-           --branch n, -b n        branch penalty (default 2)
-           --single, -s            single RAM
-           --predict, -p           static branch prediction
-           --log file, -l file     generate log file
+        --help, -h              help
+        --debug, -d             interactive debug mode
+        --gdb port, -g port     enable gdb debugger with port
+        --quiet, -q             quite
+        --membase n, -m n       memory base
+        --memsize n, -n n       memory size for iram and dram each (in Kb)
+        --branch n, -b n        branch penalty (default 2)
+        --single, -s            single RAM
+        --predict, -p           static branch prediction
+        --log file, -l file     generate log file
 
-           file                    the elf executable file
+        file                    the elf executable file
 
 The ISS simulator supports RV32IMCZicsr_Zba_Zbb_Zbc_Zbs instruction sets. It passes the following arch-tests.
 
@@ -189,6 +190,48 @@ The ISS simulator supports RV32IMCZicsr_Zba_Zbb_Zbc_Zbs instruction sets. It pas
 *  rv32i_m/I
 *  rv32i_m/M
 *  rv32i_m/privilege
+
+### Running with gdb debugger
+
+Start rvsim with '-g 1234' to start gdbstub in port 1234.
+
+```
+$ ./rvsim -g 1234 ../sw/hello/hello.elf
+start gdbstub at 127.0.0.1:1234...
+```
+
+Start gdb with 'target remote 127.0.0.1:1234' to connect gdb remote debugging.
+
+```
+$ riscv64-unknown-elf-gdb ../sw/hello/hello.el
+GNU gdb (GDB) 12.1
+Copyright (C) 2022 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "--host=aarch64-apple-darwin23.0.0 --target=riscv64-unknown-elf".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+Reading symbols from ../sw/hello/hello.elf...
+(gdb) target remote 127.0.0.1:1234
+Remote debugging using 127.0.0.1:1234
+0x00000000 in ?? ()
+(gdb) b main
+Breakpoint 1 at 0x60: file hello.c, line 4.
+(gdb) c
+Continuing.
+
+Breakpoint 1, main () at hello.c:4
+4	    printf("hello world!\n");
+(gdb)
+```
 
 ## Benchmarks
 

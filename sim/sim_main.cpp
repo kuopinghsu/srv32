@@ -16,8 +16,6 @@ int elfloader(char *file, char *mem,
               int imem_base, int dmem_base,
               int imem_size, int dmem_size);
 
-#include "../tools/elfloader.c"
-
 vluint64_t main_time = 0;
 
 double sc_time_stamp(void)

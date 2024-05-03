@@ -25,18 +25,10 @@
 #include <stdint.h>
 
 #include "opcode.h"
+#include "rvsim.h"
 #include "riscv-disas.h"
 
-extern CSR csr;
-extern int32_t pc;
-extern int32_t regs[REGNUM];
-
-extern int *mem;
-extern int *imem;
-extern int *dmem;
-extern char *regname[32];
-extern int mem_base;
-extern int mem_size;
+extern const char *regname[32];
 
 static void debug_usage(void) {
     printf(
@@ -54,22 +46,10 @@ static void debug_usage(void) {
     );
 }
 
-static uint8_t *get_mem(int addr) {
-    char *iptr = (char*)imem;
-    char *dptr = (char*)dmem;
-
-    if (addr >= IMEM_BASE && addr < IMEM_BASE+IMEM_SIZE)
-        return (uint8_t*)&iptr[IVA2PA(addr)];
-
-    if (addr >= DMEM_BASE && addr < DMEM_BASE+DMEM_SIZE)
-        return (uint8_t*)&dptr[DVA2PA(addr)];
-
-    return 0;
-}
-
-static void dump_mem(int32_t addr, int32_t len) {
+static void dump_mem(struct rv *rv, int32_t addr, int32_t len) {
     int start = (int)(addr / 16)*16;
     int total = len + (addr % 16);
+    char* ptr = srv32_get_memptr(rv, start);
     int i;
 
     for(i = 0; i < total; i++) {
@@ -77,7 +57,7 @@ static void dump_mem(int32_t addr, int32_t len) {
             printf("%08x ", start+i);
 
         if (start + i >= addr)
-            printf("%02x", *((char*)get_mem(start+i))&0xff);
+            printf("%02x", (ptr[i]&0xff));
         else
             printf("  ");
 
@@ -88,9 +68,11 @@ static void dump_mem(int32_t addr, int32_t len) {
         printf("\n");
 }
 
-static int show_pc(int pc) {
+static int show_pc(struct rv *rv, int pc) {
     char buf[80] = {0};
-    rv_inst inst = *((rv_inst*)get_mem(pc));
+    rv_inst inst;
+
+    srv32_read_mem(rv, pc, sizeof(rv_inst), &inst);
 
     disasm_inst(buf, sizeof(buf), rv32, pc, inst);
     printf("%7s: %08x %s\n", "pc", pc, buf);
@@ -98,40 +80,40 @@ static int show_pc(int pc) {
     return (int)inst_length(inst);
 }
 
-static void dump_regs(void) {
+static void dump_regs(struct rv *rv) {
     int i;
 
-    show_pc(pc);
+    show_pc(rv, rv->pc);
 
     printf("\n");
 
     for(i = 0; i < REGNUM; i++) {
-        printf("%7s: %08x", regname[i], regs[i]);
+        printf("%7s: %08x", regname[i], srv32_read_regs(rv, i));
         printf("%s", (i % 4 == 3) ? "\n" : "    ");
     }
 }
 
-static void dump_csrs(void) {
-    printf("time     : %08x_%08x\n", csr.time.d.hi, csr.time.d.lo);
-    printf("cycle    : %08x_%08x\n", csr.cycle.d.hi, csr.cycle.d.lo);
-    printf("instret  : %08x_%08x\n", csr.instret.d.hi, csr.instret.d.lo);
-    printf("mtime    : %08x_%08x\n", csr.mtime.d.hi, csr.mtime.d.lo);
-    printf("mtimecmp : %08x_%08x\n", csr.mtimecmp.d.hi, csr.mtimecmp.d.lo);
-    printf("mvendorid: %08x\n", csr.mvendorid);
-    printf("marchid  : %08x\n", csr.marchid);
-    printf("mimpid   : %08x\n", csr.mimpid);
-    printf("mhartid  : %08x\n", csr.mhartid);
-    printf("mscratch : %08x\n", csr.mscratch);
-    printf("mstatus  : %08x\n", csr.mstatus);
-    printf("mstatush : %08x\n", csr.mstatush);
-    printf("misa     : %08x\n", csr.misa);
-    printf("mie      : %08x\n", csr.mie);
-    printf("mtvec    : %08x\n", csr.mtvec);
-    printf("mepc     : %08x\n", csr.mepc);
-    printf("mcause   : %08x\n", csr.mcause);
-    printf("mip      : %08x\n", csr.mip);
-    printf("mtval    : %08x\n", csr.mtval);
-    printf("msip     : %08x\n", csr.msip);
+static void dump_csrs(struct rv *rv) {
+    printf("time     : %08x_%08x\n", rv->csr.time.d.hi, rv->csr.time.d.lo);
+    printf("cycle    : %08x_%08x\n", rv->csr.cycle.d.hi, rv->csr.cycle.d.lo);
+    printf("instret  : %08x_%08x\n", rv->csr.instret.d.hi, rv->csr.instret.d.lo);
+    printf("mtime    : %08x_%08x\n", rv->csr.mtime.d.hi, rv->csr.mtime.d.lo);
+    printf("mtimecmp : %08x_%08x\n", rv->csr.mtimecmp.d.hi, rv->csr.mtimecmp.d.lo);
+    printf("mvendorid: %08x\n", rv->csr.mvendorid);
+    printf("marchid  : %08x\n", rv->csr.marchid);
+    printf("mimpid   : %08x\n", rv->csr.mimpid);
+    printf("mhartid  : %08x\n", rv->csr.mhartid);
+    printf("mscratch : %08x\n", rv->csr.mscratch);
+    printf("mstatus  : %08x\n", rv->csr.mstatus);
+    printf("mstatush : %08x\n", rv->csr.mstatush);
+    printf("misa     : %08x\n", rv->csr.misa);
+    printf("mie      : %08x\n", rv->csr.mie);
+    printf("mtvec    : %08x\n", rv->csr.mtvec);
+    printf("mepc     : %08x\n", rv->csr.mepc);
+    printf("mcause   : %08x\n", rv->csr.mcause);
+    printf("mip      : %08x\n", rv->csr.mip);
+    printf("mtval    : %08x\n", rv->csr.mtval);
+    printf("msip     : %08x\n", rv->csr.msip);
     printf("\n");
 }
 
@@ -158,7 +140,7 @@ static char * trim(char * s, int size) {
     return str;
 }
 
-void debug(void) {
+void debug(struct rv *rv) {
     static int running = 0;
     static char cmd[1024];
     static char cmd_last[1024];
@@ -167,7 +149,7 @@ void debug(void) {
     static int count_en = 0;
 
     if (running) {
-        if (until_pc == pc) {
+        if (until_pc == rv->pc) {
             running = 0;
             until_pc = 0;
         }
@@ -177,14 +159,14 @@ void debug(void) {
                 running = 0;
                 count_en = 0;
             } else {
-                show_pc(pc);
+                show_pc(rv, rv->pc);
                 count--;
             }
         }
     }
 
     if (!running) {
-        dump_regs();
+        dump_regs(rv);
         do {
             printf("(rvsim) ");
 
@@ -217,7 +199,7 @@ void debug(void) {
             }
 
             if (!strncmp(cmd, "regs", sizeof(cmd))) {
-                dump_regs();
+                dump_regs(rv);
                 continue;
             }
 
@@ -230,17 +212,17 @@ void debug(void) {
                     continue;
                 }
 
-                dump_mem(addr, len);
+                dump_mem(rv, addr, len);
                 continue;
             }
 
             if (!strncmp(cmd, "csrs", sizeof(cmd))) {
-                dump_csrs();
+                dump_csrs(rv);
                 continue;
             }
 
             if (!strncmp(cmd, "pc", sizeof(cmd))) {
-                printf("pc %08x\n", pc);
+                printf("pc %08x\n", rv->pc);
                 continue;
             }
 
@@ -261,8 +243,8 @@ void debug(void) {
 
                 sscanf(cmd, "list %i", &n);
 
-                for (i = 0, addr = pc; i < n; i++) {
-                    int inst_len = show_pc(addr);
+                for (i = 0, addr = rv->pc; i < n; i++) {
+                    int inst_len = show_pc(rv, addr);
                     addr += inst_len;
                 }
 

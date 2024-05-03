@@ -9,6 +9,8 @@ rv32b    ?= 0
 CC        = gcc
 SYS      := $(shell gcc -dumpmachine)
 
+CFLAGS  += -DGDBSTUB
+
 ifneq (, $(findstring darwin, $(SYS)))
 CFLAGS  += -DMACOX
 endif
@@ -44,7 +46,10 @@ ifeq ($(rv32b), 1)
 CFLAGS  += -DRV32B_ENABLED=1
 endif
 
-SRC      = rvsim.c decompress.c syscall.c elfloader.c getch.c htif.c debug.c riscv-disas.c
+LDFLAGS += -Lmini-gdbstub/build -lgdbstub
+
+SRC      = rvsim.c decompress.c syscall.c elfloader.c getch.c htif.c \
+           debug.c riscv-disas.c gdbstub.c
 OBJECTS  = $(SRC:.c=.o)
 RVSIM   = rvsim
 
@@ -52,11 +57,22 @@ RVSIM   = rvsim
 
 .PHONY: clean
 
+all: mini-gdbstub $(RVSIM)
+
 %.o: %.c opcode.h
 	$(CC) -DMEMSIZE=$(memsize) -c -o $@ $< $(CFLAGS)
 
-$(RVSIM): $(OBJECTS)
+$(RVSIM): $(OBJECTS) libgdbstub.a
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(RVSIM) $(OBJECTS)
+
+mini-gdbstub:
+	@if [ ! -d mini-gdbstub ]; then \
+		echo "clone mini-gdbstub"; \
+		git clone https://github.com/RinHizakura/mini-gdbstub.git; \
+	fi
+
+libgdbstub.a:
+	CC=gcc make -C mini-gdbstub
 
 %.elf: $(RVSIM)
 	@if [ ! -f ../sw/$*/$*.elf ]; then \
@@ -87,6 +103,7 @@ coverage_extra:
 	-@./$(RVSIM) -m 0x0 -n 131072 -b 1 -s -p -l trace.log ../sw/hello/hello.elf
 
 clean:
+	@if [ -d mini-gdbstub ]; then make -C mini-gdbstub clean; fi
 	-$(RM) $(OBJECTS) dump.txt trace.log trace.log.dis $(RVSIM) out.bin
 	-@if [ $(coverage) = 0 ]; then \
 		$(RM) -rf html coverage.info *.gcda *.gcno *.gcov; \
