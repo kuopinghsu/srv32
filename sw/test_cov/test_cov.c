@@ -12,9 +12,9 @@ static void test_load_store(volatile int *ptr) {
     volatile int32_t *n3 = (int32_t *)ptr;
 
     *n1 = v;
-    *n1++;
-    *n2++;
-    *n3++;
+    (*n1)++;
+    (*n2)++;
+    (*n3)++;
 
     (void)n1;
     (void)n2;
