@@ -63,7 +63,7 @@ all: mini-gdbstub $(RVSIM)
 	$(CC) -DMEMSIZE=$(memsize) -c -o $@ $< $(CFLAGS)
 
 $(RVSIM): $(OBJECTS) libgdbstub.a
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(RVSIM) $(OBJECTS)
+	$(CC) $(CFLAGS) -o $(RVSIM) $(OBJECTS) $(LDFLAGS)
 
 mini-gdbstub:
 	@if [ ! -d mini-gdbstub ]; then \
@@ -87,13 +87,15 @@ coverage: coverage_extra
 	@genhtml coverage.info -o html
 
 coverage_extra:
-	-@$(MAKE) irq.elf
-	-@$(MAKE) sem.elf
-	-@$(MAKE) exception.elf
-	-@$(MAKE) -C ../sw/_io
-	-@echo Hello | $(MAKE) _io.elf
-	-@$(MAKE) -C ../sw/_file
-	-@$(MAKE) _file.elf
+	-@$(MAKE) coverage=1
+	-@$(MAKE) coverage=1 irq.elf
+	-@$(MAKE) coverage=1 sem.elf
+	-@$(MAKE) coverage=1 exception.elf
+	-@$(MAKE) coverage=1 test_cov.elf
+	-@$(MAKE) coverage=1 -C ../sw/_io
+	-@echo Hello | $(MAKE) coverage=1 _io.elf
+	-@$(MAKE) coverage=1 -C ../sw/_file
+	-@$(MAKE) coverage=1 _file.elf
 	-@./$(RVSIM) -q
 	-@./$(RVSIM) -h
 	-@./$(RVSIM) -d

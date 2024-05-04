@@ -27,7 +27,9 @@
 #include "opcode.h"
 
 #ifdef GDBSTUB
+// LCOV_EXCL_START
 #include "mini-gdbstub/include/gdbstub.h"
+// LCOV_EXCL_STOP
 #endif
 
 #ifdef RV32E_ENABLED

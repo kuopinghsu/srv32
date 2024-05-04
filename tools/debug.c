@@ -28,6 +28,8 @@
 #include "rvsim.h"
 #include "riscv-disas.h"
 
+// do not check coverage here
+// LCOV_EXCL_START
 extern const char *regname[32];
 
 static void debug_usage(void) {
@@ -256,4 +258,5 @@ void debug(struct rv *rv) {
         } while(1);
     }
 }
+// LCOV_EXCL_STOP
 

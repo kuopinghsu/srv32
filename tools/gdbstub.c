@@ -21,6 +21,8 @@
 
 #ifdef GDBSTUB
 
+// do not check coverage here
+// LCOV_EXCL_START
 #include <errno.h>
 
 #include "mini-gdbstub/include/gdbstub.h"
@@ -29,8 +31,6 @@
 #ifndef VERBOSE
 #define VERBOSE 0
 #endif
-
-void srv32_step(struct rv *rv);
 
 static inline bool srv_is_halted(struct rv *rv) {
     return __atomic_load_n(&rv->halt, __ATOMIC_RELAXED);
@@ -97,7 +97,7 @@ static int srv_write_reg(void *args, int regno, size_t value) {
 static int srv_read_mem(void *args, size_t addr, size_t len, void *val) {
     struct rv *rv = (struct rv *) args;
 
-    if (VERBOSE) fprintf(stderr, "read_mem(0x%08x, %d)\n", (uint32_t)addr, (uint32_t)len);
+    if (VERBOSE) fprintf(stderr, "read_mem(0x%08x, %d)\n", (uint32_t)addr, (int32_t)len);
 
     srv32_read_mem(rv, addr, len, val);
 
@@ -107,7 +107,7 @@ static int srv_read_mem(void *args, size_t addr, size_t len, void *val) {
 static int srv_write_mem(void *args, size_t addr, size_t len, void *val) {
     struct rv *rv = (struct rv *) args;
 
-    if (VERBOSE) fprintf(stderr, "write_mem(0x%08x, %d)\n", (uint32_t)addr, (uint32_t)len);
+    if (VERBOSE) fprintf(stderr, "write_mem(0x%08x, %d)\n", (uint32_t)addr, (int32_t)len);
 
     srv32_write_mem(rv, addr, len, val);
 
@@ -161,5 +161,6 @@ const struct target_ops gdbstub_ops = {
     .on_interrupt = srv_on_interrupt,
 };
 
+// LCOV_EXCL_STOP
 #endif // GDBSTUB
 

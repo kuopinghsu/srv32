@@ -95,6 +95,7 @@ int getch(void);
 void debug(struct rv *rv);
 
 void usage(void) {
+// LCOV_EXCL_START
     printf(
 "Instruction Set Simulator for RV32IM, (c) 2020 Kuoping Hsu\n"
 "Usage: rvsim [-h] [-d] [-g port] [-m n] [-n n] [-b n] [-p] [-l logfile] file\n\n"
@@ -112,6 +113,7 @@ void usage(void) {
 "       file                    the elf executable file\n"
 "\n"
     );
+// LCOV_EXCL_STOP
 }
 
 #ifdef MACOX
@@ -558,7 +560,7 @@ static int memrw(struct rv *rv, int type, int op, int32_t address, int32_t *val)
                     break;
                 case MMIO_TOHOST:
                     {
-                        int htif_mem;
+                        int htif_mem = 0;
                         srv32_read_mem(rv, data, sizeof(int), (void*)&htif_mem);
                         if (htif_mem == SYS_EXIT) {
                             TRACE_LOG " write 0x%08x <= 0x%08x\n",
@@ -603,7 +605,6 @@ int main(int argc, char **argv) {
     struct rv *rv = NULL;
     char *file = NULL;
     char *tfile = NULL;
-    int result;
 
     #ifdef GDBSTUB
     int gdbport = 0;
@@ -730,7 +731,7 @@ int main(int argc, char **argv) {
     memset(rv->mem, 0, rv->mem_size);
 
     // load elf file
-    if ((result = elfloader(file, rv)) == 0) {
+    if (!elfloader(file, rv)) {
         // LCOV_EXCL_START
         printf("Can not read elf file %s\n", file);
         exit(1);
@@ -758,6 +759,7 @@ int main(int argc, char **argv) {
     gettimeofday(&time_start, NULL);
 
     #ifdef GDBSTUB
+    // LCOV_EXCL_START
     if (gdbport != 0) {
         static char gdbstub_port[] = "127.0.0.1:xxxxxx";
 
@@ -783,6 +785,7 @@ int main(int argc, char **argv) {
 
         goto main_exit;
     }
+    // LCOV_EXCL_STOP
     #endif // GDBSTUB
 
     // Execution loop
@@ -936,10 +939,13 @@ void srv32_step(struct rv *rv) {
             TRACE_END;
 
             rv->pc += pc_off;
+
+            // LCOV_EXCL_START
             if (pc_off == 0) {
                 printf("Warning: forever loop detected at PC 0x%08x\n", rv->pc);
                 prog_exit(rv, 1);
             }
+            // LCOV_EXCL_STOP
 
             rv->pc = rv->pc & ~1; // setting the least-signicant bit of the result to zero
 
@@ -967,11 +973,14 @@ void srv32_step(struct rv *rv) {
             TRACE_END;
 
             rv->pc = pc_new;
+
+            // LCOV_EXCL_START
             if (pc_new == pc_old) {
                 TRACE_LOG "\n" TRACE_END;
                 printf("Warning: forever loop detected at PC 0x%08x\n", rv->pc);
                 prog_exit(rv, 1);
             }
+            // LCOV_EXCL_STOP
 
             rv->pc = rv->pc & ~1; // setting the least-signicant bit of the result to zero
 
@@ -1805,5 +1814,6 @@ void srv32_step(struct rv *rv) {
     } // end of switch(inst.r.op)
 
     rv->pc = compressed ? rv->pc + 2 : rv->pc + 4;
+
 }
 

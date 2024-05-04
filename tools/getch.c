@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <termios.h>
 
+// do not check coverage here
+// LCOV_EXCL_START
 int getch(void)
 {
     struct termios oldattr, newattr;
@@ -19,4 +21,4 @@ int getch(void)
 
     return ch;
 }
-
+// LCOV_EXCL_STOP

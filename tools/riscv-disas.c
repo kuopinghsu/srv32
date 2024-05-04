@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+// do not check coverage here
+// LCOV_EXCL_START
 #include "riscv-disas.h"
 
 typedef struct {
@@ -2274,3 +2276,5 @@ void disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst
     decode_inst_lift_pseudo(&dec);
     decode_inst_format(buf, buflen, 32, &dec);
 }
+// LCOV_EXCL_STOP
+
