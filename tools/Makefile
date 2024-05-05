@@ -49,7 +49,7 @@ endif
 LDFLAGS += -Lmini-gdbstub/build -lgdbstub
 
 SRC      = rvsim.c decompress.c syscall.c elfloader.c getch.c htif.c \
-           debug.c riscv-disas.c gdbstub.c
+           debug.c riscv-disas.c gdbstub.c map.c
 OBJECTS  = $(SRC:.c=.o)
 RVSIM   = rvsim
 

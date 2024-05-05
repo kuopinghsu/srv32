@@ -44,7 +44,7 @@ static gdb_action_t srv_cont(void *args) {
     struct rv *rv = (struct rv *) args;
 
     for (; !srv_is_halted(rv) && !srv_is_interrupt(rv);) {
-        if (rv->bp_is_set && rv->pc == rv->bp_addr)
+        if (find(rv->root, rv->pc) != NULL)
             break;
 
         srv32_step(rv);
@@ -122,8 +122,7 @@ static bool srv_set_bp(void *args, size_t addr, bp_type_t type) {
     if (type != BP_SOFTWARE)
         return true;
 
-    rv->bp_is_set = true;
-    rv->bp_addr = addr;
+    insert(&rv->root, addr);
 
     return true;
 }
@@ -134,11 +133,11 @@ static bool srv_del_bp(void *args, size_t addr, bp_type_t type) {
     if (VERBOSE) fprintf(stderr, "del_bp 0x%08x\n", (uint32_t)addr);
 
     // It's fine when there's no matching breakpoint, just doing nothing
-    if (type != BP_SOFTWARE || !rv->bp_is_set || rv->bp_addr != addr)
+    if (type != BP_SOFTWARE || find(rv->root, addr) == NULL)
         return true;
 
-    rv->bp_is_set = false;
-    rv->bp_addr = 0;
+    delete(rv->root, addr);
+
     return true;
 }
 

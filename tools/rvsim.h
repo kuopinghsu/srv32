@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "opcode.h"
+#include "map.h"
 
 #ifdef GDBSTUB
 // LCOV_EXCL_START
@@ -65,11 +66,11 @@ struct rv {
     int32_t *mem;
 
     #ifdef GDBSTUB
-    bool bp_is_set;
-    size_t bp_addr;
     bool halt;
     bool is_interrupted;
     gdbstub_t gdbstub;
+
+    TreeNode *root;
     #endif
 
     // file handle for trace log
