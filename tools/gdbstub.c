@@ -29,7 +29,7 @@
 #include "rvsim.h"
 
 #ifndef VERBOSE
-#define VERBOSE 0
+#define VERBOSE 1
 #endif
 
 static inline bool srv_is_halted(struct rv *rv) {
@@ -136,7 +136,7 @@ static bool srv_del_bp(void *args, size_t addr, bp_type_t type) {
     if (type != BP_SOFTWARE || find(rv->root, addr) == NULL)
         return true;
 
-    delete(rv->root, addr);
+    rv->root = delete(rv->root, addr);
 
     return true;
 }
