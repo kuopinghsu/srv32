@@ -29,7 +29,7 @@
 #include "rvsim.h"
 
 #ifndef VERBOSE
-#define VERBOSE 1
+#define VERBOSE 0
 #endif
 
 static inline bool srv_is_halted(struct rv *rv) {
