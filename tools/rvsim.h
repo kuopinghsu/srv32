@@ -65,6 +65,9 @@ struct rv {
     int32_t mem_base;
     int32_t *mem;
 
+    bool singleram;
+    bool mtime_update;
+
     #ifdef GDBSTUB
     bool halt;
     bool is_interrupted;
