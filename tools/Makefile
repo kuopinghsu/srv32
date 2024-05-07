@@ -1,6 +1,7 @@
 DEBUG    ?= 0
 top      ?= 0
 coverage ?= 0
+tracelog ?= 0
 memsize  ?= 256
 rv32m    ?= 1
 rv32c    ?= 0
@@ -46,6 +47,12 @@ ifeq ($(rv32b), 1)
 CFLAGS  += -DRV32B_ENABLED=1
 endif
 
+ifeq ($(tracelog), 1)
+TRACELOG = -l trace.log
+else
+TRACELOG =
+endif
+
 LDFLAGS += -Lmini-gdbstub/build -lgdbstub
 
 SRC      = rvsim.c decompress.c syscall.c elfloader.c getch.c htif.c \
@@ -78,8 +85,8 @@ libgdbstub.a:
 	@if [ ! -f ../sw/$*/$*.elf ]; then \
 		$(MAKE) memsize=$(memsize) -C ../sw $*; \
 	fi
-	./$(RVSIM) --memsize $(memsize) -l trace.log ../sw/$*/$*.elf
-	@./log2dis.pl -q trace.log ../sw/$*/$*.elf
+	./$(RVSIM) --memsize $(memsize) $(TRACELOG) ../sw/$*/$*.elf
+	@if [ -f trace.log ]; then ./log2dis.pl -q trace.log ../sw/$*/$*.elf; fi
 
 coverage: coverage_extra
 	@gcov *.c

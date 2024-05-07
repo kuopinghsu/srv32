@@ -44,7 +44,7 @@ static gdb_action_t srv_cont(void *args) {
     struct rv *rv = (struct rv *) args;
 
     for (; !srv_is_halted(rv) && !srv_is_interrupt(rv);) {
-        if (find(rv->root, rv->pc) != NULL)
+        if (findNode(rv->root, rv->pc) != NULL)
             break;
 
         srv32_step(rv);
@@ -122,7 +122,7 @@ static bool srv_set_bp(void *args, size_t addr, bp_type_t type) {
     if (type != BP_SOFTWARE)
         return true;
 
-    insert(&rv->root, addr);
+    insertNode(&rv->root, addr);
 
     return true;
 }
@@ -133,10 +133,10 @@ static bool srv_del_bp(void *args, size_t addr, bp_type_t type) {
     if (VERBOSE) fprintf(stderr, "del_bp 0x%08x\n", (uint32_t)addr);
 
     // It's fine when there's no matching breakpoint, just doing nothing
-    if (type != BP_SOFTWARE || find(rv->root, addr) == NULL)
+    if (type != BP_SOFTWARE || findNode(rv->root, addr) == NULL)
         return true;
 
-    rv->root = delete(rv->root, addr);
+    deleteNode(&rv->root, addr);
 
     return true;
 }

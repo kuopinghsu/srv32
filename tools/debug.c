@@ -142,7 +142,7 @@ static char * trim(char * s, int size) {
     return str;
 }
 
-void debug(struct rv *rv) {
+int debug(struct rv *rv) {
     static int running = 0;
     static char cmd[1024];
     static char cmd_last[1024];
@@ -189,7 +189,7 @@ void debug(struct rv *rv) {
             }
 
             if (!strncmp(cmd, "quit", sizeof(cmd)) || !strncmp(cmd, "q", sizeof(cmd))) {
-                exit(0);
+                return RV_EXIT;
             }
 
             if (!strncmp(cmd, "until", sizeof("until")-1)) {
@@ -257,6 +257,8 @@ void debug(struct rv *rv) {
 
         } while(1);
     }
+
+    return RV_OKAY;
 }
 // LCOV_EXCL_STOP
 

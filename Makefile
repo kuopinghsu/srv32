@@ -99,7 +99,7 @@ $(SUBDIRS):
 	@$(MAKE) $(if $(_verilator), verilator=1) \
 			 $(if $(_coverage), coverate=1) \
 			 $(if $(_top), top=1) $(MAKE_FLAGS) memsize=$(memsize) debug=$(debug) -C sim $@.elf
-	@$(MAKE) $(if $(_top), top=1) $(MAKE_FLAGS) memsize=$(memsize) -C tools $@.elf
+	@$(MAKE) $(if $(_top), top=1) $(MAKE_FLAGS) memsize=$(memsize) tracelog=1 -C tools $@.elf
 	@echo "Compare the trace between RTL and ISS simulator"
 	@diff --brief sim/trace.log tools/trace.log
 	@echo === Simulation passed ===

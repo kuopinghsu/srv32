@@ -49,6 +49,12 @@
 #define MEMBASE (0)
 #endif // MEMBASE
 
+enum {
+    RV_OKAY = 0,
+    RV_TRAP = 1,
+    RV_EXIT = 2
+};
+
 struct rv {
     // registers
     int32_t pc;
@@ -67,13 +73,14 @@ struct rv {
 
     bool singleram;
     bool mtime_update;
+    int  exitcode;
 
     #ifdef GDBSTUB
     bool halt;
     bool is_interrupted;
     gdbstub_t gdbstub;
 
-    TreeNode *root;
+    Node *root;
     #endif
 
     // file handle for trace log
@@ -83,7 +90,7 @@ struct rv {
 int srv32_syscall(struct rv *rv, int func, int a0, int a1, int a2, int a3, int a4, int a5);
 void srv32_tohost(struct rv *rv, int32_t ptr);
 int srv32_fromhost(struct rv *rv);
-void srv32_step(struct rv *rv);
+int srv32_step(struct rv *rv);
 int32_t srv32_read_regs(struct rv *rv, int n);
 void srv32_write_regs(struct rv *rv, int n, int32_t v);
 void *srv32_get_memptr(struct rv *rv, int32_t addr);

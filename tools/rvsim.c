@@ -63,7 +63,7 @@ const char *regname[32] = {
 
 int elfloader(char *file, struct rv *rv);
 int getch(void);
-void debug(struct rv *rv);
+int debug(struct rv *rv);
 
 void usage(void) {
 // LCOV_EXCL_START
@@ -172,8 +172,13 @@ static inline int to_imm_u(uint32_t n) {
     return (int)(n << 12);
 }
 
-void prog_exit(struct rv *rv, int exitcode) {
+void prog_exit(struct rv *rv) {
     double diff;
+    int exitcode = rv->exitcode;
+
+    if (rv->debug_en)
+        exit(0);
+
     gettimeofday(&time_end, NULL);
 
     diff = (double)(time_end.tv_sec-time_start.tv_sec) +
@@ -199,6 +204,8 @@ void prog_exit(struct rv *rv, int exitcode) {
         printf("Simulation speed : %0.3f MHz\n", (float)(rv->csr.cycle.c / diff / 1000000.0));
         printf("\n");
     }
+
+    aligned_free(rv);
     exit(exitcode);
 }
 
@@ -561,7 +568,8 @@ static int memrw(struct rv *rv, int type, int op, int32_t address, int32_t *val)
                     TRACE_LOG " write 0x%08x <= 0x%08x\n",
                               address, (data & mask)
                     TRACE_END;
-                    prog_exit(rv, data);
+                    rv->exitcode = data;
+                    return RV_EXIT;
                     break;
                 case MMIO_TOHOST:
                     {
@@ -794,19 +802,22 @@ int main(int argc, char **argv) {
     #endif // GDBSTUB
 
     // Execution loop
-    while(1) {
+    do {
         if (rv->debug_en)
-            debug(rv);
-        srv32_step(rv);
-    }
+            if (debug(rv) == RV_EXIT)
+                break;
+        if (srv32_step(rv) == RV_EXIT)
+            break;
+    } while(1);
 
 main_exit:
     aligned_free(rv->mem);
     if (rv->ft) fclose(rv->ft);
-    aligned_free(rv);
+
+    prog_exit(rv);
 }
 
-void srv32_step(struct rv *rv) {
+int srv32_step(struct rv *rv) {
     int compressed = 0;
 #ifdef RV32C_ENABLED
     static int compressed_prev = 0;
@@ -917,7 +928,7 @@ void srv32_step(struct rv *rv) {
 
     if (illegal) {
         srv32_trap(rv, TRAP_INST_ILL, (int)instc.inst);
-        return;
+        return RV_TRAP;
     }
 #endif // RV32C_ENABLED
 
@@ -948,7 +959,8 @@ void srv32_step(struct rv *rv) {
             // LCOV_EXCL_START
             if (pc_off == 0) {
                 printf("Warning: forever loop detected at PC 0x%08x\n", rv->pc);
-                prog_exit(rv, 1);
+                rv->exitcode = 1;
+                return RV_EXIT;
             }
             // LCOV_EXCL_STOP
 
@@ -958,7 +970,7 @@ void srv32_step(struct rv *rv) {
             if ((rv->pc & 3) != 0) {
                 // Instruction address misaligned
                 TRACE_LOG "\n" TRACE_END;
-                return;
+                return RV_OKAY;
             }
             #endif // RV32C_ENABLED
 
@@ -968,7 +980,7 @@ void srv32_step(struct rv *rv) {
             TRACE_END;
 
             srv32_cycle_add(rv, rv->branch_penalty);
-            return;
+            return RV_OKAY;
         }
         case OP_JALR: { // I-Type
             int pc_old = rv->pc;
@@ -983,7 +995,8 @@ void srv32_step(struct rv *rv) {
             if (pc_new == pc_old) {
                 TRACE_LOG "\n" TRACE_END;
                 printf("Warning: forever loop detected at PC 0x%08x\n", rv->pc);
-                prog_exit(rv, 1);
+                rv->exitcode = 1;
+                return RV_EXIT;
             }
             // LCOV_EXCL_STOP
 
@@ -993,7 +1006,7 @@ void srv32_step(struct rv *rv) {
             if ((rv->pc & 3) != 0) {
                 // Instruction address misaligned
                 TRACE_LOG "\n" TRACE_END;
-                return;
+                return RV_OKAY;
             }
             #endif // RV32C_ENABLED
 
@@ -1003,7 +1016,7 @@ void srv32_step(struct rv *rv) {
             TRACE_END;
 
             srv32_cycle_add(rv, rv->branch_penalty);
-            return;
+            return RV_OKAY;
         }
         case OP_BRANCH: { // B-Type
             TIME_LOG; TRACE_LOG "%08x %08x\n", rv->pc, inst.inst
@@ -1015,7 +1028,7 @@ void srv32_step(struct rv *rv) {
                         rv->pc += offset;
                         if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
                             srv32_cycle_add(rv, rv->branch_penalty);
-                        return;
+                        return RV_OKAY;
                     }
                     break;
                 case OP_BNE:
@@ -1023,7 +1036,7 @@ void srv32_step(struct rv *rv) {
                         rv->pc += offset;
                         if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
                             srv32_cycle_add(rv, rv->branch_penalty);
-                        return;
+                        return RV_OKAY;
                     }
                     break;
                 case OP_BLT:
@@ -1031,7 +1044,7 @@ void srv32_step(struct rv *rv) {
                         rv->pc += offset;
                         if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
                             srv32_cycle_add(rv, rv->branch_penalty);
-                        return;
+                        return RV_OKAY;
                     }
                     break;
                 case OP_BGE:
@@ -1039,7 +1052,7 @@ void srv32_step(struct rv *rv) {
                         rv->pc += offset;
                         if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
                             srv32_cycle_add(rv, rv->branch_penalty);
-                        return;
+                        return RV_OKAY;
                     }
                     break;
                 case OP_BLTU:
@@ -1048,7 +1061,7 @@ void srv32_step(struct rv *rv) {
                         rv->pc += offset;
                         if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
                             srv32_cycle_add(rv, rv->branch_penalty);
-                        return;
+                        return RV_OKAY;
                     }
                     break;
                 case OP_BGEU:
@@ -1057,13 +1070,13 @@ void srv32_step(struct rv *rv) {
                         rv->pc += offset;
                         if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
                             srv32_cycle_add(rv, rv->branch_penalty);
-                        return;
+                        return RV_OKAY;
                     }
                     break;
                 default:
                     printf("Illegal branch instruction at PC 0x%08x\n", rv->pc);
                     srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                    return;
+                    return RV_TRAP;
             }
             break;
         }
@@ -1082,18 +1095,18 @@ void srv32_step(struct rv *rv) {
                 case TRAP_LD_FAIL:
                      TRACE_LOG "\n" TRACE_END;
                      srv32_trap(rv, TRAP_LD_FAIL, address);
-                     return;
+                     return RV_TRAP;
                 case TRAP_LD_ALIGN:
                      TRACE_LOG "\n" TRACE_END;
                      srv32_trap(rv, TRAP_LD_ALIGN, address);
-                     return;
+                     return RV_TRAP;
                 case TRAP_INST_ILL:
                      TRACE_LOG " read 0x%08x, x%02u (%s) <= 0x%08x\n",
                                  address, inst.i.rd,
                                  regname[inst.i.rd], 0
                      TRACE_END;
                      srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                     return;
+                     return RV_TRAP;
             }
 
             srv32_write_regs(rv, inst.i.rd, data);
@@ -1124,15 +1137,15 @@ void srv32_step(struct rv *rv) {
                 case TRAP_ST_FAIL:
                      TRACE_LOG "\n" TRACE_END;
                      srv32_trap(rv, TRAP_ST_FAIL, address);
-                     return;
+                     return RV_TRAP;
                 case TRAP_ST_ALIGN:
                      TRACE_LOG "\n" TRACE_END;
                      srv32_trap(rv, TRAP_ST_ALIGN, address);
-                     return;
+                     return RV_TRAP;
                 case TRAP_INST_ILL:
                      TRACE_LOG "\n" TRACE_END;
                      srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                     return;
+                     return RV_TRAP;
             }
 
             TRACE_LOG " write 0x%08x <= 0x%08x\n", address, (data & mask)
@@ -1247,7 +1260,7 @@ void srv32_step(struct rv *rv) {
                                 default:
                                     printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                                     srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                                    return;
+                                    return RV_TRAP;
                             }
                             break;
                         case FN_BINV:
@@ -1258,7 +1271,7 @@ void srv32_step(struct rv *rv) {
                         default:
                             printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                             srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                            return;
+                            return RV_TRAP;
                     }
                     break;
                 case OP_SR:
@@ -1284,7 +1297,7 @@ void srv32_step(struct rv *rv) {
                             } else {
                                 printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                                 srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                                return;
+                                return RV_TRAP;
                             }
                             break;
                         case FN_BCLR: // BCLRI
@@ -1313,20 +1326,20 @@ void srv32_step(struct rv *rv) {
                                 default:
                                     printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                                     srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                                    return;
+                                    return RV_TRAP;
                             }
                             break;
                         #endif // RV32B_ENABLED
                         default:
                             printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                             srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                            return;
+                            return RV_TRAP;
                     }
                     break;
                 default:
                     printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                     srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                    return;
+                    return RV_TRAP;
             }
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                       rv->pc, inst.inst, inst.i.rd, regname[inst.i.rd],
@@ -1416,7 +1429,7 @@ void srv32_step(struct rv *rv) {
                         default:
                             printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                             srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                            return;
+                            return RV_TRAP;
                     }
                 break;
                 #endif // RV32M_ENABLED
@@ -1461,7 +1474,7 @@ void srv32_step(struct rv *rv) {
                         default:
                             printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                             srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                            return;
+                            return RV_TRAP;
                     }
                 break;
 
@@ -1492,7 +1505,7 @@ void srv32_step(struct rv *rv) {
                         default:
                             printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                             srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                            return;
+                            return RV_TRAP;
                     }
                     break;
 
@@ -1570,7 +1583,7 @@ void srv32_step(struct rv *rv) {
                         default:
                             printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                             srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                            return;
+                            return RV_TRAP;
                     }
                     break;
 
@@ -1594,7 +1607,7 @@ void srv32_step(struct rv *rv) {
                         default:
                             printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                             srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                            return;
+                            return RV_TRAP;
                     }
                     break;
 
@@ -1619,7 +1632,7 @@ void srv32_step(struct rv *rv) {
                         default:
                             printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                             srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                            return;
+                            return RV_TRAP;
                     }
                     break;
 
@@ -1644,7 +1657,7 @@ void srv32_step(struct rv *rv) {
                         default:
                             printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                             srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                            return;
+                            return RV_TRAP;
                     }
                     break;
 
@@ -1658,7 +1671,7 @@ void srv32_step(struct rv *rv) {
                 default:
                     printf("Unknown instruction at PC 0x%08x\n", rv->pc);
                     srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                    return;
+                    return RV_TRAP;
             }
             TIME_LOG; TRACE_LOG "%08x %08x x%02u (%s) <= 0x%08x\n",
                       rv->pc, inst.inst, inst.r.rd, regname[inst.r.rd],
@@ -1703,22 +1716,22 @@ void srv32_step(struct rv *rv) {
                                     srv32_write_regs(rv, A0, res);
                                } else {
                                     srv32_trap(rv, TRAP_ECALL, 0);
-                                    return;
+                                    return RV_TRAP;
                                }
                                break;
                                #else
                                if (res != -1)
                                     srv32_write_regs(rv, A0, res);
                                srv32_trap(rv, TRAP_ECALL, 0);
-                               return;
+                               return RV_TRAP;
                                #endif
                            } else {
                                srv32_trap(rv, TRAP_ECALL, 0);
-                               return;
+                               return RV_TRAP;
                            }
                        case 1: // ebreak
                            srv32_trap(rv, TRAP_BREAK, rv->pc);
-                           return;
+                           return RV_TRAP;
                        case 2: // mret
                            rv->pc = rv->csr.mepc;
                            // rv->csr.mstatus.mie = rv->csr.mstatus.mpie
@@ -1730,15 +1743,15 @@ void srv32_step(struct rv *rv) {
                            #ifndef RV32C_ENABLED
                            if ((rv->pc & 3) != 0) {
                                // Instruction address misaligned
-                               return;
+                               return RV_OKAY;
                            }
                            #endif // RV32C_ENABLED
                            srv32_cycle_add(rv, rv->branch_penalty);
-                           return;
+                           return RV_OKAY;
                        default:
                            printf("Illegal system call at PC 0x%08x\n", rv->pc);
                            srv32_trap(rv, TRAP_INST_ILL, 0);
-                           return;
+                           return RV_TRAP;
                     }
                     break;
                 case OP_CSRRWI:
@@ -1786,7 +1799,7 @@ void srv32_step(struct rv *rv) {
                     TIME_LOG; TRACE_LOG "%08x %08x\n", rv->pc, inst.inst
                     TRACE_END;
                     srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                    return;
+                    return RV_TRAP;
             }
             if (csr_op) {
                 int legal = 0;
@@ -1800,7 +1813,7 @@ void srv32_step(struct rv *rv) {
                 if (!legal) {
                    TRACE_LOG "\n" TRACE_END;
                    srv32_trap(rv, TRAP_INST_ILL, 0);
-                   return;
+                   return RV_TRAP;
                 }
                 TRACE_LOG " x%02u (%s) <= 0x%08x\n",
                           inst.i.rd,
@@ -1814,11 +1827,12 @@ void srv32_step(struct rv *rv) {
             TIME_LOG; TRACE_LOG "%08x %08x\n", rv->pc, inst.inst
             TRACE_END;
             srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-            return;
+            return RV_TRAP;
         }
     } // end of switch(inst.r.op)
 
     rv->pc = compressed ? rv->pc + 2 : rv->pc + 4;
 
+    return RV_OKAY;
 }
 

@@ -8,20 +8,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef struct TreeNode {
+enum Color { RED, BLACK };
+
+typedef struct Node {
     int data;
-    struct TreeNode *left;
-    struct TreeNode *right;
-} TreeNode;
+    enum Color color;
+    struct Node *left, *right, *parent;
+} Node;
 
-// Function to insert a new node in the binary tree
-void insert(TreeNode **root, int data);
-
-// Function to find a node with given data in the binary tree
-TreeNode* find(TreeNode *root, int data);
-
-// Function to delete a node from the binary tree
-TreeNode* delete(TreeNode *root, int data);
+void insertNode(Node **root, int data);
+Node* findNode(Node *root, int data);
+void deleteNode(Node **root, int data);
 
 #endif // __MAP_H__
 
