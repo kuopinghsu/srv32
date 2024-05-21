@@ -3,7 +3,7 @@ include ../common/Makefile.common
 
 EXE      = .elf
 SRC      = pi.c
-CFLAGS  += -L../common
+CFLAGS  += -L../common -Wno-implicit-int
 LDFLAGS += -T ../common/default.ld
 TARGET   = pi
 OUTPUT   = $(TARGET)$(EXE)

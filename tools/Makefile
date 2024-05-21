@@ -83,8 +83,9 @@ libgdbstub.a:
 
 %.elf: $(RVSIM)
 	@if [ ! -f ../sw/$*/$*.elf ]; then \
-		$(MAKE) memsize=$(memsize) -C ../sw $*; \
+		$(MAKE) rv32m=$(rv32m) rv32c=$(rv32c) rv32e=$(rv32e) rv32b=$(rv32b) memsize=$(memsize) -C ../sw $*; \
 	fi
+	@rm -rf trace.log
 	./$(RVSIM) --memsize $(memsize) $(TRACELOG) ../sw/$*/$*.elf
 	@if [ -f trace.log ]; then ./log2dis.pl -q trace.log ../sw/$*/$*.elf; fi
 
