@@ -217,7 +217,6 @@ end
 //                  F/D E  w
 ////////////////////////////////////////////////////////////
 // stage 1: fetch/decode
-// test2
 ////////////////////////////////////////////////////////////
     reg             [31: 0] imm;
 
@@ -324,33 +323,7 @@ begin
         end
         else
         begin
-            // case for C-Extenstion
-            case(inst[`COPFUNC])
-                // CI-type
-                OP_CLI       : imm  = {26'b0, inst[12], inst[6:2]};
-                OP_CADDI     : imm  = {26'b0, inst[12], inst[6:2]};
-                OP_CSLLI     : imm  = {26'b0, inst[12], inst[6:2]};
-                OP_CLUI      : imm  = {14'b0, inst[12], inst[6:2], 12'b0};
-                OP_CLWSP     : imm  = {26'b0, inst[3:2], inst[12], inst[6:4], 2'b0};
-                OP_CADDI16SP : imm  = {25'b0, inst[12], inst[4:3], inst[5], inst[2], inst[6], 4'b0};
-                // CSS-type
-                OP_SWSP      : imm  = {24'b0, inst[8:7], inst[12:9], 2'b0};
-                // CIW-type
-                OP_CADDI4SPN : imm  = {24'b0, inst[16:13], inst[12:11], inst[5], inst[6], 2'b0};
-                // CL-type
-                OP_CLW       : imm  = {24'b0, inst[13], inst[12:10], inst[6], 2'b0};
-                // CS-type
-                OP_CSW       : imm  = {24'b0, inst[13], inst[12:10], inst[6], 2'b0};
-                // CB-type
-                OP_CBEQZ     : imm  = {24'b0, inst[12], inst[6:5], inst[2], inst[11:10], inst[4:3], 1'b0};
-                OP_CBNEZ     : imm  = {24'b0, inst[12], inst[6:5], inst[2], inst[11:10], inst[4:3], 1'b0};
-                OP_CSRLI     : imm  = {27'b0, inst[6:2]};
-                OP_CSRAI     : imm  = {26'b0, inst[12], inst[6:2]};
-                OP_CANDI     : imm  = {26'b0, inst[12], inst[6:2]};
-                // CJ-type
-                OP_CJ        : imm  = {20'b0, inst[12], inst[8], inst[10:9], inst[7], inst[6], inst[2], inst[11], inst[4:2], 1'b0};
-                OP_CJAL      : imm  = {20'b0, inst[12], inst[8], inst[10:9], inst[7], inst[6], inst[2], inst[11], inst[4:2], 1'b0};
-            endcase
+
         end
     end
 end
