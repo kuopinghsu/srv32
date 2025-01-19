@@ -20,6 +20,8 @@
 // SOFTWARE.
 
 `define OPCODE      6:0
+`define COPCODE     1:0
+`define CFUNC3      15:13
 `define FUNC3       14:12
 `define FUNC7       31:25
 `define SUBTYPE     30
@@ -94,6 +96,76 @@ localparam  [ 2: 0] OP_ECALL   = 3'b000,    // inst[20] == 0: ECALL, inst[20] ==
                     OP_CSRRWI  = 3'b101,
                     OP_CSRRSI  = 3'b110,
                     OP_CSRRCI  = 3'b111;
+
+// INST[1:0] = 2'b00
+localparam  [ 1: 0] OP_CADDI4SPN = 2'b00,  
+                    OP_CLW       = 2'b00,
+                    OP_CSW       = 2'b00;
+
+// INST[1:0] = 2'b01
+localparam  [ 1: 0] OP_CADDI     = 2'b01,
+                    OP_CJAL      = 2'b01,
+                    OP_CLI       = 2'b01,
+                    OP_CADDI16SP = 2'b01,
+                    OP_CLUI      = 2'b01,
+                    OP_CSRLI     = 2'b01,
+                    OP_CSRAI     = 2'b01,
+                    OP_CANDI     = 2'b01,
+                    OP_CJ        = 2'b01,
+                    OP_CBEQZ     = 2'b01,
+                    OP_CBNEZ     = 2'b01;
+
+// INST[1:0] = 2'b01, no imm
+localparam  [ 1: 0] OP_CSUB      = 2'b01,
+                    OP_CXOR      = 2'b01,
+                    OP_COR       = 2'b01,
+                    OP_CAND      = 2'b01;
+
+// INST[1:0] = 2'b10
+localparam  [ 1: 0] OP_CSLLI     = 2'b10,
+                    OP_CLWSP     = 2'b10,
+                    OP_CSWSP     = 2'b10,
+
+// INST[1:0] = 2'b10, no imm
+localparam  [ 1: 0] OP_CJR       = 2'b10,
+                    OP_CMV       = 2'b10,
+                    OP_CJALR     = 2'b10,
+                    OP_CADD      = 2'b10,
+
+// INST[1:0] = 2'b00
+localparam  [ 2: 0] FUNC3_CADDI4SPN = 3'b000,  
+                    FUNC3_CLW       = 3'b010,
+                    FUNC3_CSW       = 3'b110;
+
+// INST[1:0] = 2'b01
+localparam  [ 2: 0] FUNC3_CADDI     = 3'b000,
+                    FUNC3_CJAL      = 3'b001,
+                    FUNC3_CLI       = 3'b010,
+                    FUNC3_CADDI16SP = 3'b011,
+                    FUNC3_CLUI      = 3'b011,
+                    FUNC3_CSRLI     = 3'b100,
+                    FUNC3_CSRAI     = 3'b100,
+                    FUNC3_CANDI     = 3'b100,
+                    FUNC3_CJ        = 3'b101,
+                    FUNC3_CBEQZ     = 3'b110,
+                    FUNC3_CBNEZ     = 3'b111;
+
+// INST[1:0] = 2'b01, no imm
+localparam  [ 2: 0] FUNC3_CSUB      = 3'b100,
+                    FUNC3_CXOR      = 3'b100,
+                    FUNC3_COR       = 3'b100,
+                    FUNC3_CAND      = 3'b100;
+
+// INST[1:0] = 2'b10
+localparam  [ 2: 0] FUNC3_CSLLI     = 3'b000,
+                    FUNC3_CLWSP     = 3'b010,
+                    FUNC3_CSWSP     = 3'b110,
+
+// INST[1:0] = 2'b10, no imm
+localparam  [ 2: 0] FUNC3CJR       = 3'b100,
+                    FUNC3_CMV       = 3'b100,
+                    FUNC3_CJALR     = 3'b100,
+                    FUNC3_CADD      = 3'b100,
 
 // CSR registers
 localparam  [11: 0] CSR_MVENDORID   = 12'hF11,    // Vender ID

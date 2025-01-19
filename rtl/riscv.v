@@ -163,6 +163,16 @@ module riscv #(
 
     integer                 i;
 
+    wire                    CR;
+    wire                    CI;
+    wire                    CSS;
+    wire                    CIW;    
+    wire                    CL;
+    wire                    CS;
+    wire                    CA;
+    wire                    CB;
+    wire                    CJ;
+
 assign if_insn              = imem_rdata;
 
 assign inst                 = flush ? NOP : if_insn;
@@ -307,7 +317,19 @@ always @(posedge clk or negedge resetb) begin
                                  (inst[`OPCODE] == OP_SYSTEM));
         ex_mul              <= (inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h1) &&
                                (RV32M == 1);
+    end else begin
+        CR                  <= inst[`COPCODE] == 2'b10 && inst[`CFUNC3] == 3'b100;
+        CI                  <= (inst[`COPCODE] == 2'b01 && (inst[`CFUNC3] == 3'b000 || inst[`CFUNC3] == 3'b010 || inst[`CFUNC3] == 3b'011)) ||
+                               (inst[`COPCODE] == 2'b10 && (inst[`CFUNC3] == 3'b000 || inst[`CFUNC3] == 3'b010))                               
+        CSS                 <= inst[`COPCODE] == 2'b10 && inst[`CFUNC3] == 3'b110
+        CIW                 <= inst[`COPCODE] == 2'b00 && inst[`CFUNC3] == 3'b000
+        CL                  <= inst[`COPCODE] == 2'b00 && inst[`CFUNC3] == 3'b010
+        CS                  <= inst[`COPCODE] == 2'b00 && inst[`CFUNC3] == 3'b110
+        CA
+        CB
+
     end
+    
 end
 
 `ifndef SYNTHESIS
