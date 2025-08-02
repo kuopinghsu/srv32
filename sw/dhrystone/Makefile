@@ -6,6 +6,7 @@ CFLAGS  += -DTIME -DRISCV -DHZ=100000000 -L../common
 CFLAGS  += -Wno-return-type -Wno-implicit-function-declaration -Wno-implicit-int
 CFLAGS  += -fno-common -funroll-loops -finline-functions -falign-functions=16
 CFLAGS  += -falign-jumps=4 -falign-loops=4 -finline-limit=1000
+CFLAGS  += -Wno-old-style-definition
 #CFLAGS += -fno-if-conversion2 -fselective-scheduling -fno-tree-dominator-opts
 #CFLAGS += -fno-reg-struct-return -fno-rename-registers
 #CFLAGS += --param case-values-threshold=8 -fno-crossjumping
