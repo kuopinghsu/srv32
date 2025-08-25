@@ -11,22 +11,25 @@
         .word 4;
 
 //RV_COMPLIANCE_HALT
-#define RVMODEL_HALT                                              \
-  li x1, 1;                                                                   \
-  write_tohost:                                                               \
-    sw x1, tohost, t5;                                                        \
-    j write_tohost;
+#define RVMODEL_HALT                                                    \
+        li x1, 1;                                                       \
+write_tohost:                                                           \
+        sw x1, tohost, t5;                                              \
+        j write_tohost;
 
-#define RVMODEL_BOOT
+// see https://github.com/riscv-non-isa/riscv-arch-test/issues/659
+// get rid of compressed instructions
+#define RVMODEL_BOOT                                                    \
+        .option norelax;
 
 //RV_COMPLIANCE_DATA_BEGIN
 #define RVMODEL_DATA_BEGIN                                              \
-  .align 4; .global begin_signature; begin_signature:
+        .align 4; .global begin_signature; begin_signature:
 
 //RV_COMPLIANCE_DATA_END
-#define RVMODEL_DATA_END                                                      \
-  .align 4; .global end_signature; end_signature:  \
-  RVMODEL_DATA_SECTION                                                        \
+#define RVMODEL_DATA_END                                                \
+        .align 4; .global end_signature; end_signature:                 \
+        RVMODEL_DATA_SECTION                                            \
 
 //RVTEST_IO_INIT
 #define RVMODEL_IO_INIT
@@ -48,6 +51,5 @@
 #define RVMODEL_CLEAR_MTIMER_INT
 
 #define RVMODEL_CLEAR_MEXT_INT
-
 
 #endif // _COMPLIANCE_MODEL_H

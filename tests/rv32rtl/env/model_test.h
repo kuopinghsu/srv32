@@ -32,17 +32,20 @@ __exit:                                                                 \
         sw      a1, 0(a4);                                              \
 1:      j       1b;
 
-#define RVMODEL_BOOT
+// see https://github.com/riscv-non-isa/riscv-arch-test/issues/659
+// get rid of compressed instructions
+#define RVMODEL_BOOT                                                    \
+        .option norelax;
 
 #define RVMODEL_DATA_BEGIN                                              \
-  RVMODEL_DATA_SECTION                                                  \
-  .align 4;                                                             \
-  .global begin_signature;                                              \
+        RVMODEL_DATA_SECTION                                            \
+        .align 4;                                                       \
+        .global begin_signature;                                        \
 begin_signature:
 
 #define RVMODEL_DATA_END                                                \
-  .align 4;                                                             \
-  .global end_signature;                                                \
+        .align 4;                                                       \
+        .global end_signature;                                          \
 end_signature:
 
 #define RVMODEL_IO_INIT
