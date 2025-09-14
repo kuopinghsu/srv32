@@ -27,7 +27,7 @@ Install RISCV toolchains.
     sudo apt-get install autoconf automake autotools-dev curl libmpc-dev \
         libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo \
         gperf libtool patchutils bc zlib1g-dev git libexpat1-dev python3 \
-        python-is-python3 lcov
+        python-is-python3 lcov ninja-build device-tree-compiler
     
     git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
     cd riscv-gnu-toolchain
@@ -65,13 +65,12 @@ Adding extra CFLAGS as follows.
 
 Refer to [RISCOF](https://riscof.readthedocs.io/en/stable/installation.html) to setup.
 
-Install RISCOF:
+Install RISCOF: (this needs specfic riscof rev, see [here](https://github.com/riscv-software-src/riscof/issues/128).)
 
-    $ pip3 install git+https://github.com/riscv/riscof.git
+    $ pip3 install git+https://github.com/riscv/riscof.git@d38859f85fe407bcacddd2efcd355ada4683aee4
 
 Install spike:
 
-    $ sudo apt-get install device-tree-compiler
     $ git clone https://github.com/riscv-software-src/riscv-isa-sim.git
     $ cd riscv-isa-sim
     $ mkdir build
