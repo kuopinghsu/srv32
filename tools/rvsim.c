@@ -784,7 +784,7 @@ int main(int argc, char **argv) {
         if (!gdbstub_init(&rv->gdbstub, &gdbstub_ops,
                   (arch_info_t){
                       .reg_num = REGNUM+1,
-                      .reg_byte = 4,
+                      .smp = 0,
                       .target_desc = TARGET_RV32,
                   }, gdbstub_port)) {
             fprintf(stderr, "Fail to create socket.\n");

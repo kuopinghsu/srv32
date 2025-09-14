@@ -24,6 +24,7 @@
 // do not check coverage here
 // LCOV_EXCL_START
 #include <errno.h>
+#include <string.h>
 
 #include "mini-gdbstub/include/gdbstub.h"
 #include "rvsim.h"
@@ -66,30 +67,32 @@ static gdb_action_t srv_stepi(void *args) {
     return ACT_RESUME;
 }
 
-static int srv_read_reg(void *args, int regno, size_t *value) {
+static int srv_read_reg(void *args, int regno, void *value) {
     struct rv *rv = (struct rv *) args;
 
     if (regno > REGNUM)
         return EFAULT;
 
     if (regno == REGNUM)
-        *value = rv->pc;
-    else
-        *value = srv32_read_regs(rv, regno);
+        memcpy(value, (void*)&rv->pc, 4);
+    else {
+	size_t reg_rd = srv32_read_regs(rv, regno);
+        memcpy(value, (void*)&reg_rd, 4);
+    }
 
     return 0;
 }
 
-static int srv_write_reg(void *args, int regno, size_t value) {
+static int srv_write_reg(void *args, int regno, void *value) {
     struct rv *rv = (struct rv *) args;
 
     if (regno > REGNUM)
         return EFAULT;
 
     if (regno == REGNUM)
-        rv->pc = value;
+        rv->pc = *((size_t*)value);
     else
-        srv32_write_regs(rv, regno, value);
+        srv32_write_regs(rv, regno, *((size_t *)value));
 
     return 0;
 }

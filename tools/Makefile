@@ -64,12 +64,12 @@ RVSIM   = rvsim
 
 .PHONY: clean
 
-all: mini-gdbstub $(RVSIM)
+all: $(RVSIM)
 
 %.o: %.c opcode.h
 	$(CC) -DMEMSIZE=$(memsize) -c -o $@ $< $(CFLAGS)
 
-$(RVSIM): $(OBJECTS) libgdbstub.a
+$(RVSIM): mini-gdbstub $(OBJECTS) libgdbstub.a mini-gdbstub
 	$(CC) $(CFLAGS) -o $(RVSIM) $(OBJECTS) $(LDFLAGS)
 
 mini-gdbstub:
