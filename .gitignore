@@ -66,7 +66,6 @@ tests/spike/__pycache__
 
 .DS_Store
 tools/rvsim
-tools/mini-gdbstub
 sim/sim
 sim/sim_cc
 *.dis

@@ -69,7 +69,7 @@ all: $(RVSIM)
 %.o: %.c opcode.h
 	$(CC) -DMEMSIZE=$(memsize) -c -o $@ $< $(CFLAGS)
 
-$(RVSIM): mini-gdbstub $(OBJECTS) libgdbstub.a mini-gdbstub
+$(RVSIM): $(OBJECTS) libgdbstub.a mini-gdbstub
 	$(CC) $(CFLAGS) -o $(RVSIM) $(OBJECTS) $(LDFLAGS)
 
 mini-gdbstub:
@@ -79,7 +79,11 @@ mini-gdbstub:
 	fi
 
 libgdbstub.a:
+ifeq ($(DEBUG), 1)
+	CC=gcc make -C mini-gdbstub debug
+else
 	CC=gcc make -C mini-gdbstub
+endif
 
 %.elf: $(RVSIM)
 	@if [ ! -f ../sw/$*/$*.elf ]; then \

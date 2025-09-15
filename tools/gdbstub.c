@@ -24,7 +24,6 @@
 // do not check coverage here
 // LCOV_EXCL_START
 #include <errno.h>
-#include <string.h>
 
 #include "mini-gdbstub/include/gdbstub.h"
 #include "rvsim.h"
@@ -39,6 +38,10 @@ static inline bool srv_is_halted(struct rv *rv) {
 
 static inline bool srv_is_interrupt(struct rv *rv) {
     return __atomic_load_n(&rv->is_interrupted, __ATOMIC_RELAXED);
+}
+
+static size_t srv_get_reg_bytes(int regno __attribute__((unused))) {
+    return 4;
 }
 
 static gdb_action_t srv_cont(void *args) {
@@ -74,11 +77,9 @@ static int srv_read_reg(void *args, int regno, void *value) {
         return EFAULT;
 
     if (regno == REGNUM)
-        memcpy(value, (void*)&rv->pc, 4);
-    else {
-	size_t reg_rd = srv32_read_regs(rv, regno);
-        memcpy(value, (void*)&reg_rd, 4);
-    }
+        *((size_t*)value) = rv->pc;
+    else
+        *((size_t*)value) = srv32_read_regs(rv, regno);
 
     return 0;
 }
@@ -152,6 +153,7 @@ static void srv_on_interrupt(void *args) {
 }
 
 const struct target_ops gdbstub_ops = {
+    .get_reg_bytes = srv_get_reg_bytes,
     .read_reg = srv_read_reg,
     .write_reg = srv_write_reg,
     .read_mem = srv_read_mem,
