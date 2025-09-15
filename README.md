@@ -17,6 +17,13 @@ This is not a RISC-V core available for production.
 6.  [FreeRTOS](https://github.com/kuopinghsu/FreeRTOS-RISCV) support
 7.  ISS simulator
 
+## Cloning this respository
+
+This repo uses git submodules to bring in others components. Using ``--recursive`` to clone
+the repo with submodules.
+
+    git clone --recursive https://github.com/kuopinghsu/srv32.git
+
 ## Pre-requisite tools
 
 ### Building toolchains

@@ -68,6 +68,7 @@ tests/spike/__pycache__
 tools/rvsim
 sim/sim
 sim/sim_cc
+sim/wave.fst
 *.dis
 *.symbol
 *.elf
