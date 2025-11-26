@@ -36,7 +36,7 @@ Install RISCV toolchains.
         gperf libtool patchutils bc zlib1g-dev git libexpat1-dev python3 \
         python-is-python3 lcov ninja-build device-tree-compiler pip
     
-    git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
+    git clone https://github.com/riscv/riscv-gnu-toolchain
     cd riscv-gnu-toolchain
 
     mkdir build; cd build
