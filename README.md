@@ -34,7 +34,7 @@ Install RISCV toolchains.
     sudo apt-get install autoconf automake autotools-dev curl libmpc-dev \
         libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo \
         gperf libtool patchutils bc zlib1g-dev git libexpat1-dev python3 \
-        python-is-python3 lcov ninja-build device-tree-compiler
+        python-is-python3 lcov ninja-build device-tree-compiler pip
     
     git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
     cd riscv-gnu-toolchain
@@ -74,16 +74,16 @@ Refer to [RISCOF](https://riscof.readthedocs.io/en/stable/installation.html) to 
 
 Install RISCOF: (this needs specfic riscof rev, see [here](https://github.com/riscv-software-src/riscof/issues/128).)
 
-    $ pip3 install git+https://github.com/riscv/riscof.git@d38859f85fe407bcacddd2efcd355ada4683aee4
+    pip3 install git+https://github.com/riscv/riscof.git@d38859f85fe407bcacddd2efcd355ada4683aee4
 
 Install spike:
 
-    $ git clone https://github.com/riscv-software-src/riscv-isa-sim.git
-    $ cd riscv-isa-sim
-    $ mkdir build
-    $ cd build
-    $ ../configure --prefix=/path/to/install
-    $ make install
+    git clone https://github.com/riscv-software-src/riscv-isa-sim.git
+    cd riscv-isa-sim
+    mkdir build
+    cd build
+    ../configure --prefix=/path/to/install
+    make install
 
 ## Files list
 
@@ -460,7 +460,7 @@ This is an example to run the "queue" demo.
 Following command will generate the code coverage report in coverage/html
 directory.
 
-    % make coverage
+    make coverage
 
 This is the coverage report of RTL by lcov, which get 100% code coverage.
 
