@@ -47,5 +47,5 @@ endif
 endif
 
 CFLAGS  := -O3 -g -Wall $(ARCH) -nostartfiles
-ASFLAGS := $(ARCH)
+ASFLAGS := $(ARCH) -g
 LDFLAGS := -lsys
