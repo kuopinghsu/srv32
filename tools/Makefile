@@ -53,7 +53,7 @@ else
 TRACELOG =
 endif
 
-LDFLAGS += -Lmini-gdbstub/build -lgdbstub
+LDFLAGS += -Lmini-gdbstub/build -lgdbstub -lpthread
 
 SRC      = rvsim.c decompress.c syscall.c elfloader.c getch.c htif.c \
            debug.c riscv-disas.c gdbstub.c map.c
