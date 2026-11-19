@@ -26,7 +26,8 @@ module riscv #(
     parameter RV32M = 1,
     parameter RV32E = 0,
     parameter RV32B = 0,
-    parameter RV32C = 0
+    parameter RV32C = 0,
+    parameter MEM_WAIT_STATES = 0
 )(
     input                   clk,
     input                   resetb,
@@ -58,7 +59,9 @@ module riscv #(
     input                   dmem_rvalid,
     output          [31: 0] dmem_raddr,
     input                   dmem_rresp,
-    input           [31: 0] dmem_rdata
+    input           [31: 0] dmem_rdata,
+
+    output                  imem_redirect
 );
 
 `include "opcode.vh"
@@ -72,6 +75,8 @@ module riscv #(
     reg             [ 1: 0] pipefill;
 
     wire                    if_stall;
+    wire                    redirect_pending;
+    reg                     ex_valid;
     wire                    ex_stall;
     wire                    wb_stall;
 
@@ -113,6 +118,7 @@ module riscv #(
     wire                    ex_flush;
     reg             [31: 0] ex_csr_read;
     wire                    ex_trap;
+    reg                     branch_taken;
     wire                    ex_trap_nop;
     wire            [31: 0] ex_trap_pc;
     wire            [31: 0] ex_csr_data;
@@ -163,13 +169,25 @@ module riscv #(
 
     integer                 i;
 
+wire valid_load = inst[`OPCODE] == OP_LOAD &&
+                  (inst[`FUNC3] == OP_LB || inst[`FUNC3] == OP_LBU ||
+                   inst[`FUNC3] == OP_LH || inst[`FUNC3] == OP_LHU ||
+                   inst[`FUNC3] == OP_LW);
+wire valid_system_call = inst == 32'h00000073 || inst == 32'h00100073 ||
+                         inst == 32'h30200073;
+wire valid_csr = inst[`OPCODE] == OP_SYSTEM &&
+                 inst[`FUNC3] != 3'b000 && inst[`FUNC3] != 3'b100;
+
 assign if_insn              = imem_rdata;
 
-assign inst                 = flush ? NOP : if_insn;
-assign if_stall             = stall_r || !imem_valid;
+// With buffered instruction responses, squash the fetched instruction on redirect.
+assign redirect_pending     = MEM_WAIT_STATES && (branch_taken || ex_trap);
+assign inst                 = (MEM_WAIT_STATES ? redirect_pending : flush) ? NOP : if_insn;
+assign if_stall             = stall_r || (!imem_valid && !redirect_pending) ||
+                              (MEM_WAIT_STATES && (wb_memwr && !dmem_wvalid));
 assign dmem_waddr           = wb_waddr;
 assign dmem_raddr           = ex_memaddr;
-assign dmem_rready          = ex_mem2reg;
+assign dmem_rready          = ex_mem2reg && (!MEM_WAIT_STATES || !ex_ld_align_excp);
 assign dmem_wready          = wb_memwr;
 assign dmem_wdata           = wb_wdata;
 assign dmem_wstrb           = wb_wstrb;
@@ -251,7 +269,7 @@ always @(posedge clk or negedge resetb) begin
         ex_pc               <= RESETVEC;
         ex_illegal          <= 1'b0;
         ex_mul              <= 1'b0;
-    end else if (!if_stall) begin
+    end else if (MEM_WAIT_STATES ? !ex_stall : !if_stall) begin
         ex_imm              <= imm;
         ex_imm_sel          <= (inst[`OPCODE] == OP_JALR  ) ||
                                (inst[`OPCODE] == OP_LOAD  ) ||
@@ -266,34 +284,25 @@ always @(posedge clk or negedge resetb) begin
         ex_alu              <= (inst[`OPCODE] == OP_ARITHI) ||
                                ((inst[`OPCODE] == OP_ARITHR) &&
                                 (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20));
-        ex_csr              <= (inst[`OPCODE] == OP_SYSTEM) &&
-                               (inst[`FUNC3] != OP_ECALL);
-                               // CSRRS and CSRRC, if rs1==0, then the instruction
-                               // will not write to the CSR at all
-        ex_csr_wr           <= (inst[`OPCODE] == OP_SYSTEM) &&
-                               (inst[`FUNC3] != OP_ECALL) &&
-                               !(inst[`FUNC3] != OP_CSRRW && inst[`FUNC3] != OP_CSRRWI &&
-                                 inst[`RS1] == 5'h0);
+        ex_csr              <= valid_csr;
+        // CSRRS and CSRRC with a zero source only read the CSR.
+        ex_csr_wr           <= valid_csr &&
+                               (inst[`FUNC3] == OP_CSRRW || inst[`FUNC3] == OP_CSRRWI ||
+                                inst[`RS1] != 5'h0);
         ex_lui              <= inst[`OPCODE] == OP_LUI;
         ex_auipc            <= inst[`OPCODE] == OP_AUIPC;
         ex_jal              <= inst[`OPCODE] == OP_JAL;
         ex_jalr             <= inst[`OPCODE] == OP_JALR;
         ex_branch           <= inst[`OPCODE] == OP_BRANCH;
-        ex_system           <= (inst[`OPCODE] == OP_SYSTEM) &&
-                               (inst[`FUNC3] == 3'b000);
+        ex_system           <= valid_system_call;
         ex_system_op        <= inst[`OPCODE] == OP_SYSTEM;
-        ex_pc               <= if_pc;
+        ex_pc               <= MEM_WAIT_STATES ? fetch_pc : if_pc;
         ex_illegal          <= !((inst[`OPCODE] == OP_AUIPC )||
                                  (inst[`OPCODE] == OP_LUI   )||
                                  (inst[`OPCODE] == OP_JAL   )||
                                  (inst[`OPCODE] == OP_JALR  )||
                                  (inst[`OPCODE] == OP_BRANCH)||
-                                 ((inst[`OPCODE] == OP_LOAD ) &&
-                                  ((inst[`FUNC3] == OP_LB) ||
-                                   (inst[`FUNC3] == OP_LH) ||
-                                   (inst[`FUNC3] == OP_LW) ||
-                                   (inst[`FUNC3] == OP_LBU) ||
-                                   (inst[`FUNC3] == OP_LHU))) ||
+                                 valid_load ||
                                  ((inst[`OPCODE] == OP_STORE) &&
                                   ((inst[`FUNC3] == OP_SB) ||
                                    (inst[`FUNC3] == OP_SH) ||
@@ -304,7 +313,7 @@ always @(posedge clk or negedge resetb) begin
                                  ((inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h01) &&
                                   (RV32M == 1)) ||
                                  (inst[`OPCODE] == OP_FENCE )||
-                                 (inst[`OPCODE] == OP_SYSTEM));
+                                 valid_system_call || valid_csr);
         ex_mul              <= (inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h1) &&
                                (RV32M == 1);
     end
@@ -322,7 +331,10 @@ end
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
         ex_mem2reg          <= 1'b0;
-    else if (inst[`OPCODE] == OP_LOAD)
+    else if (MEM_WAIT_STATES) begin
+        if (!ex_stall)
+            ex_mem2reg      <= valid_load;
+    end else if (valid_load)
         ex_mem2reg          <= 1'b1;
     else if (ex_mem2reg && dmem_rvalid)
         ex_mem2reg          <= 1'b0;
@@ -331,8 +343,10 @@ end
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         ex_insn             <= NOP;
-    end else if (!if_stall) begin
+        ex_valid            <= 1'b0;
+    end else if (MEM_WAIT_STATES ? !ex_stall : !if_stall) begin
         ex_insn             <= inst;
+        ex_valid            <= !redirect_pending;
     end
 end
 
@@ -343,7 +357,6 @@ end
     wire            [32: 0] result_subu;
     reg             [31: 0] ex_result;
     reg             [31: 0] next_pc;
-    reg                     branch_taken;
     wire            [31: 0] result_jal;
     wire            [31: 0] result_jalr;
 
@@ -367,14 +380,15 @@ assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE] &&
                               !ex_system_op && !ex_flush;
 
 assign ex_stall             = stall_r || if_stall ||
-                              (ex_mem2reg && !dmem_rvalid);
+                              (ex_mem2reg && !dmem_rvalid &&
+                               !(MEM_WAIT_STATES && ex_ld_align_excp));
 assign alu_op1[31: 0]       = reg_rdata1;
 assign alu_op2[31: 0]       = (ex_imm_sel) ? ex_imm : reg_rdata2;
 
 assign result_subs[32: 0]   = {alu_op1[31], alu_op1} - {alu_op2[31], alu_op2};
 assign result_subu[32: 0]   = {1'b0, alu_op1} - {1'b0, alu_op2};
 assign ex_memaddr           = alu_op1 + ex_imm;
-assign ex_flush             = wb_branch || wb_branch_nxt;
+assign ex_flush             = !MEM_WAIT_STATES && (wb_branch || wb_branch_nxt);
 assign ex_systemcall        = ex_system && !ex_flush;
 
 assign result_jal           = ex_pc + ex_imm;
@@ -553,6 +567,8 @@ always @(posedge clk or negedge resetb) begin
                                ex_csr ||
                                ex_mul ||
                                (ex_mem2reg && !ex_ld_align_excp);
+        if (MEM_WAIT_STATES && (!ex_valid || ex_trap_nop))
+            wb_alu2reg      <= 1'b0;
         wb_dst_sel          <= ex_dst_sel;
         wb_branch           <= branch_taken || ex_trap;
         wb_branch_nxt       <= wb_branch;
@@ -565,7 +581,8 @@ end
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
         wb_memwr            <= 1'b0;
-    else if (ex_memwr && !ex_flush && !ex_st_align_excp)
+    else if (ex_memwr && !ex_flush && !ex_trap_nop &&
+             (!MEM_WAIT_STATES || !ex_stall))
         wb_memwr            <= 1'b1;
     else if (wb_memwr && dmem_wvalid)
         wb_memwr            <= 1'b0;
@@ -608,11 +625,12 @@ end
 // stage 3: write back
 ////////////////////////////////////////////////////////////
 assign imem_addr            = fetch_pc;
-assign imem_ready           = !stall_r && !wb_stall;
+assign imem_ready           = MEM_WAIT_STATES ? !ex_stall : !stall_r && !wb_stall;
+assign imem_redirect        = redirect_pending && !ex_stall;
 assign wb_stall             = stall_r ||
                               (wb_memwr && !dmem_wvalid) ||
                               (wb_mem2reg && !dmem_rresp);
-assign wb_flush             = wb_nop || wb_nop_more;
+assign wb_flush             = !MEM_WAIT_STATES && (wb_nop || wb_nop_more);
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
@@ -677,9 +695,9 @@ assign ex_trap      = (ex_inst_ill_excp || ex_inst_align_excp ||
                        ex_ld_align_excp || ex_st_align_excp ||
                        ex_timer_irq || ex_sw_irq || ex_interrupt ||
                        ex_systemcall) && !ex_flush;
-assign ex_trap_pc   = (ex_systemcall && ex_imm[1:0] == 2'b10) ? // mret
+assign ex_trap_pc   = (ex_systemcall && ex_insn == 32'h30200073) ? // mret
                       csr_mepc :
-                      csr_mtvec[0] ?
+                      (csr_mtvec[1:0] == 2'b01 && ex_mcause[31]) ?
                       {csr_mtvec[31:2], 2'b00} + {26'h0, ex_mcause[3:0], 2'b00} :
                       {csr_mtvec[31:2], 2'b00};
 
@@ -699,7 +717,7 @@ always @* begin
             case (ex_imm[1:0])
                 2'b00: ex_mcause   = TRAP_ECALL;
                 2'b01: ex_mcause   = TRAP_BREAK;
-                2'b10: ex_mcause   = csr_mcause; // uret, sret, mret
+                2'b10: ex_mcause   = csr_mcause; // MRET
                 default: begin
                     `ifndef SYNTHESIS
                     $display("Illegal system call at PC 0x%08x\n", ex_pc);
@@ -711,8 +729,10 @@ always @* begin
     endcase
 end
 
-assign ex_ret_pc = (ex_jal || ex_jalr || (ex_branch && branch_taken)) ?
-                   next_pc[31: 1] : ex_pc[31: 1] + 31'd2;
+// An interrupt between instructions must resume at the pending fetch PC.
+assign ex_ret_pc = (MEM_WAIT_STATES && !ex_valid) ? fetch_pc[31:1] :
+                   (ex_jal || ex_jalr || (ex_branch && branch_taken)) ?
+                   next_pc[31:1] : ex_pc[31:1] + 31'd2;
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
@@ -833,12 +853,9 @@ always @(posedge clk or negedge resetb) begin
                         csr_mstatus[MIE]    <= 1'b0;
                         csr_mip             <= csr_mip;
                     end
-                    2'b10: begin // URET, SRET, MRET
-                        csr_mcause          <= csr_mcause;  // FIXME
-                        csr_mepc            <= {ex_pc[31: 1], 1'b0}; // FIXME
-                        csr_mtval           <= 32'd0; // FIXME
+                    2'b10: begin // MRET
                         csr_mstatus[MIE]    <= csr_mstatus[MPIE];
-                        csr_mip             <= csr_mip;
+                        csr_mstatus[MPIE]   <= 1'b1;
                     end
                     default: begin
                         csr_mcause          <= TRAP_INST_ILL;
@@ -950,12 +967,13 @@ always @(posedge clk or negedge resetb) begin
     end else if (!stall_r) begin
         if (pipefill != 2'b10)
             pipefill        <= pipefill + 1'b1;
-        else begin
-            csr_cycle       <= csr_cycle + 1'b1;
-            if (!ex_stall && !ex_flush) begin
-                csr_instret <= csr_instret + 1'b1;
-            end
-        end
+        else
+            csr_cycle <= csr_cycle + 1'b1;
+
+        if (!ex_stall && !ex_flush &&
+            (MEM_WAIT_STATES ? (ex_valid && !ex_trap_nop &&
+             (!ex_systemcall || ex_imm[1:0] == 2'b10)) : pipefill == 2'b10))
+            csr_instret <= csr_instret + 1'b1;
     end
 end
 
@@ -964,9 +982,8 @@ end
 ////////////////////////////////////////////////////////////
 // Read address  : ex_src1_sel, ex_src2_sel.
 // Read data out : reg_rdata1, reg_rdata2
-// Write enable  : wb_alu2reg
-// Write address : wb_dst_sel
-// Write data    : wb_result
+// Write address : wb_dst_sel (x0 has no storage)
+// Write data    : wb_mem2reg ? wb_rdata : wb_result
 ////////////////////////////////////////////////////////////
 
 // register reading @ execution stage and register forwarding
@@ -989,7 +1006,8 @@ always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         for(i = 1; i < (RV32E==1 ? 16 : 32); i = i + 1) regs[i] <= 32'h0;
     end else if (wb_alu2reg && !stall_r && !(wb_stall || wb_flush) && !wb_trap_nop) begin
-        regs[wb_dst_sel]    <= wb_mem2reg ? wb_rdata : wb_result;
+        if (wb_dst_sel != 5'd0)
+            regs[wb_dst_sel] <= wb_mem2reg ? wb_rdata : wb_result;
         `ifndef SYNTHESIS
         if ((wb_dst_sel > 15) && (RV32E == 1)) begin
             $display("RV32E: can not access register %d at PC %08x", wb_dst_sel, wb_pc);
