@@ -344,6 +344,13 @@ begin
 end
 endfunction
 
+function [31:0] getw;
+    input [31:0] address;
+begin
+    getw = ram[address[ADDRW+1:2]];
+end
+endfunction
+
 function [7:0] setb;
     input [31:0] address;
     input [7:0] din;

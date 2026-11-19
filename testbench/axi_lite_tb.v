@@ -112,7 +112,9 @@ module axi_lite_tb;
                     ram_rresp <= 2'b10;
                     first_target_read <= 0;
                 end else begin
-                    ram_rresp <= ram_araddr < 512 ? 2'b00 : 2'b10;
+                    ram_rresp <= ram_araddr < 512 &&
+                             !(!redirect_test && !$test$plusargs("image=") && ram_araddr == 84) ?
+                             2'b00 : 2'b10;
                 end
                 ram_rdata <= ram[ram_araddr[8:2]];
             end
@@ -138,13 +140,14 @@ module axi_lite_tb;
     endtask
 
     reg uart_checked = 0;
-    initial if (!$test$plusargs("image=")) begin
+    initial if (!$test$plusargs("image=") && !$test$plusargs("store_irq")) begin
         check_frame(8'h55);
         check_frame(8'ha6);
         uart_checked = 1;
     end
 
-    initial if (!$test$plusargs("redirect") && !$test$plusargs("image=")) begin
+    initial if (!$test$plusargs("redirect") && !$test$plusargs("image=") &&
+                !$test$plusargs("store_irq")) begin
         ram[0] = 32'h10000093; // addi x1, x0, 256
         ram[1] = 32'h05500113; // addi x2, x0, 0x55
         ram[2] = 32'h002080a3; // sb x2, 1(x1)
@@ -161,12 +164,18 @@ module axi_lite_tb;
         ram[13] = 32'h90000437; // lui x8, 0x90000
         ram[14] = 32'h00342823; // sw x3, 16(x8) (CLINT MSIP)
         ram[15] = 32'h01042483; // lw x9, 16(x8)
-        ram[16] = 32'h20000513; // addi x10, x0, 512
-        ram[17] = 32'h00052583; // lw x11, 0(x10) (bus error)
-        ram[18] = 32'h00952023; // sw x9, 0(x10) (bus error)
-        ram[19] = 32'h0090a223; // sw x9, 4(x1)
-        ram[20] = 32'h0000006f; // jal x0, 0
-        ram[21] = 32'h00000013; // fetched before the jump redirects
+        ram[16] = 32'h08000613; // addi x12, x0, 128
+        ram[17] = 32'h30561073; // csrw mtvec, x12
+        ram[18] = 32'h20000513; // addi x10, x0, 512
+        ram[19] = 32'h00052583; // lw x11, 0(x10) (load access fault)
+        ram[20] = 32'h00952023; // sw x9, 0(x10) (store access fault)
+        ram[21] = 32'h06300593; // instruction fetch fault prevents this addi
+        ram[22] = 32'h0090a223; // sw x9, 4(x1)
+        ram[23] = 32'h0000006f; // jal x0, 0
+        ram[32] = 32'h341026f3; // csrr x13, mepc
+        ram[33] = 32'h00468693; // addi x13, x13, 4
+        ram[34] = 32'h34169073; // csrw mepc, x13
+        ram[35] = 32'h30200073; // mret
         ram[64] = 32'hdeadbeef;
         ram[65] = 32'h0;
 
@@ -178,14 +187,55 @@ module axi_lite_tb;
         repeat (20) @(negedge clk);
         stall = 0;
 
+        // Let the failed B response arrive while the pipeline is stalled.
+        wait (wvalid && awaddr == 512);
+        @(negedge clk);
+        stall = 1;
+        repeat (25) @(negedge clk);
+        if (fault_count != 1)
+            $fatal(1, "Store access fault advanced while stalled");
+        stall = 0;
+
         wait (uart_checked && ram[65] == 1);
         if (ram[64] !== 32'h005555ef || write_count != 4 || !saw_aw_first || !saw_w_first ||
-            exception !== 1'b0 || bus_error !== 1'b1 ||
+            exception !== 1'b1 || bus_error !== 1'b1 || fault_count != 3 ||
             dut.cpu.core.riscv.regs[6] !== 0 || dut.cpu.core.riscv.regs[11] !== 0)
             $fatal(1, "Unexpected RAM, UART status, or bus error result");
         $display("AXI4-Lite RAM and UART TX test passed");
         $finish;
     end
+
+    always @(posedge clk) begin
+        if (resetb && dut.cpu.store_error_pending && (arvalid || awvalid || wvalid))
+            $fatal(1, "AXI request issued while a store access fault was pending");
+    end
+
+    integer fault_count = 0;
+    reg fault_taken = 0;
+    always @(posedge clk)
+        fault_taken <= resetb && dut.cpu.access_fault;
+
+    always @(negedge clk) begin
+        if (fault_taken) begin
+            case (fault_count)
+                0: check_fault(5, 76, 512);
+                1: check_fault(7, 80, 512);
+                2: check_fault(1, 84, 84);
+                default: $fatal(1, "Unexpected additional access fault");
+            endcase
+            fault_count = fault_count + 1;
+        end
+    end
+
+    task check_fault;
+        input [31:0] cause, pc, address;
+        begin
+            if (dut.cpu.core.riscv.csr_mcause !== cause ||
+                dut.cpu.core.riscv.csr_mepc !== pc ||
+                dut.cpu.core.riscv.csr_mtval !== address)
+                $fatal(1, "Incorrect access fault CSRs for cause %0d", cause);
+        end
+    endtask
 
     localparam [71:0] SOFTWARE_UART_OUTPUT = "AXI-Lite\n";
     integer uart_byte;
@@ -252,6 +302,41 @@ module axi_lite_tb;
         if (dut.cpu.core.riscv.csr_instret !== 64'd10)
             $fatal(1, "Unexpected instret after MRET, target instruction, and ECALL");
         $display("AXI4-Lite redirect, interrupt, and retirement test passed");
+        $finish;
+    end
+
+    initial if ($test$plusargs("store_irq")) begin
+        ram[0] = 32'h10000093; // addi x1, x0, 256 (trap vector)
+        ram[1] = 32'h30509073; // csrw mtvec, x1
+        ram[2] = 32'h00001137; // lui x2, 1
+        ram[3] = 32'h00115113; // srli x2, x2, 1
+        ram[4] = 32'h30411073; // csrw mie, x2 (external interrupt enable)
+        ram[5] = 32'h30046073; // csrsi mstatus, 8
+        ram[6] = 32'h18000193; // addi x3, x0, 384
+        ram[7] = 32'h0021a023; // sw x2, 0(x3)
+        ram[8] = 32'h0021a223; // sw x2, 4(x3)
+        ram[9] = 32'h0000006f; // jal x0, 0
+        ram[64] = 32'h30200073; // mret
+
+        repeat (3) @(negedge clk);
+        resetb = 1;
+        wait (awvalid && awaddr == 384);
+        @(negedge clk);
+        interrupt = 1;
+        @(posedge clk);
+        while (!(dut.cpu.redirect && dut.cpu.core.riscv.ex_interrupt))
+            @(posedge clk);
+        @(negedge clk);
+        interrupt = 0;
+        if (write_count != 1 || dut.cpu.core.riscv.csr_mepc !== 32'd32 ||
+            dut.cpu.core.riscv.csr_mcause !== 32'h8000000b)
+            $fatal(1, "External interrupt did not take the boundary between stores");
+
+        wait (write_count == 2);
+        @(negedge clk);
+        if (ram[96] !== 32'h800 || ram[97] !== 32'h800 || exception || bus_error)
+            $fatal(1, "Store did not complete after MRET");
+        $display("AXI4-Lite interrupt between stores test passed");
         $finish;
     end
 

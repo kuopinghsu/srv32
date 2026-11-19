@@ -72,6 +72,13 @@ struct rv {
     int32_t *mem;
 
     bool singleram;
+    bool single_started;
+    bool single_counted_instruction;
+    bool single_store_pending;
+    bool single_previous_store;
+    bool single_msip_write;
+    bool single_redirect_pending;
+    int single_irq;
     bool mtime_update;
     int  exitcode;
 

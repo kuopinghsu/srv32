@@ -52,6 +52,11 @@ module clint #(
     reg             [63: 0] mtimecmp;
     wire            [63: 0] mtime_nxt;
 
+wire [31:0] write_addr = {waddr[31:2], 2'b00};
+wire [31:0] read_addr = {raddr[31:2], 2'b00};
+wire [31:0] write_mask = {{8{wstrb[3]}}, {8{wstrb[2]}},
+                          {8{wstrb[1]}}, {8{wstrb[0]}}};
+
 assign rvalid = 1'b1;
 assign wvalid = 1'b1;
 assign mtime_nxt = mtime + 1;
@@ -67,28 +72,28 @@ begin
         timer_irq           <= 1'b0;
 end
 
-// timer, ignore strb
+// Machine timer
 always @(posedge clk or negedge resetb)
 begin
     if (!resetb)
         mtime[63: 0]        <= 64'd0;
-    else if (wready && waddr == MTIME_BASE)
-        mtime[31: 0]        <= wdata[31: 0];
-    else if (wready && waddr == (MTIME_BASE+4))
-        mtime[63:32]        <= wdata[31: 0];
+    else if (wready && |wstrb && write_addr == MTIME_BASE)
+        mtime[31: 0]        <= (mtime[31: 0] & ~write_mask) | (wdata & write_mask);
+    else if (wready && |wstrb && write_addr == (MTIME_BASE+4))
+        mtime[63:32]        <= (mtime[63:32] & ~write_mask) | (wdata & write_mask);
     else if (timer_en)
         mtime[63: 0]        <= mtime_nxt[63: 0];
 end
 
-// timer compare, ignore strb.
+// Machine timer compare
 always @(posedge clk or negedge resetb)
 begin
     if (!resetb)
         mtimecmp[63: 0] <= 64'd0;
-    else if (wready && waddr == MTIMECMP_BASE)
-        mtimecmp[31: 0] <= wdata[31: 0];
-    else if (wready && waddr == MTIMECMP_BASE+4)
-        mtimecmp[63:32] <= wdata[31: 0];
+    else if (wready && |wstrb && write_addr == MTIMECMP_BASE)
+        mtimecmp[31: 0] <= (mtimecmp[31: 0] & ~write_mask) | (wdata & write_mask);
+    else if (wready && |wstrb && write_addr == MTIMECMP_BASE+4)
+        mtimecmp[63:32] <= (mtimecmp[63:32] & ~write_mask) | (wdata & write_mask);
 end
 
 // MSIP is used to trigger an interrupt. The external interrupt is at D[16],
@@ -99,9 +104,9 @@ begin
     if (!resetb) begin
         sw_irq          <= 1'b0;
         ex_irq          <= 1'b0;
-    end else if (wready && waddr == MSIP_BASE) begin
-        sw_irq          <= wdata[0];        // software interrupt
-        ex_irq          <= wdata[16];       // external interrupt
+    end else if (wready && |wstrb && write_addr == MSIP_BASE) begin
+        if (wstrb[0]) sw_irq <= wdata[0];
+        if (wstrb[2]) ex_irq <= wdata[16];
     end
 end
 
@@ -116,17 +121,34 @@ begin
         rresp               <= 1'b0;
 end
 
-always @(posedge clk)
-begin
+reg [31:0] read_word;
+reg [31:0] read_write_mask;
+
+always @* begin
+    read_write_mask = write_mask;
+    case (read_addr)
+        MTIME_BASE:     read_word = mtime[31:0];
+        MTIME_BASE+4:   read_word = mtime[63:32];
+        MTIMECMP_BASE:  read_word = mtimecmp[31:0];
+        MTIMECMP_BASE+4: read_word = mtimecmp[63:32];
+        MSIP_BASE: begin
+            read_word = {15'b0, ex_irq, 15'b0, sw_irq};
+            read_write_mask = write_mask & 32'h0001_0001;
+        end
+        default: begin
+            read_word = 32'b0;
+            read_write_mask = 32'b0;
+        end
+    endcase
+end
+
+always @(posedge clk) begin
     if (rready) begin
-        case(raddr)
-            MTIME_BASE      : rdata[31: 0] <= mtime[31: 0];
-            MTIME_BASE+4    : rdata[31: 0] <= mtime[63:32];
-            MTIMECMP_BASE   : rdata[31: 0] <= mtimecmp[31: 0];
-            MTIMECMP_BASE+4 : rdata[31: 0] <= mtimecmp[63:32];
-            MSIP_BASE       : rdata[31: 0] <= {15'h0, ex_irq, 15'h0, sw_irq};
-            //default       : rdata[31: 0] <= rdata[31: 0];
-        endcase
+        // A younger load sees the bytes committed by an older store.
+        if (wready && write_addr == read_addr)
+            rdata <= (read_word & ~read_write_mask) | (wdata & read_write_mask);
+        else
+            rdata <= read_word;
     end
 end
 

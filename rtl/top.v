@@ -27,7 +27,8 @@ module top #(
     parameter RV32E = 0,
     parameter RV32B = 0,
     parameter RV32C = 0,
-    parameter MEM_WAIT_STATES = 0
+    parameter MEM_WAIT_STATES = 0,
+    parameter MEM_ACCESS_FAULTS = 0
 )(
     input                   clk,
     input                   resetb,
@@ -59,7 +60,11 @@ module top #(
     input           [31: 0] dmem_rdata,
 
     output                  ex_irq,
-    output                  imem_redirect
+    output                  imem_redirect,
+    input                   imem_error,
+    input                   dmem_read_error,
+    input                   dmem_write_error,
+    output                  access_fault
 );
 
     `include                "opcode.vh"
@@ -118,7 +123,8 @@ end
         .RV32E (RV32E),
         .RV32B (RV32B),
         .RV32C (RV32C),
-        .MEM_WAIT_STATES (MEM_WAIT_STATES)
+        .MEM_WAIT_STATES (MEM_WAIT_STATES),
+        .MEM_ACCESS_FAULTS (MEM_ACCESS_FAULTS)
     ) riscv (
         .clk                (clk),
         .resetb             (resetb),
@@ -133,6 +139,10 @@ end
 
         .imem_ready         (imem_ready),
         .imem_redirect      (imem_redirect),
+        .imem_error         (imem_error),
+        .dmem_read_error    (dmem_read_error && (draddr[31:28] != CLINT_BASE)),
+        .dmem_write_error   (dmem_write_error),
+        .access_fault       (access_fault),
         .imem_valid         (imem_valid),
         .imem_addr          (imem_addr),
         .imem_rresp         (imem_rresp),
@@ -214,7 +224,7 @@ module top_single_ram #(
     output [31:0] mem_wdata,
     output [3:0]  mem_wstrb
 );
-    wire advance, redirect;
+    wire advance, redirect, unused_access_fault;
     wire [31:0] fetch_addr, load_addr, store_addr;
     wire load_request, store_request;
 
@@ -244,6 +254,8 @@ module top_single_ram #(
         .clk(clk), .resetb(resetb), .stall(stall), .interrupt(external_interrupt),
         .exception(exception), .ex_irq(ex_irq),
         .imem_ready(advance), .imem_redirect(redirect),
+        .imem_error(1'b0), .dmem_read_error(1'b0), .dmem_write_error(1'b0),
+        .access_fault(unused_access_fault),
         .imem_valid(instruction_valid), .imem_addr(fetch_addr),
         .imem_rresp(instruction_valid), .imem_rdata(fetch_valid ? fetch_data : mem_rdata),
         .dmem_wready(store_request), .dmem_wvalid(store_done),

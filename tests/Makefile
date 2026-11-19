@@ -53,7 +53,7 @@ tests-sw: pre-build
 pre-build:
 	$(MAKE) -C $(ROOT_SRV32)/tools clean
 	$(MAKE) -C $(ROOT_SRV32)/sim clean
-	$(MAKE) rv32m=$(rv32m) rv32c=$(rv32c) rv32b=$(rv32b) rv32e=$(rv32e) memsize=$(memsize) -C $(ROOT_SRV32)/sim
+	$(MAKE) rv32m=$(rv32m) rv32c=$(rv32c) rv32b=$(rv32b) rv32e=$(rv32e) memsize=$(memsize) top=0 -C $(ROOT_SRV32)/sim
 	@if [ "$(test_v)" = "2" ]; then \
 		$(MAKE) rv32m=$(rv32m) rv32c=$(rv32c) rv32b=$(rv32b) memsize=$(memsize) -C $(ROOT_SRV32)/tools; \
 		if [ ! -d riscv-arch-test.v2 ]; then \

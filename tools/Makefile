@@ -27,10 +27,6 @@ CFLAGS  += -fprofile-arcs -ftest-coverage
 LDFLAGS += -fprofile-arcs -ftest-coverage
 endif
 
-ifeq ($(top), 1)
-CFLAGS  += -DSINGLE_RAM
-endif
-
 ifeq ($(rv32m), 1)
 CFLAGS  += -DRV32M_ENABLED=1
 endif
@@ -90,7 +86,7 @@ endif
 		$(MAKE) rv32m=$(rv32m) rv32c=$(rv32c) rv32e=$(rv32e) rv32b=$(rv32b) memsize=$(memsize) -C ../sw $*; \
 	fi
 	@rm -rf trace.log
-	./$(RVSIM) --memsize $(memsize) $(TRACELOG) ../sw/$*/$*.elf
+	./$(RVSIM) $(if $(filter 1,$(top)),--single) --memsize $(memsize) $(TRACELOG) ../sw/$*/$*.elf
 	@if [ -f trace.log ]; then ./log2dis.pl -q trace.log ../sw/$*/$*.elf; fi
 
 coverage: coverage_extra

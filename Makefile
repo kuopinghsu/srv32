@@ -1,13 +1,16 @@
 
+# uncomment it to use xPack GNU RISC-V Embedded toolchains
+include Makefile.env
+
 ifndef CROSS_COMPILE
 export CROSS_COMPILE = riscv64-unknown-elf-
 endif
 
 dirs        = $(dir $(wildcard sw/[^_]*/))
-SUBDIRS     = $(subst /,,$(subst sw/,,$(subst common,,$(dirs))))
+SUBDIRS     = $(filter-out common axi_lite,$(subst /,,$(subst sw/,,$(dirs))))
 
 verilator ?= 1
-top       ?= 0
+top       ?= $(if $(filter 1,$(verilator)),axi,0)
 coverage  ?= 0
 debug     ?= 0
 memsize   ?= 256
@@ -41,7 +44,7 @@ MAKE_FLAGS = rv32c=$(rv32c) rv32e=$(rv32e) rv32b=$(rv32b)
 .PHONY: $(SUBDIRS) tools tests coverage
 
 help:
-	@echo "make all         build all diags and run the RTL sim"
+	@echo "make all         run AXI-Lite regressions and all RTL/ISS diagnostics"
 	@echo "make all-sw      build all diags and run the ISS sim"
 	@echo "make tests-all   run all diags and compliance test"
 	@echo "make coverage    generate code coverage report"
@@ -51,6 +54,8 @@ help:
 	@echo "make clean       clean"
 	@echo "make distclean   clean all"
 	@echo ""
+	@echo "top=axi          build the AXI-Lite SoC (default)"
+	@echo "top=0 or top=1   build the split-RAM or single-RAM simulator"
 	@echo "rv32c=1          enable RV32C (default off)"
 	@echo "rv32e=1          enable RV32E (default off)"
 	@echo "rv32b=1          enable RV32B (default off)"
@@ -71,6 +76,9 @@ tests-all: tests-sw tests all all-sw
 
 all:
 	$(MAKE) clean
+ifeq ($(verilator),1)
+	$(MAKE) -C sim check
+endif
 	for i in $(SUBDIRS); do \
 		$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) $$i || exit 1; \
 	done
@@ -91,7 +99,7 @@ tests-sw:
 
 build:
 	for i in sw sim tools; do \
-		$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) -C $$i; \
+		$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) top=$(top) verilator=$(verilator) -C $$i; \
 	done
 
 $(SUBDIRS):
@@ -101,7 +109,14 @@ $(SUBDIRS):
 			 $(if $(_top), top=1) $(MAKE_FLAGS) memsize=$(memsize) debug=$(debug) -C sim $@.elf
 	@$(MAKE) $(if $(_top), top=1) $(MAKE_FLAGS) memsize=$(memsize) tracelog=1 -C tools $@.elf
 	@echo "Compare the trace between RTL and ISS simulator"
+ifeq ($(top),1)
+	@set -e; trace_dir=$$(mktemp -d); trap 'rm -rf "$$trace_dir"' EXIT; \
+	    sed -E 's/^ *[0-9]+ //' sim/trace.log > "$$trace_dir/rtl"; \
+	    sed -E 's/^ *[0-9]+ //' tools/trace.log > "$$trace_dir/iss"; \
+	    diff --brief "$$trace_dir/rtl" "$$trace_dir/iss"
+else
 	@diff --brief sim/trace.log tools/trace.log
+endif
 	@echo === Simulation passed ===
 
 coverage: clean

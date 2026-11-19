@@ -21,7 +21,11 @@
 //`define SINGLE_RAM  1
 `define PRINT_TIMELOG
 
+`ifdef SINGLE_RAM
+`define TOP         top.core.riscv
+`else
 `define TOP         top.riscv
+`endif
 
 /* verilator coverage_off */
 
@@ -193,18 +197,41 @@ end
     wire            mem_we;
     wire    [31: 0] mem_addr;
     wire            mem_rresp;
+    wire            ram_rresp;
     wire    [31: 0] mem_rdata;
     wire    [31: 0] mem_wdata;
     wire    [ 3: 0] mem_wstrb;
     wire            ready;
+    wire [31:0]     ram_rdata;
+`ifndef SYNTHESIS
+    reg             mmio_response;
+    reg  [31:0]     mmio_data;
+    reg             wb_trace_valid;
+`endif
 
     assign mem_valid = 1'b1;
     assign interrupt = ex_irq;
 
-    assign ready = (mem_ready && mem_we && mem_addr[31:28] == MMIO_BASE) ?
-                   1'b0 : mem_ready;
+`ifdef SYNTHESIS
+    assign ready = mem_ready;
+    assign mem_rresp = ram_rresp;
+    assign mem_rdata = ram_rdata;
+`else
+    assign ready = mem_ready && mem_addr[31:28] != MMIO_BASE;
+    assign mem_rresp = ram_rresp || mmio_response;
+    assign mem_rdata = mmio_response ? mmio_data : ram_rdata;
 
-    top #(
+    always @(posedge clk or negedge resetb) begin
+        if (!resetb)
+            wb_trace_valid <= 1'b0;
+        else if (!`TOP.ex_stall)
+            wb_trace_valid <= `TOP.ex_valid;
+        else if (!`TOP.wb_stall)
+            wb_trace_valid <= 1'b0;
+    end
+`endif
+
+    top_single_ram #(
         .RV32M (RV32M),
         .RV32E (RV32E),
         .RV32B (RV32B),
@@ -217,7 +244,7 @@ end
         .exception  (exception),
 
         .ex_irq     (ex_irq),
-        .interrupt  (interrupt),
+        .external_interrupt(interrupt),
 
         .mem_ready  (mem_ready),
         .mem_valid  (mem_valid),
@@ -239,36 +266,48 @@ end
         .ready (ready),
         .we    (mem_we),
         .addr  (mem_addr[31:2]),
-        .rresp (mem_rresp),
-        .rdata (mem_rdata),
+        .rresp (ram_rresp),
+        .rdata (ram_rdata),
         .wdata (mem_wdata),
         .wstrb (mem_wstrb)
     );
 
 `ifndef SYNTHESIS
+    // Route simulated console input separately from the RAM data output.
+    always @(posedge clk or negedge resetb) begin
+        if (!resetb) begin
+            mmio_response <= 1'b0;
+            mmio_data <= 32'b0;
+        end else begin
+            mmio_response <= mem_ready && !mem_we &&
+                             (mem_addr == MMIO_GETC || mem_addr == MMIO_FROMHOST);
+            if (mem_ready && !mem_we && mem_addr == MMIO_GETC) begin
+                `ifdef VERILATOR
+                mmio_data <= {24'b0, getch()};
+                `else
+                mmio_data <= 32'h78;
+                `endif
+            end else if (mem_ready && !mem_we && mem_addr == MMIO_FROMHOST) begin
+                mmio_data <= result;
+            end
+        end
+    end
+
     // check memory range
     always @(posedge clk) begin
         if (mem_ready && mem_we && mem_addr == MMIO_PUTC) begin
             $write("%c", mem_wdata[7:0]);
             $fflush;
         end
-        else if (mem_ready && !mem_we && mem_addr == MMIO_GETC) begin
-            `ifdef VERILATOR
-            mem_rdata[ 7: 0] <= getch();
-            `else
-            // TODO
-            mem_rdata[ 7: 0] <= 8'h78; // $fgetc(STDIN);
-            `endif
-            mem_rdata[31: 8] <= 'd0;
-        end
         else if (mem_ready && mem_we && mem_addr == MMIO_EXIT) begin
             printStatistics();
             $finish(1);
         end
         else if (mem_ready && mem_we && mem_addr == MMIO_TOHOST) begin
-            // TODO
+            host_request(mem_wdata);
         end
         else if (mem_ready &&
+                 (mem_we || (mem_addr != MMIO_GETC && mem_addr != MMIO_FROMHOST)) &&
                  mem_addr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
             $display("DMEM address %x out of range", mem_addr);
             $finish(2);
@@ -277,7 +316,7 @@ end
 
     // syscall
     always @(posedge clk) begin
-        if (`TOP.wb_system && !`TOP.wb_stall) begin
+        if (wb_trace_valid && `TOP.wb_system && !`TOP.wb_stall) begin
             if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_SYS] == SYS_EXIT) begin
                 printStatistics();
                 $finish(2);
@@ -313,6 +352,8 @@ end
 
     wire            imem_ready;
     wire            imem_valid;
+    wire            imem_redirect;
+    wire            unused_access_fault;
     wire    [31: 0] imem_addr;
     wire            imem_rresp;
     wire    [31: 0] imem_rdata;
@@ -362,6 +403,9 @@ end
         .interrupt  (interrupt),
 
         .imem_ready (imem_ready),
+        .imem_redirect(imem_redirect),
+        .imem_error(1'b0), .dmem_read_error(1'b0), .dmem_write_error(1'b0),
+        .access_fault(unused_access_fault),
         .imem_valid (imem_valid),
         .imem_addr  (imem_addr),
         .imem_rresp (imem_rresp),
@@ -448,7 +492,7 @@ assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
     );
 
 `ifndef SYNTHESIS
-    reg [31: 0] result;
+
 
     // check memory range
     always @(posedge clk) begin
@@ -468,56 +512,7 @@ assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
             $finish(1);
         end
         else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_TOHOST) begin
-            case (dmem.getw(dmem_wdata-IRAMSIZE))
-                //SYS_OPEN:  // TODO
-                SYS_LSEEK:
-                begin
-                    result[31: 0] <= 32'hffff_ffff;
-                end
-                //SYS_CLOSE: // TODO
-                //SYS_READ:  // TODO
-                SYS_WRITE:
-                begin
-                    if (dmem.getw(dmem_wdata-IRAMSIZE+'h4) == 32'h1) begin // STDOUT
-                        for (i = 0; i < dmem.getw(dmem_wdata-IRAMSIZE+'hc); i = i + 1) begin
-                            $write("%c", dmem.getb(dmem.getw(dmem_wdata-IRAMSIZE+'h8) - IRAMSIZE + i));
-                        end
-                    end
-                    result[31: 0] <= dmem.getw(dmem_wdata-IRAMSIZE+'hc);
-                end
-                //SYS_FSTAT: // TODO
-                SYS_EXIT:
-                begin
-                    printStatistics();
-                    result[31: 0] <= 'h0;
-                    $finish(2);
-                end
-                //SYS_SBRK: // TODO
-                SYS_DUMP:
-                begin
-                    if (dump != 0) begin
-                        for (i = dmem.getw(dmem_wdata-IRAMSIZE+'h4);
-                             i < dmem.getw(dmem_wdata-IRAMSIZE+'h8);
-                             i = i + 4) begin
-                            $fdisplay(dump, "%08x", dmem.getw(i - IRAMSIZE));
-                        end
-                    end
-                    result[31: 0] <= 'h0;
-                end
-                SYS_DUMP_BIN:
-                begin
-                    if (dump != 0) begin
-                        for (i = dmem.getw(dmem_wdata-IRAMSIZE+'h4);
-                             i < dmem.getw(dmem_wdata-IRAMSIZE+'h8);
-                             i = i + 1) begin
-                            $fdisplay(dump, "%c", dmem.getb(i - IRAMSIZE));
-                        end
-                    end
-                    result[31: 0] <= 'h0;
-                end
-                default:
-                    $display("Unknown TOHOST command %x", dmem.getw(dmem_wdata-IRAMSIZE));
-            endcase
+            host_request(dmem_wdata);
         end
         else if (dmem_wready &&
                  dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
@@ -589,6 +584,87 @@ assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
 `endif // SINGLE_RAM
 
 `ifndef SYNTHESIS
+    reg [31:0] result;
+
+function [31:0] host_getw;
+    input [31:0] address;
+    begin
+`ifdef SINGLE_RAM
+        host_getw = mem.getw(address);
+`else
+        host_getw = dmem.getw(address - IRAMSIZE);
+`endif
+    end
+endfunction
+
+function [7:0] host_getb;
+    input [31:0] address;
+    begin
+`ifdef SINGLE_RAM
+        host_getb = mem.getb(address);
+`else
+        host_getb = dmem.getb(address - IRAMSIZE);
+`endif
+    end
+endfunction
+
+task host_request;
+    input [31:0] request;
+    integer offset;
+    begin
+        case (host_getw(request))
+            //SYS_OPEN:  // TODO
+            SYS_LSEEK:
+            begin
+                result[31: 0] <= 32'hffff_ffff;
+            end
+            //SYS_CLOSE: // TODO
+            //SYS_READ:  // TODO
+            SYS_WRITE:
+            begin
+                if (host_getw(request+'h4) == 32'h1) begin // STDOUT
+                    for (offset = 0; offset < host_getw(request+'hc); offset = offset + 1) begin
+                        $write("%c", host_getb(host_getw(request+'h8) + offset));
+                    end
+                end
+                result[31: 0] <= host_getw(request+'hc);
+            end
+            //SYS_FSTAT: // TODO
+            SYS_EXIT:
+            begin
+                printStatistics();
+                result[31: 0] <= 'h0;
+                $finish(2);
+            end
+            //SYS_SBRK: // TODO
+            SYS_DUMP:
+            begin
+                if (dump != 0) begin
+                    for (offset = host_getw(request+'h4);
+                         offset < host_getw(request+'h8);
+                         offset = offset + 4) begin
+                        $fdisplay(dump, "%08x", host_getw(offset));
+                    end
+                end
+                result[31: 0] <= 'h0;
+            end
+            SYS_DUMP_BIN:
+            begin
+                if (dump != 0) begin
+                    for (offset = host_getw(request+'h4);
+                         offset < host_getw(request+'h8);
+                         offset = offset + 1) begin
+                        $fdisplay(dump, "%c", host_getb(offset));
+                    end
+                end
+                result[31: 0] <= 'h0;
+            end
+            default:
+                $display("Unknown TOHOST command %x", host_getw(request));
+        endcase
+    end
+endtask
+
 `ifdef TRACE
 ////////////////////////////////////////////////////////////
 // Generate trace.log
@@ -652,9 +728,13 @@ end
 
 always @(posedge clk) begin
     if ($test$plusargs("trace") != 0 && !`TOP.wb_stall && !`TOP.stall_r &&
+`ifdef SINGLE_RAM
+        wb_trace_valid) begin
+`else
         !`TOP.wb_flush && fillcount == 2'b11) begin
+`endif
         `ifdef PRINT_TIMELOG
-        $fwrite(fp, "%d ", top.riscv.csr_cycle[31:0]);
+        $fwrite(fp, "%d ", `TOP.csr_cycle[31:0]);
         `endif
         $fwrite(fp, "%08x %08x", `TOP.wb_pc, `TOP.wb_insn);
         if (`TOP.wb_mem2reg && !`TOP.wb_ld_align_excp) begin

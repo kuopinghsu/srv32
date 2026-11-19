@@ -90,43 +90,105 @@ Install spike:
 | Folder    | Description                                     |
 | --------- | ----------------------------------------------- |
 | coverage  | Code coverage report                            |
-| doc       | Instruction set document                        |
+| doc       | Architecture and instruction set documentation  |
 | rtl       | RTL files                                       |
-| sim       | Icarus Verilog/Verilator simulation environment |
+| sim       | Verilator simulation environment |
 | sw        | Benchmark, diags ... etc.                       |
 | syn       | Synthesis environment for Yosys                 |
 | tests     | Compliance tests                                |
 | testbench | testbench, memory model                         |
 | tool      | ISS (instruction set simulator)                 |
 
+## External RAM and UART over AXI4-Lite
+
+Use `top_axi_lite_soc` for an SRV32 core with an on-chip UART TX and a
+32-bit AXI4-Lite master port for external RAM. The RTL sources are listed in
+`rtl/axi_lite.f` with paths relative to the file list. Connect `m_axi_*` to a
+byte-addressed AXI4-Lite RAM slave and connect `uart_tx` to the serial output.
+The core boots from external RAM at `0x00000000`. Instructions, loads, and
+stores share the external master. Data addresses are word-aligned on the
+bus and byte and halfword stores use `WSTRB`. Data accesses in
+`0x90000000–0x9fffffff` go to the on-chip CLINT. Use `top_axi_lite`
+for a standalone AXI master or `top` for the direct RAM ports.
+
+The master waits for each response before starting another transaction.
+A non-OKAY AXI response for an architectural access raises the corresponding
+instruction, load, or store access fault and sets `bus_error` until reset.
+The trap records the faulting instruction in `mepc` and the access address
+in `mtval`. Redirects discard wrong-path fetch responses and their errors.
+Use a common clock and active-low reset for the core and its AXI fabric.
+
+The SoC routes two word registers at `UART_BASE` to its internal UART.
+`UART_BASE` defaults to `0x10000000` and must be word-aligned. Set
+`UART_CLOCKS_PER_BIT` to the nearest positive integer to clock frequency
+divided by baud rate. The default is 434 for 50 MHz at 115200 baud. The line idles
+high and sends 8 data bits, least significant bit first, with no parity and
+one stop bit.
+
+Run `make all` with Verilator 5.x, a C++20-capable compiler,
+and the configured RISC-V toolchain. The AXI testbench uses the SoC top
+for the protocol regressions and the firmware in `sw/axi_lite`. The
+firmware boots from the external RAM model, tests word, halfword, and
+byte accesses, polls the UART status register, and sends `AXI-Lite`
+followed by a newline. The testbench checks the RAM signature and each
+bit of the UART frames. The AXI4-Lite SoC is the default simulator build
+(`make build` or `make -C sim`). Use `top=0` for split RAM or `top=1` for
+single RAM. Named diagnostics such as `make coremark` use the direct-RAM
+testbench for RTL/ISS trace comparison, with split RAM by default.
+
+## MMIO address map
+
+All addresses are byte addresses. The core resets at `0x00000000`.
+
+### AXI-Lite SoC UART TX
+
+- `0x10000000` (`UART_BASE + 0x0`) is the write-only transmit register. Write the byte in
+  bits 7:0 with `WSTRB[0]` set. The write response is issued when transmission
+  starts, so consecutive writes can wait for the preceding byte to finish.
+- `0x10000004` (`UART_BASE + 0x4`) is the read-only status register. Bit 0 is 1 when the
+  transmitter is idle. Other bits read as zero.
+A read from the transmit register or a write to the status register returns
+`SLVERR`. The SoC forwards addresses outside these two words to the external
+AXI-Lite port, except for CLINT data accesses.
+
+### CLINT
+
+The core wrapper routes data accesses in `0x90000000–0x9fffffff` to CLINT
+in all three memory configurations.
+
+- `0x90000000` and `0x90000004` are the low and high words of `mtime`.
+- `0x90000008` and `0x9000000c` are the low and high words of `mtimecmp`.
+- `0x90000010` is `msip`. Bit 0 drives the machine software interrupt.
+  Bit 16 drives the `ex_irq` output used for interrupt self-tests.
+
+These registers support byte strobes. Unmapped CLINT reads return zero
+and unmapped writes are ignored.
+
+### Direct-RAM simulation MMIO
+
+The direct-RAM testbenches recognize these host-service addresses. In the
+AXI-Lite SoC, these addresses go to the external AXI-Lite port.
+
+- `0xa000001c` writes a console character.
+- `0xa0000020` reads a console character in the single-RAM testbench.
+- `0xa000002c` terminates the simulation on a write.
+- `0xa0000030` submits a host request pointer on a write (`tohost`).
+- `0xa0000034` returns the host response on a read (`fromhost`).
+
 ## RTL Simulation
 
-Support Verilator (default) and Icarus Verilog.
+Verilator is the default simulator. Install Verilator and a C++ toolchain,
+then run a diagnostic from the repository root.
 
-To run Verilator,
+    sudo apt install verilator build-essential
+    make hello
 
-    # Ubuntu package needed to run the RTL simulation
-    sudo apt install verilator
-    
-    # Modify the Makefile, and set verilator ?= 1
-    vim sim/Makefile
-    or
-    make verilator=1
-
-To run Icarus Verilog,
-
-    # Ubuntu package needed to run the RTL simulation
-    sudo apt install iverilog
-    
-    # Modify the Makefile, and set verilator ?= 0
-    vim sim/Makefile
-    or
-    make verilator=0
+The legacy RTL simulator also accepts `verilator=0` to select Icarus Verilog.
 
 Only running make without parameters will get help.
 
     $ make
-    make all         build all diags and run the RTL sim
+    make all         run AXI-Lite regressions and all RTL/ISS diagnostics
     make all-sw      build all diags and run the ISS sim
     make tests-all   run all diags and compliance test
     make coverage    generate code coverage report
@@ -136,6 +198,8 @@ Only running make without parameters will get help.
     make clean       clean
     make distclean   clean all
 
+    top=axi          build the AXI-Lite SoC (default)
+    top=0 or top=1   build the split-RAM or single-RAM simulator
     rv32c=1          enable RV32C (default off)
     rv32e=1          enable RV32E (default off)
     debug=1          enable waveform dump (default off)
@@ -150,7 +214,7 @@ Only running make without parameters will get help.
     make debug=1 hello         run hello with waveform dump
     make rv32e=1 dhrystone     run dhrystone for RV32E config
 
-Supports following parameter when running the simulation.
+The direct-RAM simulators support these command-line arguments.
 
     Usage: sim [+help] [+no-meminit] [+dump] [+trace] [prog.elf]
 
@@ -386,27 +450,57 @@ Simulation speed : 7.129 MHz
 
 > Note 1: compile with Zba_Zbb_Zbc_Zbs extensions
 
-## Cycles per Instruction Performance
+## Architecture and pipeline
 
-Two instructions branch penalty if branch taken, CPI is 1 for other instructions. The average Cycles per Instruction (CPI) is approximately 1.3 on Dhrystone diag.
+The [SRV32 architecture guide](doc/arch.md) includes the core and AXI4-Lite
+SoC block diagrams, the three pipeline stages, and the split-RAM, single-RAM,
+and AXI4-Lite interfaces.
 
-This core is three-stage pipeline processors, which is Fetch & Decode (F/D), execution (E) and write back (WB).
+SRV32 has three pipeline stages: fetch and decode (F/D), execute (E), and
+writeback (WB). With the direct RAM interface, the pipeline can complete one
+instruction per cycle on a straight-line sequence. The measured average
+is approximately 1.3 cycles per instruction on Dhrystone.
 
-*   Register Forwarding
+### Register File and Forwarding
 
-The problem with data hazards, introduced by this sequence of instructions can be solved with a simple hardware technique called forwarding. When the execution result accesses the same register, the execution result is directly forwarded to the next instruction.
+F/D decodes the source and destination register numbers and latches them
+for E. In E, the register file's two combinational read ports supply the
+operands to the ALU. In WB, the destination register captures the ALU
+result or load data on a rising clock edge when writeback is enabled.
 
-<img src="images/forwarding.svg" alt="Register Forwarding" width=320>
+When an E-stage source register matches a destination being written by WB,
+the operand mux forwards the WB value directly to E. The timing diagram
+shows that path for two successive writes to `s0`. The WB boxes mark when
+each instruction writes its result. Both stages access the same register
+file.
 
-*   Branch Penalty
+<img src="images/forwarding.svg" alt="Pipeline timing showing s0 forwarding from writeback to execute" width=320>
 
-When the branch is taken during the execute phase, it needs to flush the instructions that have been fetched into the pipeline, which causes a delay of two instructions, so the extra cost of the branch is two.
+### Branch Penalty
 
-<img src="images/branch.svg" alt="Branch Penalty" width=320>
+With split RAM, a taken branch flushes two pipeline slots.
+The single-RAM and AXI4-Lite configurations also resolve redirects in E.
+Their redirect timing depends on when the target instruction arrives.
+
+<img src="images/branch.svg" alt="Direct RAM pipeline timing for a taken branch" width=320>
 
 ## Memory Interface
 
-One instruction memory and one data memory. The instruction memory is read-only for one read port, while data memory is two port, one for reading and one for writing.
+The direct RAM `top` exposes one read-only instruction port and separate
+data read and write ports. `top_axi_lite_soc` uses a shared AXI4-Lite master for
+instruction fetches and external data accesses.
+
+Use `top_single_ram` from `rtl/top.v` for a shared synchronous RAM port.
+The adapter accepts a request when `mem_ready` and `mem_valid` are high.
+Writes complete on acceptance. Reads return a later `mem_rresp` pulse
+with `mem_rdata`. The adapter can accept a new request on the same edge
+that a read completes. With one-cycle RAM responses, sequential instruction
+fetch sustains one word per clock. Loads and stores share those port cycles.
+Run `make top=1 hello` to build and test the single-RAM
+configuration. The build selects the ISS's `--single` timing model, which
+accounts for shared-port waits, redirects, and CLINT interrupts. The trace
+comparison checks instructions and their results, including software reads
+of cycle counters. It omits the per-line cycle timestamps.
 
 ## Synthesis
 
@@ -476,7 +570,7 @@ This is the coverage report of ISS.
 
 ## TO-DO
 
-*   merge the memory interface into one memory for one port
+*   merge the memory interface into one memory for one port (done)
 *   static branch predictor
 *   support RV32C compress extension
 *   serial multiplier and divider

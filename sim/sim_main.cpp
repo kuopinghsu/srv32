@@ -38,6 +38,17 @@ void elfread(char *filename)
         exit(1);
     }
 
+#ifdef SINGLE_RAM
+    if ((fp = fopen("memory.bin", "wb")) == NULL) {
+        printf("file memory.bin creates fail\n");
+        exit(1);
+    }
+    if (fwrite(mem, 1, memsize * 2, fp) != static_cast<size_t>(memsize * 2)) {
+        printf("file write fail\n");
+        exit(1);
+    }
+    fclose(fp);
+#else
     if ((fp = fopen("imem.bin", "wb")) == NULL) {
         printf("file imem.bin creates fail\n");
         exit(1);
@@ -61,13 +72,23 @@ void elfread(char *filename)
     }
 
     fclose(fp);
+#endif
     free(mem);
+}
+
+static void remove_memory_images()
+{
+#ifdef SINGLE_RAM
+    unlink("memory.bin");
+#else
+    unlink("imem.bin");
+    unlink("dmem.bin");
+#endif
 }
 
 void finish(int dummy)
 {
-    unlink("imem.bin");
-    unlink("dmem.bin");
+    remove_memory_images();
     puts("\nCtrl-C...\n");
     exit(-1);
 }
@@ -141,8 +162,7 @@ int main(int argc, char** argv)
     delete top;
 
     if (elf_loaded) {
-        unlink("imem.bin");
-        unlink("dmem.bin");
+        remove_memory_images();
     }
 
     return 0;

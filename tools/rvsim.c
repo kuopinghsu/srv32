@@ -230,11 +230,11 @@ int csr_rw(struct rv *rv, int regs, int mode, int val, int update, int *legal) {
                               result = counter.d.hi;
                               // UPDATE_CSR(update, mode, rv->csr.cycle.d.hi, val);
                               break;
-        case CSR_RDTIME     : counter.c = rv->csr.time.c - 1;
+        case CSR_RDTIME     : counter.c = (rv->singleram ? rv->csr.cycle.c : rv->csr.time.c) - 1;
                               result = counter.d.lo;
                               // UPDATE_CSR(update, mode, rv->csr.time.d.lo, val);
                               break;
-        case CSR_RDTIMEH    : counter.c = rv->csr.time.c - 1;
+        case CSR_RDTIMEH    : counter.c = (rv->singleram ? rv->csr.cycle.c : rv->csr.time.c) - 1;
                               result = counter.d.hi;
                               // UPDATE_CSR(update, mode, rv->csr.time.d.hi, val);
                               break;
@@ -341,23 +341,36 @@ static inline void srv32_cycle_add(struct rv *rv, int count) {
     if (!rv->mtime_update) rv->csr.mtime.c = rv->csr.mtime.c + count;
 }
 
+static inline void srv32_redirect_cycles(struct rv *rv) {
+    if (rv->singleram) {
+        // Discard the younger fetch wait, including the older store's
+        // extra cycle. The target will enter EX through a bubble.
+        if (!rv->single_irq)
+            srv32_cycle_add(rv, -rv->single_previous_store);
+        rv->single_redirect_pending = true;
+    } else {
+        srv32_cycle_add(rv, rv->branch_penalty);
+    }
+}
+
 static inline void srv32_trap(struct rv *rv, int cause, int val) {
-    srv32_cycle_add(rv, rv->branch_penalty);
+    srv32_redirect_cycles(rv);
+    if (rv->single_counted_instruction)
+        rv->csr.instret.c--;
     rv->csr.mcause = cause;
     rv->csr.mstatus = (rv->csr.mstatus &  (1<<MIE)) ?
             (rv->csr.mstatus | (1<<MPIE)) : (rv->csr.mstatus & ~(1<<MPIE));
     rv->csr.mstatus = (rv->csr.mstatus & ~(1<<MIE));
     rv->csr.mepc = rv->prev_pc;
     rv->csr.mtval = (val);
-    rv->pc = (rv->csr.mtvec & 1) ?
-            (rv->csr.mtvec & 0xfffffffe) + cause * 4 : rv->csr.mtvec;
+    rv->pc = rv->csr.mtvec & ~3u;
 }
 
 static inline void srv32_int(struct rv *rv, int cause, int src, int compressed) {
     /* When the branch instruction is interrupted, do not accumulate cycles, */
     /* which has been added when the branch instruction is executed. */
-    if (rv->pc == (compressed ? rv->prev_pc+2 : rv->prev_pc+4))
-        srv32_cycle_add(rv, rv->branch_penalty);
+    if (!rv->singleram && rv->pc == (compressed ? rv->prev_pc+2 : rv->prev_pc+4))
+        srv32_redirect_cycles(rv);
 
     rv->csr.mcause = cause;
     rv->csr.mstatus = (rv->csr.mstatus &  (1<<MIE)) ?
@@ -365,8 +378,8 @@ static inline void srv32_int(struct rv *rv, int cause, int src, int compressed) 
     rv->csr.mstatus = (rv->csr.mstatus & ~(1<<MIE));
     rv->csr.mip = rv->csr.mip | (1 << src);
     rv->csr.mepc = rv->pc;
-    rv->pc = (rv->csr.mtvec & 1) ?
-            (rv->csr.mtvec & 0xfffffffe) + (cause & (~(1<<31))) * 4 : rv->csr.mtvec;
+    rv->pc = (rv->csr.mtvec & ~3u) +
+            ((rv->csr.mtvec & 3) == 1 ? ((uint32_t)cause & 0x7fffffffu) * 4 : 0);
 }
 
 int32_t srv32_read_regs(struct rv *rv, int n) {
@@ -425,6 +438,9 @@ bool srv32_read_mem(struct rv *rv, int32_t addr, int32_t len, void *ptr)
 
 static int memrw(struct rv *rv, int type, int op, int32_t address, int32_t *val) {
     COUNTER counter;
+    bool clint = ((uint32_t)address >> 28) == ((uint32_t)MMIO_MTIME >> 28);
+    int32_t reg_addr = clint ? address & ~3 : address;
+    unsigned byte_shift = ((uint32_t)address & 3) * 8;
 
     if (type == OP_LOAD) {
         int32_t data = 0;
@@ -468,7 +484,7 @@ static int memrw(struct rv *rv, int type, int op, int32_t address, int32_t *val)
         }
 
         if (!srv32_read_mem(rv, address, len, (void*)&data)) {
-            switch(address) {
+            switch(reg_addr) {
                 case MMIO_PUTC:
                     data = 0;
                     break;
@@ -501,11 +517,16 @@ static int memrw(struct rv *rv, int type, int op, int32_t address, int32_t *val)
                     data = rv->csr.msip;
                     break;
                 default:
+                    if (clint)
+                        break;
                     printf("Unknown address 0x%08x to read at PC 0x%08x\n",
                            address, rv->pc);
                     return TRAP_LD_FAIL;
             }
         }
+
+        if (clint && len < 4)
+            data = ((uint32_t)data >> byte_shift) & (len == 1 ? 0xff : 0xffff);
 
         switch(op) {
             case OP_LB:
@@ -557,7 +578,11 @@ static int memrw(struct rv *rv, int type, int op, int32_t address, int32_t *val)
         }
 
         if (!srv32_write_mem(rv, address, len, (void*)&data)) {
-            switch(address) {
+            if (clint) {
+                data = ((uint32_t)data & mask) << byte_shift;
+                mask = (uint32_t)mask << byte_shift;
+            }
+            switch(reg_addr) {
                 case MMIO_PUTC:
                     putchar((char)data);
                     fflush(stdout);
@@ -600,9 +625,11 @@ static int memrw(struct rv *rv, int type, int op, int32_t address, int32_t *val)
                     rv->csr.mtimecmp.d.hi = (rv->csr.mtimecmp.d.hi & ~mask) | data;
                     break;
                 case MMIO_MSIP:
-                    rv->csr.msip = (rv->csr.msip & ~mask) | data;
+                    rv->csr.msip = ((rv->csr.msip & ~mask) | data) & 0x00010001;
                     break;
                 default:
+                    if (clint)
+                        break;
                     printf("Unknown address 0x%08x to write at PC 0x%08x\n",
                            address, rv->pc);
                     return TRAP_ST_FAIL;
@@ -817,7 +844,84 @@ main_exit:
     prog_exit(rv);
 }
 
-int srv32_step(struct rv *rv) {
+// The CLINT timer signal is registered. MSIP written by WB becomes
+// visible to EX one clock after the write is presented.
+static int single_pending_irq(struct rv *rv, int clocks, bool msip_write) {
+    if (!(rv->csr.mstatus & (1 << MIE)))
+        return 0;
+    if ((rv->csr.mie & (1 << MTIE)) && rv->csr.mtime.c + clocks >= rv->csr.mtimecmp.c)
+        return INT_MTIME;
+    if (!msip_write || clocks > 0) {
+        if ((rv->csr.mie & (1 << MSIE)) && (rv->csr.msip & 1))
+            return INT_MSI;
+        if ((rv->csr.mie & (1 << MEIE)) && (rv->csr.msip & (1 << 16)))
+            return INT_MEI;
+    }
+    return 0;
+}
+
+static void single_take_irq(struct rv *rv, int cause) {
+    int src = cause == INT_MTIME ? MTIP : cause == INT_MSI ? MSIP : MEIP;
+    srv32_int(rv, cause, src, 0);
+    rv->single_redirect_pending = true;
+}
+
+static bool single_external_load(struct rv *rv, INST inst) {
+    if (inst.i.op != OP_LOAD)
+        return false;
+    uint32_t address = srv32_read_regs(rv, inst.i.rs1) + to_imm_i(inst.i.imm);
+    switch (inst.i.func3) {
+        case OP_LW:
+            if (address & 3) return false;
+            break;
+        case OP_LH:
+        case OP_LHU:
+            if (address & 1) return false;
+            break;
+        case OP_LB:
+        case OP_LBU:
+            break;
+        default:
+            return false;
+    }
+    return (address >> 28) != ((uint32_t)MMIO_MTIME >> 28);
+}
+
+// Return -1 for an illegal branch encoding.
+static int branch_condition(struct rv *rv, INST inst) {
+    int32_t lhs = srv32_read_regs(rv, inst.b.rs1);
+    int32_t rhs = srv32_read_regs(rv, inst.b.rs2);
+    switch (inst.b.func3) {
+        case OP_BEQ:  return lhs == rhs;
+        case OP_BNE:  return lhs != rhs;
+        case OP_BLT:  return lhs < rhs;
+        case OP_BGE:  return lhs >= rhs;
+        case OP_BLTU: return (uint32_t)lhs < (uint32_t)rhs;
+        case OP_BGEU: return (uint32_t)lhs >= (uint32_t)rhs;
+        default:      return -1;
+    }
+}
+
+static int single_instruction_cycles(struct rv *rv, INST inst, bool msip_write) {
+    int load_wait = single_external_load(rv, inst) ? 1 : 0;
+    int port_wait = rv->single_previous_store;
+    int wait = load_wait + port_wait;
+    if (inst.r.op != OP_SYSTEM) {
+        bool redirects = inst.r.op == OP_JAL || inst.r.op == OP_JALR ||
+                         (inst.r.op == OP_BRANCH && branch_condition(rv, inst) != 0);
+        int limit = redirects ? 0 : wait;
+        for (int elapsed = 0; elapsed <= limit; elapsed++) {
+            int cause = single_pending_irq(rv, elapsed, msip_write);
+            if (cause && elapsed >= load_wait + (load_wait ? port_wait : 0)) {
+                rv->single_irq = cause;
+                return elapsed + 1;
+            }
+        }
+    }
+    return wait + 1;
+}
+
+static int srv32_execute(struct rv *rv) {
     int compressed = 0;
 #ifdef RV32C_ENABLED
     static int compressed_prev = 0;
@@ -838,21 +942,47 @@ int srv32_step(struct rv *rv) {
 #endif // RV32C_ENABLED
 
     rv->mtime_update = 0;
+    rv->single_counted_instruction = false;
+    rv->single_irq = 0;
+    bool msip_write = rv->single_msip_write;
+    rv->single_msip_write = false;
+    rv->single_previous_store = rv->single_store_pending;
+    rv->single_store_pending = false;
 
     // keep x0 always zero
     srv32_write_regs(rv, 0, 0);
 
-    if (timer_irq && (rv->csr.mstatus & (1 << MIE))) {
+    // After a redirect, the target fetch and decode occupy two clocks.
+    // An IRQ can redirect this bubble before the target instruction enters EX.
+    if (rv->singleram && rv->single_redirect_pending) {
+        rv->single_redirect_pending = false;
+        int elapsed;
+        for (elapsed = 0; elapsed < 2; elapsed++) {
+            int cause = single_pending_irq(rv, elapsed, msip_write);
+            if (cause) {
+                srv32_cycle_add(rv, elapsed + 1);
+                single_take_irq(rv, cause);
+                srv32_cycle_add(rv, 2);
+                rv->single_redirect_pending = false;
+                break;
+            }
+        }
+        if (elapsed == 2)
+            srv32_cycle_add(rv, elapsed);
+        msip_write = false;
+    }
+
+    if (!rv->singleram && timer_irq && (rv->csr.mstatus & (1 << MIE))) {
         srv32_int(rv, INT_MTIME, MTIP, compressed);
     }
 
     // software interrupt
-    if (sw_irq_next && (rv->csr.mstatus & (1 << MIE))) {
+    if (!rv->singleram && sw_irq_next && (rv->csr.mstatus & (1 << MIE))) {
         srv32_int(rv, INT_MSI, MSIP, compressed);
     }
 
     // external interrupt
-    if (ext_irq_next && (rv->csr.mstatus & (1 << MIE))) {
+    if (!rv->singleram && ext_irq_next && (rv->csr.mstatus & (1 << MIE))) {
         srv32_int(rv, INT_MEI, MEIP, compressed);
     }
 
@@ -879,35 +1009,42 @@ int srv32_step(struct rv *rv) {
     srv32_read_mem(rv, rv->pc, sizeof(int16_t), (void*)&instc.inst);
 #endif // RV32C_ENABLED
 
-    if ((rv->csr.mtime.c >= rv->csr.mtimecmp.c) &&
-        (rv->csr.mstatus & (1 << MIE)) && (rv->csr.mie & (1 << MTIE)) &&
-        (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call and CSR R/W
-        timer_irq = 1;
-    } else {
-        timer_irq = 0;
-    }
+    if (!rv->singleram) {
+        if ((rv->csr.mtime.c >= rv->csr.mtimecmp.c) &&
+            (rv->csr.mstatus & (1 << MIE)) && (rv->csr.mie & (1 << MTIE)) &&
+            (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call and CSR R/W
+            timer_irq = 1;
+        } else {
+            timer_irq = 0;
+        }
 
-    if (sw_irq &&
-        (rv->csr.mstatus & (1 << MIE)) && (rv->csr.mie & (1 << MSIE)) &&
-        (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call and CSR R/W
-        sw_irq_next = 1;
-    } else {
-        sw_irq_next = 0;
-    }
-    sw_irq = (rv->csr.msip & (1<<0)) ? 1 : 0;
+        if (sw_irq &&
+            (rv->csr.mstatus & (1 << MIE)) && (rv->csr.mie & (1 << MSIE)) &&
+            (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call and CSR R/W
+            sw_irq_next = 1;
+        } else {
+            sw_irq_next = 0;
+        }
+        sw_irq = (rv->csr.msip & (1<<0)) ? 1 : 0;
 
-    if (ext_irq &&
-        (rv->csr.mstatus & (1 << MIE)) && (rv->csr.mie & (1 << MEIE)) &&
-        (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call and CSR R/W
-        ext_irq_next = 1;
-    } else {
-        ext_irq_next = 0;
+        if (ext_irq &&
+            (rv->csr.mstatus & (1 << MIE)) && (rv->csr.mie & (1 << MEIE)) &&
+            (inst.r.op != OP_SYSTEM)) { // do not interrupt when system call and CSR R/W
+            ext_irq_next = 1;
+        } else {
+            ext_irq_next = 0;
+        }
+        ext_irq = (rv->csr.msip & (1<<16)) ? 1 : 0;
     }
-    ext_irq = (rv->csr.msip & (1<<16)) ? 1 : 0;
 
     rv->csr.time.c++;
     rv->csr.instret.c++;
-    srv32_cycle_add(rv, 1);
+    if (!rv->singleram)
+        srv32_cycle_add(rv, 1);
+    else if (rv->single_started)
+        srv32_cycle_add(rv, single_instruction_cycles(rv, inst, msip_write));
+    rv->single_started = rv->singleram;
+    rv->single_counted_instruction = rv->singleram;
 
     rv->prev_pc = rv->pc;
 
@@ -931,6 +1068,22 @@ int srv32_step(struct rv *rv) {
         return RV_TRAP;
     }
 #endif // RV32C_ENABLED
+
+    bool reserved_encoding = (inst.r.op == OP_JALR && inst.i.func3 != 0) ||
+                             (inst.r.op == OP_FENCE && inst.i.func3 != 0);
+#ifndef RV32B_ENABLED
+    reserved_encoding |= inst.r.op == OP_ARITHI &&
+        ((inst.i.func3 == OP_SLL && inst.r.func7 != 0) ||
+         (inst.i.func3 == OP_SR && inst.r.func7 != 0 && inst.r.func7 != 0x20));
+    reserved_encoding |= inst.r.op == OP_ARITHR && inst.r.func7 == 0x20 &&
+        inst.r.func3 != OP_ADD && inst.r.func3 != OP_SR;
+#endif
+    if (reserved_encoding) {
+        TIME_LOG; TRACE_LOG "%08x %08x\n", rv->pc, inst.inst
+        TRACE_END;
+        srv32_trap(rv, TRAP_INST_ILL, inst.inst);
+        return RV_TRAP;
+    }
 
     switch(inst.r.op) {
         case OP_AUIPC: { // U-Type
@@ -982,7 +1135,7 @@ int srv32_step(struct rv *rv) {
                       inst.j.rd ? srv32_read_regs(rv, inst.j.rd) : 0
             TRACE_END;
 
-            srv32_cycle_add(rv, rv->branch_penalty);
+            srv32_redirect_cycles(rv);
             return RV_OKAY;
         }
         case OP_JALR: { // I-Type
@@ -1019,68 +1172,24 @@ int srv32_step(struct rv *rv) {
                       inst.i.rd ? srv32_read_regs(rv, inst.i.rd) : 0
             TRACE_END;
 
-            srv32_cycle_add(rv, rv->branch_penalty);
+            srv32_redirect_cycles(rv);
             return RV_OKAY;
         }
         case OP_BRANCH: { // B-Type
             TIME_LOG; TRACE_LOG "%08x %08x\n", rv->pc, inst.inst
             TRACE_END;
             int offset = to_imm_b(inst.b.imm2, inst.b.imm1);
-            switch(inst.b.func3) {
-                case OP_BEQ:
-                    if (srv32_read_regs(rv, inst.b.rs1) == srv32_read_regs(rv, inst.b.rs2)) {
-                        rv->pc += offset;
-                        if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
-                            srv32_cycle_add(rv, rv->branch_penalty);
-                        return RV_OKAY;
-                    }
-                    break;
-                case OP_BNE:
-                    if (srv32_read_regs(rv, inst.b.rs1) != srv32_read_regs(rv, inst.b.rs2)) {
-                        rv->pc += offset;
-                        if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
-                            srv32_cycle_add(rv, rv->branch_penalty);
-                        return RV_OKAY;
-                    }
-                    break;
-                case OP_BLT:
-                    if (srv32_read_regs(rv, inst.b.rs1) < srv32_read_regs(rv, inst.b.rs2)) {
-                        rv->pc += offset;
-                        if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
-                            srv32_cycle_add(rv, rv->branch_penalty);
-                        return RV_OKAY;
-                    }
-                    break;
-                case OP_BGE:
-                    if (srv32_read_regs(rv, inst.b.rs1) >= srv32_read_regs(rv, inst.b.rs2)) {
-                        rv->pc += offset;
-                        if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
-                            srv32_cycle_add(rv, rv->branch_penalty);
-                        return RV_OKAY;
-                    }
-                    break;
-                case OP_BLTU:
-                    if (((uint32_t)srv32_read_regs(rv, inst.b.rs1)) <
-                        ((uint32_t)srv32_read_regs(rv, inst.b.rs2))) {
-                        rv->pc += offset;
-                        if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
-                            srv32_cycle_add(rv, rv->branch_penalty);
-                        return RV_OKAY;
-                    }
-                    break;
-                case OP_BGEU:
-                    if (((uint32_t)srv32_read_regs(rv, inst.b.rs1)) >=
-                        ((uint32_t)srv32_read_regs(rv, inst.b.rs2))) {
-                        rv->pc += offset;
-                        if ((!rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
-                            srv32_cycle_add(rv, rv->branch_penalty);
-                        return RV_OKAY;
-                    }
-                    break;
-                default:
-                    printf("Illegal branch instruction at PC 0x%08x\n", rv->pc);
-                    srv32_trap(rv, TRAP_INST_ILL, inst.inst);
-                    return RV_TRAP;
+            int taken = branch_condition(rv, inst);
+            if (taken < 0) {
+                printf("Illegal branch instruction at PC 0x%08x\n", rv->pc);
+                srv32_trap(rv, TRAP_INST_ILL, inst.inst);
+                return RV_TRAP;
+            }
+            if (taken) {
+                rv->pc += offset;
+                if ((rv->singleram || !rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
+                    srv32_redirect_cycles(rv);
+                return RV_OKAY;
             }
             break;
         }
@@ -1093,8 +1202,6 @@ int srv32_step(struct rv *rv) {
 
             int result = memrw(rv, OP_LOAD, inst.i.func3, address, &data);
 
-            if (rv->singleram) srv32_cycle_add(rv, 1);
-
             switch(result) {
                 case TRAP_LD_FAIL:
                      TRACE_LOG "\n" TRACE_END;
@@ -1105,10 +1212,7 @@ int srv32_step(struct rv *rv) {
                      srv32_trap(rv, TRAP_LD_ALIGN, address);
                      return RV_TRAP;
                 case TRAP_INST_ILL:
-                     TRACE_LOG " read 0x%08x, x%02u (%s) <= 0x%08x\n",
-                                 address, inst.i.rd,
-                                 regname[inst.i.rd], 0
-                     TRACE_END;
+                     TRACE_LOG "\n" TRACE_END;
                      srv32_trap(rv, TRAP_INST_ILL, inst.inst);
                      return RV_TRAP;
             }
@@ -1136,8 +1240,6 @@ int srv32_step(struct rv *rv) {
 
             int result = memrw(rv, OP_STORE, inst.i.func3, address, &data);
 
-            if (rv->singleram) srv32_cycle_add(rv, 1);
-
             switch(result) {
                 case TRAP_ST_FAIL:
                      TRACE_LOG "\n" TRACE_END;
@@ -1156,6 +1258,10 @@ int srv32_step(struct rv *rv) {
             TRACE_LOG " write 0x%08x <= 0x%08x\n", address, (data & mask)
             TRACE_END;
 
+            if (rv->singleram) {
+                rv->single_store_pending = ((uint32_t)address >> 28) != ((uint32_t)MMIO_MTIME >> 28);
+                rv->single_msip_write = address == MMIO_MSIP;
+            }
             break;
         }
         case OP_ARITHI: { // I-Type
@@ -1699,8 +1805,8 @@ int srv32_step(struct rv *rv) {
                 case OP_ECALL:
                     TIME_LOG; TRACE_LOG "%08x %08x\n", rv->pc, inst.inst
                     TRACE_END;
-                    switch (inst.i.imm & 3) {
-                       case 0: // ecall
+                    switch (inst.inst) {
+                       case 0x00000073: // ecall
                            if (1) { // syscall, to compatible FreeRTOS usage, don't use it.
                                int res;
                                res = srv32_syscall(rv,
@@ -1734,16 +1840,16 @@ int srv32_step(struct rv *rv) {
                                srv32_trap(rv, TRAP_ECALL, 0);
                                return RV_TRAP;
                            }
-                       case 1: // ebreak
+                       case 0x00100073: // ebreak
                            srv32_trap(rv, TRAP_BREAK, rv->pc);
                            return RV_TRAP;
-                       case 2: // mret
+                       case 0x30200073: // mret
                            rv->pc = rv->csr.mepc;
                            // rv->csr.mstatus.mie = rv->csr.mstatus.mpie
                            rv->csr.mstatus = (rv->csr.mstatus & (1 << MPIE)) ?
                                               (rv->csr.mstatus | (1 << MIE)) :
                                               (rv->csr.mstatus & ~(1 << MIE));
-                           // rv->csr.mstatus.mpie = 1
+                           rv->csr.mstatus |= 1 << MPIE;
 
                            #ifndef RV32C_ENABLED
                            if ((rv->pc & 3) != 0) {
@@ -1751,11 +1857,11 @@ int srv32_step(struct rv *rv) {
                                return RV_OKAY;
                            }
                            #endif // RV32C_ENABLED
-                           srv32_cycle_add(rv, rv->branch_penalty);
+                           srv32_redirect_cycles(rv);
                            return RV_OKAY;
                        default:
                            printf("Illegal system call at PC 0x%08x\n", rv->pc);
-                           srv32_trap(rv, TRAP_INST_ILL, 0);
+                           srv32_trap(rv, TRAP_INST_ILL, inst.inst);
                            return RV_TRAP;
                     }
                     break;
@@ -1817,7 +1923,7 @@ int srv32_step(struct rv *rv) {
                 TRACE_END;
                 if (!legal) {
                    TRACE_LOG "\n" TRACE_END;
-                   srv32_trap(rv, TRAP_INST_ILL, 0);
+                   srv32_trap(rv, TRAP_INST_ILL, inst.inst);
                    return RV_TRAP;
                 }
                 TRACE_LOG " x%02u (%s) <= 0x%08x\n",
@@ -1842,3 +1948,10 @@ int srv32_step(struct rv *rv) {
     return RV_OKAY;
 }
 
+
+int srv32_step(struct rv *rv) {
+    int result = srv32_execute(rv);
+    if (result == RV_OKAY && rv->single_irq)
+        single_take_irq(rv, rv->single_irq);
+    return result;
+}

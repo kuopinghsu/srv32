@@ -42,22 +42,42 @@ __dso_handle:
     .section .text.trap, "ax"
     .align 4
 trap_handler:
-    jal     x0, _trap_handler       // 0: Instruction address misaligned
-    jal     x0, _trap_handler       // 1: Instruction access fault
-    jal     x0, _trap_handler       // 2: Illegal instruction
-    jal     x0, _trap_ebreak        // 3: Breakpint
-    jal     x0, _trap_handler       // 4: Load address misaligned
-    jal     x0, _trap_handler       // 5: Load access fault
-    jal     x0, _trap_handler       // 6: Store/AMO address misaligned
-    jal     x0, _trap_handler       // 7: Store/AMO access fault
-1:  jal     x0, 1b                  // 8:
-1:  jal     x0, 1b                  // 9:
-1:  jal     x0, 1b                  // 10:
-    jal     x0, _trap_ecall         // 11: Environment call from M-mode
-1:  jal     x0, 1b                  // 12:
-1:  jal     x0, 1b                  // 13:
-1:  jal     x0, 1b                  // 14:
-1:  jal     x0, 1b                  // 15:
+    jal     x0, _trap_sync          // Synchronous exceptions
+    jal     x0, _trap_handler
+    jal     x0, _trap_handler
+    jal     x0, _trap_handler       // Machine software interrupt
+    jal     x0, _trap_handler
+    jal     x0, _trap_handler
+    jal     x0, _trap_handler
+    jal     x0, _trap_handler       // Machine timer interrupt
+    jal     x0, _trap_handler
+    jal     x0, _trap_handler
+    jal     x0, _trap_handler
+    jal     x0, _trap_handler       // Machine external interrupt
+
+_trap_sync:
+    addi    sp, sp, -16
+    sw      t0, 0(sp)
+    sw      t1, 4(sp)
+    csrr    t0, mcause
+    li      t1, 3
+    beq     t0, t1, 1f
+    li      t1, 11
+    beq     t0, t1, 2f
+    lw      t1, 4(sp)
+    lw      t0, 0(sp)
+    addi    sp, sp, 16
+    j       _trap_handler
+1:
+    lw      t1, 4(sp)
+    lw      t0, 0(sp)
+    addi    sp, sp, 16
+    j       _trap_ebreak
+2:
+    lw      t1, 4(sp)
+    lw      t0, 0(sp)
+    addi    sp, sp, 16
+    j       _trap_ecall
 
     .weak   user_trap_handler
 

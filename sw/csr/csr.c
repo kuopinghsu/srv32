@@ -284,6 +284,57 @@ int main(void) {
     CSRRC_WITH_RS1(rd, "0xF14", "t0", 1);
     check_trapped("csrrc  rd, mhartid,  t0  (rs1≠x0, must trap)");
 
+    // Reserved memory and SYSTEM encodings must trap without side effects.
+    volatile uint32_t sentinel = 0x12345678;
+    before_test();
+    asm volatile(".insn s 0x23, 3, zero, 0(%0)" :: "r"(&sentinel) : "memory");
+    check_trapped("reserved STORE encoding");
+    if (sentinel != 0x12345678) {
+        puts_raw("  FAIL: reserved STORE changed memory\n");
+        g_fail++;
+    }
+
+    before_test();
+    asm volatile(".insn i 0x03, 3, zero, %0, 0" :: "r"(&sentinel) : "memory");
+    check_trapped("reserved LOAD encoding");
+
+    before_test();
+    asm volatile(".word 0x00200073" ::: "memory");
+    uint32_t mepc, mtval, mstatus;
+    asm volatile("csrr %0, mepc" : "=r"(mepc));
+    asm volatile("csrr %0, mtval" : "=r"(mtval));
+    asm volatile("csrr %0, mstatus" : "=r"(mstatus));
+    check_trapped("reserved SYSTEM encoding");
+    if (mepc != g_mepc + 4 || mtval != 0x00200073 || !(mstatus & (1u << 7))) {
+        puts_raw("  FAIL: MRET did not preserve trap CSRs or restore MPIE\n");
+        g_fail++;
+    }
+
+    before_test();
+    asm volatile(".word 0x40004033" ::: "memory");
+    check_trapped("reserved XOR funct7");
+
+    before_test();
+    asm volatile(".word 0x02001013" ::: "memory");
+    check_trapped("reserved SLLI immediate");
+
+    before_test();
+    asm volatile(".word 0x00001067" ::: "memory");
+    check_trapped("reserved JALR funct3");
+
+    volatile uint32_t *timer_compare = (volatile uint32_t *)0x90000008;
+    *timer_compare = 0x12345678;
+    ((volatile uint8_t *)timer_compare)[1] = 0xa5;
+    if (*timer_compare != 0x1234a578 ||
+        ((volatile uint8_t *)timer_compare)[1] != 0xa5 ||
+        *(volatile uint32_t *)0x90000014 != 0) {
+        puts_raw("  FAIL: CLINT byte lanes or unmapped read\n");
+        g_fail++;
+    } else {
+        puts_raw("  PASS: CLINT byte lanes and unmapped read\n");
+        g_pass++;
+    }
+
     // -----------------------------------------------------------------------
     // Summary
     // -----------------------------------------------------------------------

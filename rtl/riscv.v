@@ -27,7 +27,8 @@ module riscv #(
     parameter RV32E = 0,
     parameter RV32B = 0,
     parameter RV32C = 0,
-    parameter MEM_WAIT_STATES = 0
+    parameter MEM_WAIT_STATES = 0,
+    parameter MEM_ACCESS_FAULTS = 0
 )(
     input                   clk,
     input                   resetb,
@@ -61,7 +62,11 @@ module riscv #(
     input                   dmem_rresp,
     input           [31: 0] dmem_rdata,
 
-    output                  imem_redirect
+    output                  imem_redirect,
+    input                   imem_error,
+    input                   dmem_read_error,
+    input                   dmem_write_error,
+    output                  access_fault
 );
 
 `include "opcode.vh"
@@ -178,16 +183,32 @@ wire valid_system_call = inst == 32'h00000073 || inst == 32'h00100073 ||
 wire valid_csr = inst[`OPCODE] == OP_SYSTEM &&
                  inst[`FUNC3] != 3'b000 && inst[`FUNC3] != 3'b100;
 
+wire valid_jalr = inst[`OPCODE] == OP_JALR && inst[`FUNC3] == 3'b000;
+wire valid_alu_immediate = inst[`OPCODE] == OP_ARITHI &&
+    ((inst[`FUNC3] != OP_SLL && inst[`FUNC3] != OP_SR) ||
+     inst[`FUNC7] == 7'h00 || (inst[`FUNC3] == OP_SR && inst[`FUNC7] == 7'h20));
+wire valid_alu_register = inst[`OPCODE] == OP_ARITHR &&
+    (inst[`FUNC7] == 7'h00 ||
+     (inst[`FUNC7] == 7'h20 && (inst[`FUNC3] == OP_ADD || inst[`FUNC3] == OP_SR)));
+wire valid_fence = inst[`OPCODE] == OP_FENCE && inst[`FUNC3] == 3'b000;
+
+    reg ex_fetch_fault;
+    wire store_fault = MEM_ACCESS_FAULTS && dmem_write_error;
+    wire load_fault = MEM_ACCESS_FAULTS && ex_mem2reg && !ex_ld_align_excp &&
+                      dmem_rvalid && dmem_read_error;
+    wire memory_fault = store_fault || ex_fetch_fault || load_fault;
+
 assign if_insn              = imem_rdata;
 
 // With buffered instruction responses, squash the fetched instruction on redirect.
 assign redirect_pending     = MEM_WAIT_STATES && (branch_taken || ex_trap);
-assign inst                 = (MEM_WAIT_STATES ? redirect_pending : flush) ? NOP : if_insn;
+assign inst                 = (MEM_WAIT_STATES ? (redirect_pending || (MEM_ACCESS_FAULTS && imem_error)) : flush) ? NOP : if_insn;
 assign if_stall             = stall_r || (!imem_valid && !redirect_pending) ||
-                              (MEM_WAIT_STATES && (wb_memwr && !dmem_wvalid));
+                              (wb_memwr && !dmem_wvalid);
 assign dmem_waddr           = wb_waddr;
 assign dmem_raddr           = ex_memaddr;
-assign dmem_rready          = ex_mem2reg && (!MEM_WAIT_STATES || !ex_ld_align_excp);
+assign dmem_rready          = ex_mem2reg && !store_fault && !ex_flush && !ex_ld_align_excp &&
+                              (MEM_WAIT_STATES || !if_stall);
 assign dmem_wready          = wb_memwr;
 assign dmem_wdata           = wb_wdata;
 assign dmem_wstrb           = wb_wstrb;
@@ -195,7 +216,7 @@ assign dmem_wstrb           = wb_wstrb;
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
         exception           <= 1'b0;
-    else if (ex_inst_ill_excp || ex_inst_align_excp ||
+    else if (access_fault || ex_inst_ill_excp || ex_inst_align_excp ||
              ex_ld_align_excp || ex_st_align_excp)
         exception           <= 1'b1;
 end
@@ -213,7 +234,7 @@ end
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         if_pc               <= RESETVEC;
-    end else if (!wb_stall) begin
+    end else if (!ex_stall) begin
         if_pc               <= fetch_pc;
     end
 end
@@ -269,7 +290,7 @@ always @(posedge clk or negedge resetb) begin
         ex_pc               <= RESETVEC;
         ex_illegal          <= 1'b0;
         ex_mul              <= 1'b0;
-    end else if (MEM_WAIT_STATES ? !ex_stall : !if_stall) begin
+    end else if (!ex_stall) begin
         ex_imm              <= imm;
         ex_imm_sel          <= (inst[`OPCODE] == OP_JALR  ) ||
                                (inst[`OPCODE] == OP_LOAD  ) ||
@@ -281,9 +302,7 @@ always @(posedge clk or negedge resetb) begin
         ex_subtype          <= inst[`SUBTYPE] &&
                                !(inst[`OPCODE] == OP_ARITHI && inst[`FUNC3] == OP_ADD);
         ex_memwr            <= inst[`OPCODE] == OP_STORE;
-        ex_alu              <= (inst[`OPCODE] == OP_ARITHI) ||
-                               ((inst[`OPCODE] == OP_ARITHR) &&
-                                (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20));
+        ex_alu              <= valid_alu_immediate || valid_alu_register;
         ex_csr              <= valid_csr;
         // CSRRS and CSRRC with a zero source only read the CSR.
         ex_csr_wr           <= valid_csr &&
@@ -292,7 +311,7 @@ always @(posedge clk or negedge resetb) begin
         ex_lui              <= inst[`OPCODE] == OP_LUI;
         ex_auipc            <= inst[`OPCODE] == OP_AUIPC;
         ex_jal              <= inst[`OPCODE] == OP_JAL;
-        ex_jalr             <= inst[`OPCODE] == OP_JALR;
+        ex_jalr             <= valid_jalr;
         ex_branch           <= inst[`OPCODE] == OP_BRANCH;
         ex_system           <= valid_system_call;
         ex_system_op        <= inst[`OPCODE] == OP_SYSTEM;
@@ -300,19 +319,17 @@ always @(posedge clk or negedge resetb) begin
         ex_illegal          <= !((inst[`OPCODE] == OP_AUIPC )||
                                  (inst[`OPCODE] == OP_LUI   )||
                                  (inst[`OPCODE] == OP_JAL   )||
-                                 (inst[`OPCODE] == OP_JALR  )||
+                                 valid_jalr ||
                                  (inst[`OPCODE] == OP_BRANCH)||
                                  valid_load ||
                                  ((inst[`OPCODE] == OP_STORE) &&
                                   ((inst[`FUNC3] == OP_SB) ||
                                    (inst[`FUNC3] == OP_SH) ||
                                    (inst[`FUNC3] == OP_SW))) ||
-                                 (inst[`OPCODE] == OP_ARITHI)||
-                                 ((inst[`OPCODE] == OP_ARITHR) &&
-                                  (inst[`FUNC7] == 'h00 || inst[`FUNC7] == 'h20)) ||
+                                 valid_alu_immediate || valid_alu_register ||
                                  ((inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h01) &&
                                   (RV32M == 1)) ||
-                                 (inst[`OPCODE] == OP_FENCE )||
+                                 valid_fence ||
                                  valid_system_call || valid_csr);
         ex_mul              <= (inst[`OPCODE] == OP_ARITHR) && (inst[`FUNC7] == 'h1) &&
                                (RV32M == 1);
@@ -331,22 +348,19 @@ end
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
         ex_mem2reg          <= 1'b0;
-    else if (MEM_WAIT_STATES) begin
-        if (!ex_stall)
-            ex_mem2reg      <= valid_load;
-    end else if (valid_load)
-        ex_mem2reg          <= 1'b1;
-    else if (ex_mem2reg && dmem_rvalid)
-        ex_mem2reg          <= 1'b0;
+    else if (!ex_stall)
+        ex_mem2reg          <= valid_load;
 end
 
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         ex_insn             <= NOP;
         ex_valid            <= 1'b0;
-    end else if (MEM_WAIT_STATES ? !ex_stall : !if_stall) begin
+        ex_fetch_fault      <= 1'b0;
+    end else if (!ex_stall) begin
         ex_insn             <= inst;
         ex_valid            <= !redirect_pending;
+        ex_fetch_fault      <= MEM_ACCESS_FAULTS && !redirect_pending && imem_valid && imem_error;
     end
 end
 
@@ -372,16 +386,21 @@ assign ex_st_align_excp     = ex_memwr && !ex_flush && (
                               );
 assign ex_inst_ill_excp     = !ex_flush && (ex_ill_branch || ex_ill_csr || ex_illegal);
 assign ex_inst_align_excp   = !ex_flush && |next_pc[1:0];
+wire interruptible = !ex_system_op && !ex_flush;
 assign ex_timer_irq         = timer_irq && csr_mstatus[MIE] && csr_mie[MTIE] &&
-                              !ex_system_op && !ex_flush;
+                              interruptible;
 assign ex_sw_irq            = sw_irq && csr_mstatus[MIE] && csr_mie[MSIE] &&
-                              !ex_system_op && !ex_flush;
+                              interruptible;
 assign ex_interrupt         = interrupt && csr_mstatus[MIE] && csr_mie[MEIE] &&
-                              !ex_system_op && !ex_flush;
+                              interruptible;
+
+// In AXI mode an interrupt may take the boundary before the EX store.
+// The WB stall still holds this boundary until the older store responds.
+wire interrupt_before_store = MEM_ACCESS_FAULTS && ex_memwr &&
+                              (ex_timer_irq || ex_sw_irq || ex_interrupt);
 
 assign ex_stall             = stall_r || if_stall ||
-                              (ex_mem2reg && !dmem_rvalid &&
-                               !(MEM_WAIT_STATES && ex_ld_align_excp));
+                              (ex_mem2reg && !store_fault && !ex_flush && !ex_ld_align_excp && !dmem_rvalid);
 assign alu_op1[31: 0]       = reg_rdata1;
 assign alu_op2[31: 0]       = (ex_imm_sel) ? ex_imm : reg_rdata2;
 
@@ -581,8 +600,7 @@ end
 always @(posedge clk or negedge resetb) begin
     if (!resetb)
         wb_memwr            <= 1'b0;
-    else if (ex_memwr && !ex_flush && !ex_trap_nop &&
-             (!MEM_WAIT_STATES || !ex_stall))
+    else if (ex_memwr && !ex_flush && !ex_trap_nop && !ex_stall)
         wb_memwr            <= 1'b1;
     else if (wb_memwr && dmem_wvalid)
         wb_memwr            <= 1'b0;
@@ -593,7 +611,7 @@ always @(posedge clk or negedge resetb) begin
         wb_waddr            <= 32'h0;
         wb_wstrb            <= 4'h0;
         wb_wdata            <= 32'h0;
-    end else if (!ex_stall && ex_memwr) begin
+    end else if (!ex_stall && ex_memwr && !ex_flush && !ex_trap_nop) begin
         wb_waddr            <= ex_memaddr;
         case(ex_alu_op)
             OP_SB: begin
@@ -625,7 +643,7 @@ end
 // stage 3: write back
 ////////////////////////////////////////////////////////////
 assign imem_addr            = fetch_pc;
-assign imem_ready           = MEM_WAIT_STATES ? !ex_stall : !stall_r && !wb_stall;
+assign imem_ready           = !ex_stall;
 assign imem_redirect        = redirect_pending && !ex_stall;
 assign wb_stall             = stall_r ||
                               (wb_memwr && !dmem_wvalid) ||
@@ -689,13 +707,14 @@ end
 // Trap CSR
 ////////////////////////////////////////////////////////////
 // Trap CSR @ execution stage
-assign ex_trap_nop  = (ex_inst_ill_excp || ex_inst_align_excp ||
+assign access_fault = !ex_stall && memory_fault;
+assign ex_trap_nop  = (interrupt_before_store || memory_fault || ex_inst_ill_excp || ex_inst_align_excp ||
                        ex_ld_align_excp || ex_st_align_excp) && !ex_flush;
-assign ex_trap      = (ex_inst_ill_excp || ex_inst_align_excp ||
+assign ex_trap      = (memory_fault || ex_inst_ill_excp || ex_inst_align_excp ||
                        ex_ld_align_excp || ex_st_align_excp ||
                        ex_timer_irq || ex_sw_irq || ex_interrupt ||
                        ex_systemcall) && !ex_flush;
-assign ex_trap_pc   = (ex_systemcall && ex_insn == 32'h30200073) ? // mret
+assign ex_trap_pc   = (!memory_fault && ex_systemcall && ex_insn == 32'h30200073) ? // mret
                       csr_mepc :
                       (csr_mtvec[1:0] == 2'b01 && ex_mcause[31]) ?
                       {csr_mtvec[31:2], 2'b00} + {26'h0, ex_mcause[3:0], 2'b00} :
@@ -706,6 +725,9 @@ assign ex_csr_data  = ex_alu_op[2] ? {27'h0, ex_src1_sel[4:0]} : reg_rdata1;
 always @* begin
     ex_mcause     = 32'h0;
     case(1'b1)
+        store_fault        : ex_mcause = TRAP_ST_FAIL;
+        ex_fetch_fault     : ex_mcause = TRAP_INST_FAIL;
+        load_fault         : ex_mcause = TRAP_LD_FAIL;
         ex_inst_ill_excp   : ex_mcause = TRAP_INST_ILL;
         ex_inst_align_excp : ex_mcause = TRAP_INST_ALIGN;
         ex_ld_align_excp   : ex_mcause = TRAP_LD_ALIGN;
@@ -731,6 +753,7 @@ end
 
 // An interrupt between instructions must resume at the pending fetch PC.
 assign ex_ret_pc = (MEM_WAIT_STATES && !ex_valid) ? fetch_pc[31:1] :
+                   interrupt_before_store ? ex_pc[31:1] :
                    (ex_jal || ex_jalr || (ex_branch && branch_taken)) ?
                    next_pc[31:1] : ex_pc[31:1] + 31'd2;
 
@@ -744,6 +767,14 @@ always @(posedge clk or negedge resetb) begin
         csr_mip                     <= 32'h0;
     end else if (!ex_stall && !ex_flush) begin
         case(1'b1)
+            memory_fault : begin
+                csr_mcause          <= ex_mcause;
+                csr_mepc            <= store_fault ? wb_pc : ex_pc;
+                csr_mtval           <= store_fault ? wb_waddr :
+                                       ex_fetch_fault ? ex_pc : ex_memaddr;
+                csr_mstatus[MPIE]   <= csr_mstatus[MIE];
+                csr_mstatus[MIE]    <= 1'b0;
+            end
             ex_inst_ill_excp : begin
                 csr_mcause          <= TRAP_INST_ILL;
                 csr_mepc            <= {ex_pc[31: 1], 1'b0};
@@ -917,7 +948,7 @@ always @(posedge clk or negedge resetb) begin
         csr_misa            <= MISA;
         csr_mie             <= 32'h0;
         csr_mtvec           <= 32'h0;
-    end else if (!ex_stall && ex_csr_wr && !ex_flush) begin
+    end else if (!ex_stall && ex_csr_wr && !ex_flush && !memory_fault) begin
         case (ex_imm[11:0])
             CSR_MVENDORID  : ; // Read only
             CSR_MARCHID    : ; // Read only
@@ -970,7 +1001,10 @@ always @(posedge clk or negedge resetb) begin
         else
             csr_cycle <= csr_cycle + 1'b1;
 
-        if (!ex_stall && !ex_flush &&
+        // Stores enter the count in EX. A failed response cancels that retirement.
+        if (!ex_stall && store_fault)
+            csr_instret <= csr_instret - 1'b1;
+        else if (!ex_stall && !ex_flush &&
             (MEM_WAIT_STATES ? (ex_valid && !ex_trap_nop &&
              (!ex_systemcall || ex_imm[1:0] == 2'b10)) : pipefill == 2'b10))
             csr_instret <= csr_instret + 1'b1;
@@ -1099,7 +1133,7 @@ always @(posedge clk or negedge resetb) begin
         wb_pc               <= ex_pc;
         wb_insn             <= ex_insn;
         wb_break            <= ex_imm[1:0];
-        wb_system           <= ex_systemcall;
+        wb_system           <= ex_systemcall && !memory_fault;
         wb_ld_align_excp    <= ex_ld_align_excp;
     end
 end
