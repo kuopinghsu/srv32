@@ -1,5 +1,5 @@
 
-# uncomment it to use xPack GNU RISC-V Embedded toolchains
+# Toolchain defaults; command-line assignments override Makefile.env.
 include Makefile.env
 
 ifndef CROSS_COMPILE
@@ -14,8 +14,9 @@ top       ?= $(if $(filter 1,$(verilator)),axi,0)
 coverage  ?= 0
 debug     ?= 0
 memsize   ?= 256
+branch_predictor ?= 1
 
-# set 1 for compliance test v1, 2 for v2
+# Architectural test framework: 2 for Make-based tests, 3 for RISCOF.
 test_v    ?= 3
 
 # set 1 to enable rv32c
@@ -39,38 +40,53 @@ ifeq ($(coverage), 1)
     _coverage := 1
 endif
 
-MAKE_FLAGS = rv32c=$(rv32c) rv32e=$(rv32e) rv32b=$(rv32b)
+MAKE_FLAGS = rv32c=$(rv32c) rv32e=$(rv32e) rv32b=$(rv32b) branch_predictor=$(branch_predictor)
 
-.PHONY: $(SUBDIRS) tools tests coverage
+.PHONY: help all all-sw tests-all tests tests-sw build coverage clean distclean $(SUBDIRS) tools
 
 help:
-	@echo "make all         run AXI-Lite regressions and all RTL/ISS diagnostics"
-	@echo "make all-sw      build all diags and run the ISS sim"
-	@echo "make tests-all   run all diags and compliance test"
-	@echo "make coverage    generate code coverage report"
-	@echo "make build       build all diags and the RTL"
-	@echo "make dhrystone   build Dhrystone diag and run the RTL sim"
-	@echo "make coremark    build Coremark diag and run the RTL sim"
-	@echo "make clean       clean"
-	@echo "make distclean   clean all"
+	@echo "Usage: make [target] [option=value ...]"
 	@echo ""
-	@echo "top=axi          build the AXI-Lite SoC (default)"
-	@echo "top=0 or top=1   build the split-RAM or single-RAM simulator"
-	@echo "rv32c=1          enable RV32C (default off)"
-	@echo "rv32e=1          enable RV32E (default off)"
-	@echo "rv32b=1          enable RV32B (default off)"
-	@echo "debug=1          enable waveform dump (default off)"
-	@echo "coverage=1       enable coverage test (default off)"
-	@echo "test_v=[2|3]     run test compliance v2 or v3 (default)"
+	@echo "Targets:"
+	@echo "  help               show this help (default target)"
+	@echo "  hello / <diag>     build a diagnostic, run RTL and ISS, compare traces"
+	@echo "  coremark           run CoreMark with RTL/ISS trace comparison"
+	@echo "  dhrystone          run Dhrystone with RTL/ISS trace comparison"
+	@echo "  build              build software, the selected RTL simulator, and ISS"
+	@echo "  all                clean, run simulation checks, then all RTL/ISS diagnostics"
+	@echo "  all-sw             run all software diagnostics on the ISS"
+	@echo "  tests              run architectural tests on RTL"
+	@echo "  tests-sw           run architectural tests on the ISS"
+	@echo "  tests-all          run architectural tests and all software diagnostics"
+	@echo "  coverage           generate coverage reports (v3 RTL collection is TODO)"
+	@echo "  clean / distclean  remove build output / also remove downloaded arch-tests"
 	@echo ""
-	@echo "For example"
+	@echo "Simulation checks:"
+	@echo "  make -C sim check         RAM/predictor matrix plus AXI-Lite regressions"
+	@echo "  make -C sim check-branch  CoreMark, IRQ, exception, CSR in all four RAM/predictor modes"
 	@echo ""
-	@echo "$ make tests-all             run all tests with test compliance (default v3)"
-	@echo "$ make test_v=2 tests-all    run all tests with test compliance v2"
-	@echo "$ make coverage=1 tests-all  run all tests with code coverage report"
-	@echo "$ make debug=1 hello         run hello with waveform dump"
-	@echo "$ make rv32e=1 dhrystone     run dhrystone for RV32E config"
+	@echo "Memory selection:"
+	@echo "  top=0              non-shared instruction/data RAM (default for named diagnostics)"
+	@echo "  top=1              shared single-port instruction/data RAM"
+	@echo "  top=axi            AXI-Lite SoC (default for build and make -C sim)"
 	@echo ""
+	@echo "Options:"
+	@echo "  branch_predictor=0|1  static prediction in all buffered modes (default 1)"
+	@echo "  memsize=256          KiB each for instruction and data memory"
+	@echo "  debug=1              write sim/wave.fst with Verilator (default 0)"
+	@echo "  coverage=1           enable coverage instrumentation (default 0)"
+	@echo "  verilator=0          select the legacy Icarus build (default 1)"
+	@echo "  rv32e=1              RV32E register file/toolchain (matching multilib required)"
+	@echo "  rv32b=1 / rv32c=1    ISS/toolchain switches; RTL B/C execution is not implemented"
+	@echo "  test_v=2|3           architectural framework (default 3: RISCOF)"
+	@echo "  CROSS_COMPILE=...    RISC-V tool prefix (see Makefile.env)"
+	@echo "  EXTRA_CFLAGS=...     extra firmware compiler flags (see Makefile.env)"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make top=0 branch_predictor=1 coremark dhrystone"
+	@echo "  make top=1 branch_predictor=0 coremark"
+	@echo "  make debug=1 hello"
+	@echo "  make test_v=2 tests"
 
 tests-all: tests-sw tests all all-sw
 
@@ -88,7 +104,7 @@ all-sw:
 		$(MAKE) $(MAKE_FLAGS) memsize=$(memsize) -C tools $$i.elf; \
 	done
 
-# Architectural test: it needs 1716MB
+# Architectural tests use 1716 KiB each for instruction and data memory.
 tests:
 	$(MAKE) coverage=$(coverage) clean
 	$(MAKE) $(MAKE_FLAGS) memsize=1716 test_v=$(test_v) -C tests tests
@@ -109,14 +125,10 @@ $(SUBDIRS):
 			 $(if $(_top), top=1) $(MAKE_FLAGS) memsize=$(memsize) debug=$(debug) -C sim $@.elf
 	@$(MAKE) $(if $(_top), top=1) $(MAKE_FLAGS) memsize=$(memsize) tracelog=1 -C tools $@.elf
 	@echo "Compare the trace between RTL and ISS simulator"
-ifeq ($(top),1)
 	@set -e; trace_dir=$$(mktemp -d); trap 'rm -rf "$$trace_dir"' EXIT; \
 	    sed -E 's/^ *[0-9]+ //' sim/trace.log > "$$trace_dir/rtl"; \
 	    sed -E 's/^ *[0-9]+ //' tools/trace.log > "$$trace_dir/iss"; \
 	    diff --brief "$$trace_dir/rtl" "$$trace_dir/iss"
-else
-	@diff --brief sim/trace.log tools/trace.log
-endif
 	@echo === Simulation passed ===
 
 coverage: clean

@@ -77,7 +77,8 @@ void usage(void) {
 "       --membase n, -m n       memory base\n"
 "       --memsize n, -n n       memory size for iram and dram each (in Kb)\n"
 "       --branch n, -b n        branch penalty (default 2)\n"
-"       --single, -s            single RAM\n"
+"       --single, -s            buffered single RAM\n"
+"       --split, -S             buffered split RAM\n"
 "       --predict, -p           static branch prediction\n"
 "       --log file, -l file     generate log file\n"
 "\n"
@@ -345,7 +346,7 @@ static inline void srv32_redirect_cycles(struct rv *rv) {
     if (rv->singleram) {
         // Discard the younger fetch wait, including the older store's
         // extra cycle. The target will enter EX through a bubble.
-        if (!rv->single_irq)
+        if (!rv->single_irq && !rv->splitram)
             srv32_cycle_add(rv, -rv->single_previous_store);
         rv->single_redirect_pending = true;
     } else {
@@ -650,7 +651,7 @@ int main(int argc, char **argv) {
     int gdbport = 0;
     #endif
 
-    const char *optstring = "hdg:b:pl:qm:n:s";
+    const char *optstring = "hdg:b:pl:qm:n:sS";
     int c;
     struct option opts[] = {
         {"help", 0, NULL, 'h'},
@@ -662,7 +663,9 @@ int main(int argc, char **argv) {
         {"quiet", 0, NULL, 'q'},
         {"membase", 1, NULL, 'm'},
         {"memsize", 1, NULL, 'n'},
-        {"single", 0, NULL, 's'}
+        {"single", 0, NULL, 's'},
+        {"split", 0, NULL, 'S'},
+        {NULL, 0, NULL, 0}
     };
 
     if ((rv = (struct rv*)aligned_malloc(sizeof(int), sizeof(struct rv))) == NULL) {
@@ -725,6 +728,11 @@ int main(int argc, char **argv) {
                 break;
             case 's':
                 rv->singleram = true;
+                rv->splitram = false;
+                break;
+            case 'S':
+                rv->singleram = true;
+                rv->splitram = true;
                 break;
             default:
                 usage();
@@ -902,13 +910,34 @@ static int branch_condition(struct rv *rv, INST inst) {
     }
 }
 
+// Match the buffered RTL decoder: aligned JAL and legal backward branches.
+static bool single_predict_taken(struct rv *rv, INST inst) {
+    if (!rv->branch_predict)
+        return false;
+    int offset;
+    if (inst.r.op == OP_JAL)
+        offset = to_imm_j(inst.j.imm);
+    else if (inst.r.op == OP_BRANCH && branch_condition(rv, inst) >= 0) {
+        offset = to_imm_b(inst.b.imm2, inst.b.imm1);
+        if (offset >= 0)
+            return false;
+    } else
+        return false;
+    return ((rv->pc + (uint32_t)offset) & 3) == 0;
+}
+
 static int single_instruction_cycles(struct rv *rv, INST inst, bool msip_write) {
-    int load_wait = single_external_load(rv, inst) ? 1 : 0;
-    int port_wait = rv->single_previous_store;
-    int wait = load_wait + port_wait;
+    // Split data RAM accepts the load in EX and supplies WB directly.
+    int load_wait = !rv->splitram && single_external_load(rv, inst) ? 1 : 0;
+    int port_wait = rv->single_previous_store && (!rv->splitram || load_wait);
+    bool predicted = single_predict_taken(rv, inst);
+    bool taken = inst.r.op == OP_JAL || inst.r.op == OP_JALR ||
+                 (inst.r.op == OP_BRANCH && branch_condition(rv, inst) != 0);
+    bool redirects = taken != predicted;
+    // Decode redirects suppress the sequential request. A correct prediction
+    // waits one clock for the target request before EX can advance.
+    int wait = load_wait + port_wait + (predicted && !redirects);
     if (inst.r.op != OP_SYSTEM) {
-        bool redirects = inst.r.op == OP_JAL || inst.r.op == OP_JALR ||
-                         (inst.r.op == OP_BRANCH && branch_condition(rv, inst) != 0);
         int limit = redirects ? 0 : wait;
         for (int elapsed = 0; elapsed <= limit; elapsed++) {
             int cause = single_pending_irq(rv, elapsed, msip_write);
@@ -1037,20 +1066,25 @@ static int srv32_execute(struct rv *rv) {
         ext_irq = (rv->csr.msip & (1<<16)) ? 1 : 0;
     }
 
+#ifdef RV32C_ENABLED
+    compressed = compressed_decoder(instc, &inst, &illegal);
+#endif
+
     rv->csr.time.c++;
     rv->csr.instret.c++;
     if (!rv->singleram)
         srv32_cycle_add(rv, 1);
-    else if (rv->single_started)
-        srv32_cycle_add(rv, single_instruction_cycles(rv, inst, msip_write));
+    else {
+        int cycles = single_instruction_cycles(rv, inst, msip_write);
+        // Pipeline startup absorbs the first base cycle, but not memory waits.
+        srv32_cycle_add(rv, cycles - !rv->single_started);
+    }
     rv->single_started = rv->singleram;
     rv->single_counted_instruction = rv->singleram;
 
     rv->prev_pc = rv->pc;
 
 #ifdef RV32C_ENABLED
-    compressed = compressed_decoder(instc, &inst, &illegal);
-
     // one more cycle when the instruction type changes
     if (compressed_prev != compressed) {
         srv32_cycle_add(rv, 1);
@@ -1105,6 +1139,7 @@ static int srv32_execute(struct rv *rv) {
         case OP_JAL: { // J-Type
             int pc_old = rv->pc;
             int pc_off = to_imm_j(inst.j.imm);
+            bool predicted = rv->singleram && single_predict_taken(rv, inst);
 
             TIME_LOG; TRACE_LOG "%08x %08x", rv->pc, inst.inst
             TRACE_END;
@@ -1135,7 +1170,8 @@ static int srv32_execute(struct rv *rv) {
                       inst.j.rd ? srv32_read_regs(rv, inst.j.rd) : 0
             TRACE_END;
 
-            srv32_redirect_cycles(rv);
+            if (!predicted)
+                srv32_redirect_cycles(rv);
             return RV_OKAY;
         }
         case OP_JALR: { // I-Type
@@ -1185,12 +1221,16 @@ static int srv32_execute(struct rv *rv) {
                 srv32_trap(rv, TRAP_INST_ILL, inst.inst);
                 return RV_TRAP;
             }
+            bool predicted = rv->singleram && single_predict_taken(rv, inst);
             if (taken) {
                 rv->pc += offset;
-                if ((rv->singleram || !rv->branch_predict || offset > 0) && (rv->pc & 3) == 0)
+                if ((rv->singleram ? !predicted : (!rv->branch_predict || offset > 0)) &&
+                    (rv->pc & 3) == 0)
                     srv32_redirect_cycles(rv);
                 return RV_OKAY;
             }
+            if (predicted)
+                srv32_redirect_cycles(rv);
             break;
         }
         case OP_LOAD: { // I-Type

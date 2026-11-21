@@ -28,7 +28,8 @@ module top #(
     parameter RV32B = 0,
     parameter RV32C = 0,
     parameter MEM_WAIT_STATES = 0,
-    parameter MEM_ACCESS_FAULTS = 0
+    parameter MEM_ACCESS_FAULTS = 0,
+    parameter STATIC_BRANCH_PREDICTOR = 1
 )(
     input                   clk,
     input                   resetb,
@@ -124,7 +125,8 @@ end
         .RV32B (RV32B),
         .RV32C (RV32C),
         .MEM_WAIT_STATES (MEM_WAIT_STATES),
-        .MEM_ACCESS_FAULTS (MEM_ACCESS_FAULTS)
+        .MEM_ACCESS_FAULTS (MEM_ACCESS_FAULTS),
+        .STATIC_BRANCH_PREDICTOR (STATIC_BRANCH_PREDICTOR)
     ) riscv (
         .clk                (clk),
         .resetb             (resetb),
@@ -199,14 +201,161 @@ end
 
 endmodule
 
-// Single-port synchronous RAM adapter. A read request is accepted when
-// mem_ready && mem_valid and completes with a later mem_rresp pulse.
+// Buffered synchronous RAM adapter shared by the single- and split-RAM systems.
+// Each physical read completes with a later response pulse. This module only
+// transports requests and redirects; branch prediction is implemented in riscv.v.
 /* verilator lint_off DECLFILENAME */
+module top_ram #(
+    parameter RV32M = 1,
+    parameter RV32E = 0,
+    parameter RV32B = 0,
+    parameter RV32C = 0,
+    parameter STATIC_BRANCH_PREDICTOR = 1,
+    parameter SINGLE_PORT = 1
+)(
+    input         clk,
+    input         resetb,
+    input         stall,
+    input         external_interrupt,
+    output        exception,
+    output        ex_irq,
+
+    output        mem_ready,
+    input         mem_valid,
+    output        mem_we,
+    output [31:0] mem_addr,
+    input         mem_rresp,
+    input  [31:0] mem_rdata,
+    output [31:0] mem_wdata,
+    output [3:0]  mem_wstrb,
+
+    // Independent instruction port, used only when SINGLE_PORT=0.
+    output        instr_ready,
+    input         instr_valid,
+    output [31:0] instr_addr,
+    input         instr_rresp,
+    input  [31:0] instr_rdata,
+
+    // Split data RAM accepts this read at the EX/WB edge and returns data
+    // during WB. It has an independent write port and one-cycle read latency.
+    output        split_read_ready,
+    output [31:0] split_read_addr
+);
+    wire advance, redirect, unused_access_fault;
+    wire [31:0] fetch_addr, load_addr, store_addr;
+    wire load_request, store_request;
+
+    reg fetch_valid, load_valid;
+    reg [31:0] fetch_data, load_data, wb_load_data;
+    reg read_pending, read_load, discard_fetch;
+    reg instr_pending;
+
+    wire response = read_pending && mem_rresp;
+    wire instr_response = SINGLE_PORT ? (response && !read_load) :
+                          (instr_pending && instr_rresp);
+    wire fetch_response = instr_response && !discard_fetch;
+    wire [31:0] instruction_data = SINGLE_PORT ? mem_rdata : instr_rdata;
+    wire load_response = response && read_load;
+    wire instruction_valid = (fetch_valid || fetch_response) &&
+                             (!SINGLE_PORT || !store_request);
+    wire port_available = resetb && mem_valid && (!read_pending || response);
+    wire load_needed = load_request && !(load_valid || load_response);
+    wire fetch_needed = !redirect && (advance || !(fetch_valid || fetch_response));
+    wire store_done = port_available && store_request;
+
+    // Pending stores are older than any read and must use the port first.
+    assign mem_ready = port_available &&
+                       (store_request || (SINGLE_PORT && (load_needed || fetch_needed)));
+    assign mem_we = store_request;
+    assign mem_addr = store_request ? store_addr : load_needed ? load_addr :
+                      advance ? fetch_addr + 32'd4 : fetch_addr;
+
+    assign instr_ready = !SINGLE_PORT && resetb && instr_valid &&
+                         (!instr_pending || instr_rresp) && fetch_needed;
+    assign instr_addr = advance ? fetch_addr + 32'd4 : fetch_addr;
+    assign split_read_ready = !SINGLE_PORT && resetb && advance && load_request && mem_valid;
+    assign split_read_addr = load_addr;
+
+    top #(
+        .RV32M(RV32M), .RV32E(RV32E), .RV32B(RV32B), .RV32C(RV32C),
+        .MEM_WAIT_STATES(1), .STATIC_BRANCH_PREDICTOR(STATIC_BRANCH_PREDICTOR)
+    ) core (
+        .clk(clk), .resetb(resetb), .stall(stall), .interrupt(external_interrupt),
+        .exception(exception), .ex_irq(ex_irq),
+        .imem_ready(advance), .imem_redirect(redirect),
+        .imem_error(1'b0), .dmem_read_error(1'b0), .dmem_write_error(1'b0),
+        .access_fault(unused_access_fault),
+        .imem_valid(instruction_valid), .imem_addr(fetch_addr),
+        .imem_rresp(instruction_valid), .imem_rdata(fetch_valid ? fetch_data : instruction_data),
+        .dmem_wready(store_request), .dmem_wvalid(store_done),
+        .dmem_waddr(store_addr), .dmem_wdata(mem_wdata), .dmem_wstrb(mem_wstrb),
+        .dmem_rready(load_request),
+        .dmem_rvalid(SINGLE_PORT ? (load_valid || load_response) : mem_valid),
+        .dmem_raddr(load_addr), .dmem_rresp(1'b1),
+        .dmem_rdata(SINGLE_PORT ? wb_load_data : mem_rdata)
+    );
+
+    always @(posedge clk or negedge resetb) begin
+        if (!resetb) begin
+            fetch_valid   <= 1'b0;
+            load_valid    <= 1'b0;
+            fetch_data    <= 32'b0;
+            load_data     <= 32'b0;
+            wb_load_data  <= 32'b0;
+            read_pending  <= 1'b0;
+            read_load     <= 1'b0;
+            discard_fetch <= 1'b0;
+            instr_pending <= 1'b0;
+        end else begin
+            if (advance) begin
+                fetch_valid <= 1'b0;
+                if (load_request) begin
+                    wb_load_data <= load_valid ? load_data : mem_rdata;
+                    load_valid   <= 1'b0;
+                end
+            end
+
+            if (redirect && (SINGLE_PORT ? (read_pending && !read_load) : instr_pending))
+                discard_fetch <= 1'b1;
+
+            // Consume synchronous responses directly when EX advances.
+            // Hold responses only when the pipeline cannot use them yet.
+            if (response) begin
+                read_pending <= 1'b0;
+                if (load_response && !advance) begin
+                    load_data  <= mem_rdata;
+                    load_valid <= 1'b1;
+                end
+            end
+            if (fetch_response && !advance) begin
+                fetch_data  <= instruction_data;
+                fetch_valid <= 1'b1;
+            end
+            if (instr_response)
+                instr_pending <= 1'b0;
+
+            // A returning read can share a clock edge with the next request.
+            if (mem_ready && !mem_we) begin
+                read_pending  <= 1'b1;
+                read_load     <= !SINGLE_PORT || load_needed;
+                if (SINGLE_PORT && !load_needed)
+                    discard_fetch <= 1'b0;
+            end
+            if (instr_ready) begin
+                instr_pending <= 1'b1;
+                discard_fetch <= 1'b0;
+            end
+        end
+    end
+endmodule
+
+// Compatibility wrapper for existing single-RAM integrations.
 module top_single_ram #(
     parameter RV32M = 1,
     parameter RV32E = 0,
     parameter RV32B = 0,
-    parameter RV32C = 0
+    parameter RV32C = 0,
+    parameter STATIC_BRANCH_PREDICTOR = 1
 )(
     input         clk,
     input         resetb,
@@ -224,88 +373,22 @@ module top_single_ram #(
     output [31:0] mem_wdata,
     output [3:0]  mem_wstrb
 );
-    wire advance, redirect, unused_access_fault;
-    wire [31:0] fetch_addr, load_addr, store_addr;
-    wire load_request, store_request;
-
-    reg fetch_valid, load_valid;
-    reg [31:0] fetch_data, load_data, wb_load_data;
-    reg read_pending, read_load, discard_fetch;
-
-    wire response = read_pending && mem_rresp;
-    wire fetch_response = response && !read_load && !discard_fetch;
-    wire load_response = response && read_load;
-    wire instruction_valid = (fetch_valid || fetch_response) && !store_request;
-    wire port_available = resetb && mem_valid && (!read_pending || response);
-    wire load_needed = load_request && !(load_valid || load_response);
-    wire fetch_needed = !redirect && (advance || !(fetch_valid || fetch_response));
-    wire store_done = port_available && store_request;
-
-    // Pending stores are older than any read and must use the port first.
-    assign mem_ready = port_available && (store_request || load_needed || fetch_needed);
-    assign mem_we = store_request;
-    assign mem_addr = store_request ? store_addr : load_needed ? load_addr :
-                      advance ? fetch_addr + 32'd4 : fetch_addr;
-
-    top #(
+    wire unused_instr_ready;
+    wire [31:0] unused_instr_addr;
+    wire unused_split_read_ready;
+    wire [31:0] unused_split_read_addr;
+    top_ram #(
         .RV32M(RV32M), .RV32E(RV32E), .RV32B(RV32B), .RV32C(RV32C),
-        .MEM_WAIT_STATES(1)
-    ) core (
-        .clk(clk), .resetb(resetb), .stall(stall), .interrupt(external_interrupt),
-        .exception(exception), .ex_irq(ex_irq),
-        .imem_ready(advance), .imem_redirect(redirect),
-        .imem_error(1'b0), .dmem_read_error(1'b0), .dmem_write_error(1'b0),
-        .access_fault(unused_access_fault),
-        .imem_valid(instruction_valid), .imem_addr(fetch_addr),
-        .imem_rresp(instruction_valid), .imem_rdata(fetch_valid ? fetch_data : mem_rdata),
-        .dmem_wready(store_request), .dmem_wvalid(store_done),
-        .dmem_waddr(store_addr), .dmem_wdata(mem_wdata), .dmem_wstrb(mem_wstrb),
-        .dmem_rready(load_request), .dmem_rvalid(load_valid || load_response), .dmem_raddr(load_addr),
-        .dmem_rresp(1'b1), .dmem_rdata(wb_load_data)
+        .STATIC_BRANCH_PREDICTOR(STATIC_BRANCH_PREDICTOR), .SINGLE_PORT(1)
+    ) adapter (
+        .clk(clk), .resetb(resetb), .stall(stall),
+        .external_interrupt(external_interrupt), .exception(exception), .ex_irq(ex_irq),
+        .mem_ready(mem_ready), .mem_valid(mem_valid), .mem_we(mem_we),
+        .mem_addr(mem_addr), .mem_rresp(mem_rresp), .mem_rdata(mem_rdata),
+        .mem_wdata(mem_wdata), .mem_wstrb(mem_wstrb),
+        .instr_ready(unused_instr_ready), .instr_valid(1'b0), .instr_addr(unused_instr_addr),
+        .instr_rresp(1'b0), .instr_rdata(32'b0),
+        .split_read_ready(unused_split_read_ready), .split_read_addr(unused_split_read_addr)
     );
-
-    always @(posedge clk or negedge resetb) begin
-        if (!resetb) begin
-            fetch_valid   <= 1'b0;
-            load_valid    <= 1'b0;
-            fetch_data    <= 32'b0;
-            load_data     <= 32'b0;
-            wb_load_data  <= 32'b0;
-            read_pending  <= 1'b0;
-            read_load     <= 1'b0;
-            discard_fetch <= 1'b0;
-        end else begin
-            if (advance) begin
-                fetch_valid <= 1'b0;
-                if (load_request) begin
-                    wb_load_data <= load_valid ? load_data : mem_rdata;
-                    load_valid   <= 1'b0;
-                end
-            end
-
-            if (read_pending && redirect && !read_load)
-                discard_fetch <= 1'b1;
-
-            // Consume synchronous responses directly when EX advances.
-            // Hold responses only when the pipeline cannot use them yet.
-            if (response) begin
-                read_pending <= 1'b0;
-                if (load_response && !advance) begin
-                    load_data  <= mem_rdata;
-                    load_valid <= 1'b1;
-                end else if (fetch_response && !advance) begin
-                    fetch_data  <= mem_rdata;
-                    fetch_valid <= 1'b1;
-                end
-            end
-
-            // A returning read can share a clock edge with the next request.
-            if (mem_ready && !mem_we) begin
-                read_pending  <= 1'b1;
-                read_load     <= load_needed;
-                discard_fetch <= 1'b0;
-            end
-        end
-    end
 endmodule
 /* verilator lint_on DECLFILENAME */

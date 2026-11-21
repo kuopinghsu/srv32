@@ -4,6 +4,7 @@ module top_axi_lite_soc #(
     parameter RV32E = 0,
     parameter RV32B = 0,
     parameter RV32C = 0,
+    parameter STATIC_BRANCH_PREDICTOR = 1,
     parameter [31:0] UART_BASE = 32'h1000_0000,
     parameter integer UART_CLOCKS_PER_BIT = 434
 )(
@@ -55,7 +56,8 @@ module top_axi_lite_soc #(
     assign m_axi_rready  = rready && !uart_read;
 
     top_axi_lite #(
-        .RV32M(RV32M), .RV32E(RV32E), .RV32B(RV32B), .RV32C(RV32C)
+        .RV32M(RV32M), .RV32E(RV32E), .RV32B(RV32B), .RV32C(RV32C),
+        .STATIC_BRANCH_PREDICTOR(STATIC_BRANCH_PREDICTOR)
     ) cpu (
         .clk(clk), .resetb(resetb), .stall(stall), .interrupt(external_interrupt),
         .exception(exception), .ex_irq(ex_irq), .bus_error(bus_error),

@@ -77,3 +77,8 @@ sim/wave.fst
 *.symbol
 *.elf
 default.ld
+
+# Simulator configuration stamps
+sim/.sim.config*
+sim/.sim_single.config*
+sim/.sim_axi.config*

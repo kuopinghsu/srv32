@@ -1,5 +1,6 @@
 DEBUG    ?= 0
 top      ?= 0
+branch_predictor ?= 1
 coverage ?= 0
 tracelog ?= 0
 memsize  ?= 256
@@ -62,7 +63,7 @@ RVSIM   = rvsim
 
 all: $(RVSIM)
 
-%.o: %.c opcode.h
+%.o: %.c opcode.h rvsim.h
 	$(CC) -DMEMSIZE=$(memsize) -c -o $@ $< $(CFLAGS)
 
 $(RVSIM): $(OBJECTS) libgdbstub.a mini-gdbstub
@@ -86,7 +87,7 @@ endif
 		$(MAKE) rv32m=$(rv32m) rv32c=$(rv32c) rv32e=$(rv32e) rv32b=$(rv32b) memsize=$(memsize) -C ../sw $*; \
 	fi
 	@rm -rf trace.log
-	./$(RVSIM) $(if $(filter 1,$(top)),--single) --memsize $(memsize) $(TRACELOG) ../sw/$*/$*.elf
+	./$(RVSIM) $(if $(filter 1,$(top)),--single,--split) $(if $(filter 1,$(branch_predictor)),--predict) --memsize $(memsize) $(TRACELOG) ../sw/$*/$*.elf
 	@if [ -f trace.log ]; then ./log2dis.pl -q trace.log ../sw/$*/$*.elf; fi
 
 coverage: coverage_extra

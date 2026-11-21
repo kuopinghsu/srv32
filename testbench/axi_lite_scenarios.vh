@@ -10,7 +10,15 @@
     always @(posedge axi_clk)
         cycle <= cycle + 1;
 
-    reg [31:0] ram [0:127];
+    localparam integer RAM_INDEX_BITS = $clog2(AXI_RAM_BYTES / 4);
+    localparam [31:0] FAULT_ADDR = 32'h80000000;
+    reg [31:0] ram [0:AXI_RAM_BYTES/4-1];
+
+    initial begin
+        if (AXI_RAM_BYTES < 512 || AXI_RAM_BYTES % 4 != 0 ||
+            AXI_RAM_BYTES > UART_BASE)
+            $fatal(1, "AXI RAM size must be word-aligned and between 512 bytes and UART_BASE");
+    end
     reg ram_aw_pending = 0, ram_w_pending = 0;
     reg ram_bvalid = 0, ram_rvalid = 0;
     reg [31:0] ram_awaddr, ram_wdata, ram_araddr, ram_rdata;
@@ -54,11 +62,11 @@
             ram_w_pending <= 0;
             write_count <= write_count + 1;
             write_delay <= 4;
-            ram_bresp <= ram_awaddr < 512 ? 2'b00 : 2'b11;
-            if (ram_awaddr < 512)
+            ram_bresp <= ram_awaddr < AXI_RAM_BYTES ? 2'b00 : 2'b11;
+            if (ram_awaddr < AXI_RAM_BYTES)
                 for (lane = 0; lane < 4; lane = lane + 1)
                     if (ram_wstrb[lane])
-                        ram[ram_awaddr[8:2]][8*lane +: 8] <= ram_wdata[8*lane +: 8];
+                        ram[ram_awaddr[RAM_INDEX_BITS+1:2]][8*lane +: 8] <= ram_wdata[8*lane +: 8];
         end
         if (write_delay != 0) begin
             write_delay <= write_delay - 1;
@@ -81,11 +89,11 @@
                     ram_rresp <= 2'b10;
                     first_target_read <= 0;
                 end else begin
-                    ram_rresp <= ram_araddr < 512 &&
+                    ram_rresp <= ram_araddr < AXI_RAM_BYTES &&
                              !(!redirect_test && !$test$plusargs("image=") && ram_araddr == 84) ?
                              2'b00 : 2'b10;
                 end
-                ram_rdata <= ram[ram_araddr[8:2]];
+                ram_rdata <= ram_araddr < AXI_RAM_BYTES ? ram[ram_araddr[RAM_INDEX_BITS+1:2]] : 32'b0;
             end
         end
         if (ram_rvalid && rready)
@@ -135,7 +143,7 @@
         ram[15] = 32'h01042483; // lw x9, 16(x8)
         ram[16] = 32'h08000613; // addi x12, x0, 128
         ram[17] = 32'h30561073; // csrw mtvec, x12
-        ram[18] = 32'h20000513; // addi x10, x0, 512
+        ram[18] = 32'h80000537; // lui x10, 0x80000 (unmapped)
         ram[19] = 32'h00052583; // lw x11, 0(x10) (load access fault)
         ram[20] = 32'h00952023; // sw x9, 0(x10) (store access fault)
         ram[21] = 32'h06300593; // instruction fetch fault prevents this addi
@@ -157,7 +165,7 @@
         axi_stall = 0;
 
         // Let the failed B response arrive while the pipeline is stalled.
-        wait (wvalid && awaddr == 512);
+        wait (wvalid && awaddr == FAULT_ADDR);
         @(negedge axi_clk);
         axi_stall = 1;
         repeat (25) @(negedge axi_clk);
@@ -185,8 +193,8 @@
     always @(negedge axi_clk) begin
         if (fault_taken) begin
             case (fault_count)
-                0: check_fault(5, 76, 512);
-                1: check_fault(7, 80, 512);
+                0: check_fault(5, 76, FAULT_ADDR);
+                1: check_fault(7, 80, FAULT_ADDR);
                 2: check_fault(1, 84, 84);
                 default: $fatal(1, "Unexpected additional access fault");
             endcase

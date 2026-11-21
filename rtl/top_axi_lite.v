@@ -3,7 +3,8 @@ module top_axi_lite #(
     parameter RV32M = 1,
     parameter RV32E = 0,
     parameter RV32B = 0,
-    parameter RV32C = 0
+    parameter RV32C = 0,
+    parameter STATIC_BRANCH_PREDICTOR = 1
 )(
     input                clk,
     input                resetb,
@@ -71,6 +72,7 @@ module top_axi_lite #(
 
     top #(
         .RV32M(RV32M), .RV32E(RV32E), .RV32B(RV32B), .RV32C(RV32C),
+        .STATIC_BRANCH_PREDICTOR(STATIC_BRANCH_PREDICTOR),
         .MEM_WAIT_STATES(1), .MEM_ACCESS_FAULTS(1)
     ) core (
         .clk(clk), .resetb(resetb), .stall(stall), .interrupt(interrupt),

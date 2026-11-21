@@ -18,14 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//`define SINGLE_RAM  1
 `define PRINT_TIMELOG
 
-`ifdef SINGLE_RAM
 `define TOP         top.core.riscv
-`else
-`define TOP         top.riscv
-`endif
 
 /* verilator coverage_off */
 
@@ -34,62 +29,97 @@ import "DPI-C" function byte getch();
 `endif
 
 `ifdef SYNTHESIS
-module fpga_top(
-    input           clk,
-    input           resetb,
-    input           stall
-);
+module fpga_top #(
 `else
-`ifdef VERILATOR
-module testbench(
-    input           clk,
-    input           resetb,
-    input           stall
-);
+module testbench #(
+`endif
+    // 0: split RAM, 1: shared RAM, 2: AXI-Lite.
+    parameter MEMORY_MODE = 0,
+    parameter BRANCH_PREDICTOR = 1,
+    parameter UART_CLOCKS_PER_BIT = 16,
+`ifdef MEMSIZE
+    parameter integer RAM_BYTES = `MEMSIZE * 1024,
 `else
-module testbench();
-`endif // VERILATOR
-`endif // SYNTHESIS
+    parameter integer RAM_BYTES = MEMORY_MODE == 2 ? 512 : 128 * 1024,
+`endif
+    parameter integer AXI_RAM_BYTES = RAM_BYTES,
+`ifdef RV32M_ENABLED
+    parameter RV32M = 1,
+`else
+    parameter RV32M = 0,
+`endif
+`ifdef RV32E_ENABLED
+    parameter RV32E = 1,
+`else
+    parameter RV32E = 0,
+`endif
+`ifdef RV32B_ENABLED
+    parameter RV32B = 1,
+`else
+    parameter RV32B = 0,
+`endif
+`ifdef RV32C_ENABLED
+    parameter RV32C = 1
+`else
+    parameter RV32C = 0
+`endif
+) (
+`ifdef SYNTHESIS
+    input clk, resetb, stall
+`elsif VERILATOR
+    input clk, resetb, stall
+`endif
+);
+
+    generate
+    if (MEMORY_MODE == 2) begin: axi_system
+        localparam [31:0] UART_BASE = 32'h1000_0000;
+        localparam CLOCKS_PER_BIT = UART_CLOCKS_PER_BIT;
+
+        reg axi_clk = 0;
+        reg axi_resetb = 0;
+        reg axi_stall = 0;
+        reg interrupt = 0;
+        wire [31:0] awaddr, wdata, araddr, rdata;
+        wire [2:0] awprot, arprot;
+        wire [3:0] wstrb;
+        wire awvalid, awready, wvalid, wready, bvalid, bready;
+        wire arvalid, arready, rvalid, rready;
+        wire [1:0] bresp, rresp;
+        wire tx, exception, bus_error, unused_ex_irq;
+
+        top_axi_lite_soc #(
+            .RV32M(RV32M), .RV32E(RV32E),
+            .RV32B(RV32B), .RV32C(RV32C),
+            .UART_BASE(UART_BASE), .UART_CLOCKS_PER_BIT(CLOCKS_PER_BIT),
+            .STATIC_BRANCH_PREDICTOR(BRANCH_PREDICTOR)
+        ) dut (
+            .clk(axi_clk), .resetb(axi_resetb), .stall(axi_stall), .external_interrupt(interrupt),
+            .exception(exception), .ex_irq(unused_ex_irq), .bus_error(bus_error), .uart_tx(tx),
+            .m_axi_awaddr(awaddr), .m_axi_awprot(awprot),
+            .m_axi_awvalid(awvalid), .m_axi_awready(awready),
+            .m_axi_wdata(wdata), .m_axi_wstrb(wstrb),
+            .m_axi_wvalid(wvalid), .m_axi_wready(wready),
+            .m_axi_bresp(bresp), .m_axi_bvalid(bvalid), .m_axi_bready(bready),
+            .m_axi_araddr(araddr), .m_axi_arprot(arprot),
+            .m_axi_arvalid(arvalid), .m_axi_arready(arready),
+            .m_axi_rdata(rdata), .m_axi_rresp(rresp),
+            .m_axi_rvalid(rvalid), .m_axi_rready(rready)
+        );
+
+`ifdef AXI_LITE_REGRESSION
+        `include "axi_lite_scenarios.vh"
+`else
+        initial $fatal(1, "AXI-Lite mode requires stimulus and a bus response model. Use make -C sim sim_axi.");
+`endif
+    end else begin: ram_system
+
+    localparam IRAMSIZE = RAM_BYTES;
+    localparam DRAMSIZE = RAM_BYTES;
+    localparam DRAMBASE = IRAMSIZE;
 
     `include "opcode.vh"
-
-`ifdef MEMSIZE
-    localparam      IRAMSIZE    = `MEMSIZE*1024;
-    localparam      IRAMBASE    = 0;
-    localparam      DRAMSIZE    = `MEMSIZE*1024;
-    localparam      DRAMBASE    = `MEMSIZE*1024;
-`else
-    localparam      IRAMSIZE    = 128*1024;
-    localparam      IRAMBASE    = 0;
-    localparam      DRAMSIZE    = 128*1024;
-    localparam      DRAMBASE    = 128*1024;
-`endif
-
-`ifdef RV32M_ENABLED
-    localparam RV32M = 1;
-`else
-    localparam RV32M = 0;
-`endif
-
-`ifdef RV32E_ENABLED
-    localparam          RV32E   = 1;
-    localparam  [ 4: 0] REG_SYS = REG_T0;
-`else
-    localparam          RV32E   = 0;
-    localparam  [ 4: 0] REG_SYS = REG_A7;
-`endif
-
-`ifdef RV32B_ENABLED
-    localparam RV32B = 1;
-`else
-    localparam RV32B = 0;
-`endif
-
-`ifdef RV32C_ENABLED
-    localparam RV32C = 1;
-`else
-    localparam RV32C = 0;
-`endif
+    localparam [4:0] REG_SYS = RV32E ? REG_T0 : REG_A7;
 
 `ifndef SYNTHESIS
 `ifndef VERILATOR
@@ -105,7 +135,6 @@ module testbench();
 
     reg     [31: 0] next_pc;
     reg     [ 7: 0] count;
-    reg     [ 1: 0] fillcount;
     integer         i;
     integer         dump;
     integer         STDIN = 0;
@@ -190,8 +219,6 @@ end
 `endif
 `endif // SYNTHESIS
 
-`ifdef SINGLE_RAM
-
     wire            mem_ready;
     wire            mem_valid;
     wire            mem_we;
@@ -204,7 +231,9 @@ end
     wire            ready;
     wire [31:0]     ram_rdata;
 `ifndef SYNTHESIS
+    reg [31:0]      result;
     reg             mmio_response;
+    reg             mmio_fromhost;
     reg  [31:0]     mmio_data;
     reg             wb_trace_valid;
 `endif
@@ -219,7 +248,7 @@ end
 `else
     assign ready = mem_ready && mem_addr[31:28] != MMIO_BASE;
     assign mem_rresp = ram_rresp || mmio_response;
-    assign mem_rdata = mmio_response ? mmio_data : ram_rdata;
+    assign mem_rdata = mmio_response ? (mmio_fromhost ? result : mmio_data) : ram_rdata;
 
     always @(posedge clk or negedge resetb) begin
         if (!resetb)
@@ -231,11 +260,20 @@ end
     end
 `endif
 
-    top_single_ram #(
+    localparam SINGLE_PORT = MEMORY_MODE == 1;
+    wire instr_ready, instr_rresp, split_read_ready;
+    wire [31:0] split_read_addr;
+    wire read_ready = SINGLE_PORT ? (mem_ready && !mem_we) : split_read_ready;
+    wire [31:0] read_addr = SINGLE_PORT ? mem_addr : split_read_addr;
+    wire [31:0] instr_addr, instr_rdata;
+
+    top_ram #(
         .RV32M (RV32M),
         .RV32E (RV32E),
         .RV32B (RV32B),
-        .RV32C (RV32C)
+        .RV32C (RV32C),
+        .STATIC_BRANCH_PREDICTOR (BRANCH_PREDICTOR),
+        .SINGLE_PORT(SINGLE_PORT)
     ) top (
         .clk        (clk),
         .resetb     (resetb),
@@ -253,9 +291,15 @@ end
         .mem_rresp  (mem_rresp),
         .mem_rdata  (mem_rdata),
         .mem_wdata  (mem_wdata),
-        .mem_wstrb  (mem_wstrb)
+        .mem_wstrb  (mem_wstrb),
+        .instr_ready(instr_ready), .instr_valid(1'b1), .instr_addr(instr_addr),
+        .instr_rresp(instr_rresp), .instr_rdata(instr_rdata),
+        .split_read_ready(split_read_ready), .split_read_addr(split_read_addr)
     );
 
+    if (MEMORY_MODE == 1) begin: memory
+    assign instr_rresp = 1'b0;
+    assign instr_rdata = 32'b0;
     mem1port # (
         .SIZE(IRAMSIZE+DRAMSIZE),
         .FILE("memory.bin")
@@ -272,22 +316,67 @@ end
         .wstrb (mem_wstrb)
     );
 
+        function [31:0] getw;
+            input [31:0] address;
+            getw = mem.getw(address);
+        endfunction
+        function [7:0] getb;
+            input [31:0] address;
+            getb = mem.getb(address);
+        endfunction
+    end else begin: memory
+    if (RV32C) begin: compressed_imem
+    mem2r1w #(.SIZE(IRAMSIZE), .FILE("imem.bin")) imem (
+        .clk(clk), .resetb(resetb), .rready(instr_ready), .wready(1'b0),
+        .rresp(instr_rresp), .rdata(instr_rdata), .raddr(instr_addr[31:1]),
+        .waddr(30'b0), .wdata(32'b0), .wstrb(4'b0)
+    );
+    end else begin: word_imem
+    mem2ports #(.SIZE(IRAMSIZE), .FILE("imem.bin")) imem (
+        .clk(clk), .resetb(resetb), .rready(instr_ready), .wready(1'b0),
+        .rresp(instr_rresp), .rdata(instr_rdata), .raddr(instr_addr[31:2]),
+        .waddr(30'b0), .wdata(32'b0), .wstrb(4'b0)
+    );
+    end
+    mem2ports #(.SIZE(DRAMSIZE), .FILE("dmem.bin")) dmem (
+        .clk(clk), .resetb(resetb), .rready(read_ready && read_addr[31:28] != MMIO_BASE), .wready(ready && mem_we),
+        .rresp(ram_rresp), .rdata(ram_rdata),
+        .raddr(read_addr[31:2] - DRAMBASE[31:2]),
+        .waddr(mem_addr[31:2] - DRAMBASE[31:2]),
+        .wdata(mem_wdata), .wstrb(mem_wstrb)
+    );
+        function [31:0] getw;
+            input [31:0] address;
+            getw = dmem.getw(address - IRAMSIZE);
+        endfunction
+        function [7:0] getb;
+            input [31:0] address;
+            getb = dmem.getb(address - IRAMSIZE);
+        endfunction
+    end
+
 `ifndef SYNTHESIS
     // Route simulated console input separately from the RAM data output.
     always @(posedge clk or negedge resetb) begin
         if (!resetb) begin
             mmio_response <= 1'b0;
+            mmio_fromhost <= 1'b0;
             mmio_data <= 32'b0;
         end else begin
-            mmio_response <= mem_ready && !mem_we &&
-                             (mem_addr == MMIO_GETC || mem_addr == MMIO_FROMHOST);
-            if (mem_ready && !mem_we && mem_addr == MMIO_GETC) begin
+            // Split RAM holds its read data until the next read. Hold the
+            // MMIO selection too, since WB can remain active during a stall.
+            if (SINGLE_PORT || read_ready) begin
+                mmio_response <= read_ready &&
+                                 (read_addr == MMIO_GETC || read_addr == MMIO_FROMHOST);
+                mmio_fromhost <= read_ready && read_addr == MMIO_FROMHOST;
+            end
+            if (read_ready && read_addr == MMIO_GETC) begin
                 `ifdef VERILATOR
                 mmio_data <= {24'b0, getch()};
                 `else
                 mmio_data <= 32'h78;
                 `endif
-            end else if (mem_ready && !mem_we && mem_addr == MMIO_FROMHOST) begin
+            end else if (read_ready && read_addr == MMIO_FROMHOST) begin
                 mmio_data <= result;
             end
         end
@@ -295,6 +384,16 @@ end
 
     // check memory range
     always @(posedge clk) begin
+        if (!SINGLE_PORT && instr_ready && instr_addr >= IRAMSIZE) begin
+            $display("IMEM address %x out of range", instr_addr);
+            $finish(2);
+        end
+        if (!SINGLE_PORT && read_ready && read_addr != MMIO_GETC &&
+            read_addr != MMIO_FROMHOST &&
+            (read_addr < DRAMBASE || read_addr >= DRAMBASE + DRAMSIZE)) begin
+            $display("DMEM address %x out of range", read_addr);
+            $finish(2);
+        end
         if (mem_ready && mem_we && mem_addr == MMIO_PUTC) begin
             $write("%c", mem_wdata[7:0]);
             $fflush;
@@ -308,7 +407,8 @@ end
         end
         else if (mem_ready &&
                  (mem_we || (mem_addr != MMIO_GETC && mem_addr != MMIO_FROMHOST)) &&
-                 mem_addr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
+                 (mem_addr >= DRAMBASE + DRAMSIZE ||
+                  (!SINGLE_PORT && mem_addr < DRAMBASE))) begin
             $display("DMEM address %x out of range", mem_addr);
             $finish(2);
         end
@@ -323,7 +423,7 @@ end
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_SYS] == SYS_WRITE &&
                 `TOP.regs[REG_A0] == 32'h1) begin // stdout
                 for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
-                    $write("%c", mem.getb(`TOP.regs[REG_A1] + i));
+                    $write("%c", host_getb(`TOP.regs[REG_A1] + i));
                 end
                 /* verilator lint_off IGNOREDRETURN */
                 `TOP.set_reg(REG_A0, `TOP.regs[REG_A2]);
@@ -334,277 +434,33 @@ end
                 // TODO
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_SYS] == SYS_DUMP && dump != 0) begin
                 for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 4) begin
-                    $fdisplay(dump, "%02x%02x%02x%02x", mem.getb(i + 3),
-                                                        mem.getb(i + 2),
-                                                        mem.getb(i + 1),
-                                                        mem.getb(i + 0));
+                    $fdisplay(dump, "%02x%02x%02x%02x", host_getb(i + 3),
+                                                        host_getb(i + 2),
+                                                        host_getb(i + 1),
+                                                        host_getb(i + 0));
                 end
             end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_SYS] == SYS_DUMP_BIN && dump != 0) begin
                 for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 1) begin
-                    $fwrite(dump, "%c", mem.getb(i));
+                    $fwrite(dump, "%c", host_getb(i));
                 end
             end
         end
     end
 `endif // SYNTHESIS
 
-`else // IRAM and DRAM seperate
-
-    wire            imem_ready;
-    wire            imem_valid;
-    wire            imem_redirect;
-    wire            unused_access_fault;
-    wire    [31: 0] imem_addr;
-    wire            imem_rresp;
-    wire    [31: 0] imem_rdata;
-
-    wire            dmem_wready;
-    wire            dmem_wvalid;
-    wire    [31: 0] dmem_waddr;
-    wire    [31: 0] dmem_wdata;
-    wire    [ 3: 0] dmem_wstrb;
-
-    wire            dmem_rready;
-    wire            dmem_rvalid;
-    wire    [31: 0] dmem_raddr;
-    wire            dmem_rresp;
-    wire    [31: 0] dmem_rdata;
-    wire    [31: 0] dmem_rdata0;
-    wire    [31: 0] dmem_rdata1;
-
-    wire            wready;
-    reg             rready;
-
-    assign imem_valid   = 1'b1;
-    assign dmem_rvalid  = 1'b1;
-    assign dmem_wvalid  = 1'b1;
-
-    assign interrupt    = ex_irq;
-
-    //FIXME
-    //assign dmem_rdata   = rready ? dmem_rdata1 : dmem_rdata0;
-    assign dmem_rdata   = rready ? result : dmem_rdata0;
-
-    assign wready       = (dmem_waddr[31:28] == MMIO_BASE) ?  1'b0 : dmem_wready;
-
-    top #(
-        .RV32M (RV32M),
-        .RV32E (RV32E),
-        .RV32B (RV32B),
-        .RV32C (RV32C)
-    ) top (
-        .clk        (clk),
-        .resetb     (resetb),
-
-        .stall      (stall),
-        .exception  (exception),
-
-        .ex_irq     (ex_irq),
-        .interrupt  (interrupt),
-
-        .imem_ready (imem_ready),
-        .imem_redirect(imem_redirect),
-        .imem_error(1'b0), .dmem_read_error(1'b0), .dmem_write_error(1'b0),
-        .access_fault(unused_access_fault),
-        .imem_valid (imem_valid),
-        .imem_addr  (imem_addr),
-        .imem_rresp (imem_rresp),
-        .imem_rdata (imem_rdata),
-
-        .dmem_wready(dmem_wready),
-        .dmem_wvalid(dmem_wvalid),
-        .dmem_waddr (dmem_waddr),
-        .dmem_wdata (dmem_wdata),
-        .dmem_wstrb (dmem_wstrb),
-
-        .dmem_rready(dmem_rready),
-        .dmem_rvalid(dmem_rvalid),
-        .dmem_raddr (dmem_raddr),
-        .dmem_rresp (dmem_rresp),
-        .dmem_rdata (dmem_rdata)
-    );
-
-`ifdef RV32C_ENABLED
-
-wire [30: 0] imem_raddr_i;
-assign imem_raddr_i = imem_addr[31:1]-(IRAMBASE/2);
-
-    mem2r1w # (
-        .SIZE(IRAMSIZE),
-        .FILE("imem.bin")
-    ) imem (
-        .clk   (clk),
-        .resetb(resetb),
-
-        .rready(imem_ready & imem_valid),
-        .wready(1'b0),
-        .rresp (imem_rresp),
-        .rdata (imem_rdata),
-        .raddr (imem_raddr_i),
-        .waddr (30'h0),
-        .wdata (32'h0),
-        .wstrb (4'h0)
-    );
-`else
-
-wire [29: 0] imem_raddr_i;
-assign imem_raddr_i[29:0] = imem_addr[31:2]-(IRAMBASE/4);
-
-    mem2ports # (
-        .SIZE(IRAMSIZE),
-        .FILE("imem.bin")
-    ) imem (
-        .clk   (clk),
-        .resetb(resetb),
-
-        .rready(imem_ready & imem_valid),
-        .wready(1'b0),
-        .rresp (imem_rresp),
-        .rdata (imem_rdata),
-        .raddr (imem_raddr_i),
-        .waddr (30'h0),
-        .wdata (32'h0),
-        .wstrb (4'h0)
-    );
-`endif // RV32C_ENABLED
-
-wire [29:0] dmem_raddr_i;
-wire [29:0] dmem_waddr_i;
-
-assign dmem_raddr_i = dmem_raddr[31:2]-(DRAMBASE/4);
-assign dmem_waddr_i = dmem_waddr[31:2]-(DRAMBASE/4);
-
-    mem2ports # (
-        .SIZE(DRAMSIZE),
-        .FILE("dmem.bin")
-    ) dmem (
-        .clk   (clk),
-        .resetb(resetb),
-
-        .rready(dmem_rready & dmem_rvalid),
-        .wready(wready & dmem_wvalid),
-        .rresp (dmem_rresp),
-        .rdata (dmem_rdata0),
-        .raddr (dmem_raddr_i),
-        .waddr (dmem_waddr_i),
-        .wdata (dmem_wdata),
-        .wstrb (dmem_wstrb)
-    );
-
 `ifndef SYNTHESIS
-
-
-    // check memory range
-    always @(posedge clk) begin
-        if (imem_ready && imem_addr[31:$clog2(IRAMSIZE)] != 'd0) begin
-            $display("IMEM address %x out of range", imem_addr);
-            $finish(2);
-        end
-
-        if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_PUTC) begin
-            $write("%c", dmem_wdata[7:0]);
-            result[31: 0] <= 'h1;
-            $fflush;
-        end
-        else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_EXIT) begin
-            printStatistics();
-            result[31: 0] <= 'h1;
-            $finish(1);
-        end
-        else if (`TOP.dmem_wready && `TOP.dmem_waddr == MMIO_TOHOST) begin
-            host_request(dmem_wdata);
-        end
-        else if (dmem_wready &&
-                 dmem_waddr[31:$clog2(DRAMSIZE+IRAMSIZE)] != 'd0) begin
-            $display("DMEM address %x out of range", dmem_waddr);
-            $finish(2);
-        end
-    end
-
-    always @(posedge clk) begin
-        if (`TOP.dmem_rready && `TOP.dmem_raddr == MMIO_FROMHOST) begin
-            rready <= 1'b1;
-        end else begin
-            rready <= 1'b0;
-        end
-    end
-
-    always @(posedge clk) begin
-        if (`TOP.dmem_rready && `TOP.dmem_raddr == MMIO_FROMHOST) begin
-            dmem_rdata1[31: 0] <= result[31: 0];
-        /*
-        else if (`TOP.dmem_rready && `TOP.dmem_raddr == MMIO_GETC) begin
-            `ifdef VERILATOR
-            dmem_rdata1[ 7: 0] <= getch();
-            `else
-            // TODO
-            dmem_rdata1[ 7: 0] <= 8'h78; // $fgetc(STDIN);
-            `endif
-            dmem_rdata1[31: 8] <= 'd0;
-        */
-        end
-    end
-
-    // syscall
-    always @(posedge clk) begin
-        if (`TOP.wb_system && !`TOP.wb_stall) begin
-            if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_SYS] == SYS_EXIT) begin
-                printStatistics();
-                $finish(2);
-            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_SYS] == SYS_WRITE &&
-                `TOP.regs[REG_A0] == 32'h1) begin // stdout
-                for (i = 0; i < `TOP.regs[REG_A2]; i = i + 1) begin
-                    $write("%c", dmem.getb(`TOP.regs[REG_A1] - IRAMSIZE + i));
-                end
-                /* verilator lint_off IGNOREDRETURN */
-                `ifdef VERILATOR
-                `TOP.set_reg(REG_A0, `TOP.regs[REG_A2]);
-                `endif
-                /* verilator lint_on IGNOREDRETURN */
-                $fflush;
-            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_SYS] == SYS_READ &&
-                `TOP.regs[REG_A0] == 32'h0) begin // stdin
-                // TODO
-            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_SYS] == SYS_DUMP && dump != 0) begin
-                for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 4) begin
-                    $fdisplay(dump, "%02x%02x%02x%02x", dmem.getb(i - IRAMSIZE + 3),
-                                                        dmem.getb(i - IRAMSIZE + 2),
-                                                        dmem.getb(i - IRAMSIZE + 1),
-                                                        dmem.getb(i - IRAMSIZE + 0));
-                end
-            end else if (`TOP.wb_break == 2'b00 && `TOP.regs[REG_SYS] == SYS_DUMP_BIN && dump != 0) begin
-                for (i = `TOP.regs[REG_A0]; i < `TOP.regs[REG_A1]; i = i + 1) begin
-                    $fwrite(dump, "%c", dmem.getb(i - IRAMSIZE));
-                end
-            end
-        end
-    end
-`endif // SYNTHESIS
-
-`endif // SINGLE_RAM
-
-`ifndef SYNTHESIS
-    reg [31:0] result;
 
 function [31:0] host_getw;
     input [31:0] address;
     begin
-`ifdef SINGLE_RAM
-        host_getw = mem.getw(address);
-`else
-        host_getw = dmem.getw(address - IRAMSIZE);
-`endif
+        host_getw = memory.getw(address);
     end
 endfunction
 
 function [7:0] host_getb;
     input [31:0] address;
     begin
-`ifdef SINGLE_RAM
-        host_getb = mem.getb(address);
-`else
-        host_getb = dmem.getb(address - IRAMSIZE);
-`endif
+        host_getb = memory.getb(address);
     end
 endfunction
 
@@ -717,22 +573,9 @@ always @* begin
     endcase
 end
 
-always @(posedge clk or negedge resetb) begin
-    if (!resetb) begin
-        fillcount       <= 'd0;
-    end else if (!`TOP.wb_stall && !`TOP.stall_r && !`TOP.wb_flush &&
-                 fillcount != 2'b11) begin
-        fillcount       <= fillcount + 1;
-    end
-end
-
 always @(posedge clk) begin
     if ($test$plusargs("trace") != 0 && !`TOP.wb_stall && !`TOP.stall_r &&
-`ifdef SINGLE_RAM
         wb_trace_valid) begin
-`else
-        !`TOP.wb_flush && fillcount == 2'b11) begin
-`endif
         `ifdef PRINT_TIMELOG
         $fwrite(fp, "%d ", `TOP.csr_cycle[31:0]);
         `endif
@@ -788,7 +631,9 @@ end
 `endif // TRACE
 `endif // SYNTHESIS
 
+    end
+    endgenerate
+
 endmodule
 
 /* verilator coverage_on */
-

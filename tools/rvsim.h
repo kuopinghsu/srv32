@@ -71,7 +71,8 @@ struct rv {
     int32_t mem_base;
     int32_t *mem;
 
-    bool singleram;
+    bool singleram; // Buffered RAM timing model (shared or split ports).
+    bool splitram;
     bool single_started;
     bool single_counted_instruction;
     bool single_store_pending;

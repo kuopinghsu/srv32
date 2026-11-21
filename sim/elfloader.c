@@ -133,7 +133,9 @@ fail:
 // LCOV_EXCL_STOP
 }
 
+#ifdef __cplusplus
 extern "C"
+#endif
 int elfloader(char *file, char *mem,
               int imem_base, int dmem_base,
               int imem_size, int dmem_size)

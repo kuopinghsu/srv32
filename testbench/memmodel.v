@@ -18,15 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-`ifndef SINGLE_RAM
-`define HAVE_MEM2PORTS 1
-`else
-`define HAVE_MEM1PORT 1
-`endif
-
 /* verilator coverage_off */
 /* verilator lint_off DECLFILENAME */
-`ifdef HAVE_MEM2PORTS
 module mem2ports # (
     parameter SIZE  = 4096,
     parameter FILE  = "memory.bin"
@@ -158,7 +151,6 @@ end
 
 endmodule
 
-`ifdef RV32C_ENABLED
 module mem2r1w # (
     parameter SIZE  = 4096,
     parameter FILE  = "memory.bin"
@@ -297,10 +289,7 @@ always @(posedge clk) begin
 end
 
 endmodule
-`endif // RV32C_ENABLED
-`endif // HAVE_MEM2PORTS
 
-`ifdef HAVE_MEM1PORT
 module mem1port # (
     parameter SIZE  = 4096,
     parameter FILE  = "memory.bin"
@@ -416,7 +405,6 @@ always @(posedge clk) begin
 end
 
 endmodule
-`endif // HAVE_MEM1PORT
 /* verilator lint_on DECLFILENAME */
 /* verilator coverage_on */
 

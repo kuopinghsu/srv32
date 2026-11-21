@@ -28,7 +28,8 @@ module riscv #(
     parameter RV32B = 0,
     parameter RV32C = 0,
     parameter MEM_WAIT_STATES = 0,
-    parameter MEM_ACCESS_FAULTS = 0
+    parameter MEM_ACCESS_FAULTS = 0,
+    parameter STATIC_BRANCH_PREDICTOR = 1
 )(
     input                   clk,
     input                   resetb,
@@ -117,6 +118,8 @@ module riscv #(
     reg                     ex_jal;
     reg                     ex_jalr;
     reg                     ex_branch;
+    reg                     ex_predicted_taken;
+    wire                    branch_mispredict;
     reg                     ex_system;
     reg                     ex_system_op;
     wire                    ex_systemcall;
@@ -201,7 +204,7 @@ wire valid_fence = inst[`OPCODE] == OP_FENCE && inst[`FUNC3] == 3'b000;
 assign if_insn              = imem_rdata;
 
 // With buffered instruction responses, squash the fetched instruction on redirect.
-assign redirect_pending     = MEM_WAIT_STATES && (branch_taken || ex_trap);
+assign redirect_pending     = MEM_WAIT_STATES && (branch_mispredict || ex_trap);
 assign inst                 = (MEM_WAIT_STATES ? (redirect_pending || (MEM_ACCESS_FAULTS && imem_error)) : flush) ? NOP : if_insn;
 assign if_stall             = stall_r || (!imem_valid && !redirect_pending) ||
                               (wb_memwr && !dmem_wvalid);
@@ -267,6 +270,24 @@ always @* begin
     endcase
 end
 
+// Buffered fetch can select the next request while decoding this response.
+// Predict legal backward conditional branches and aligned direct jumps taken.
+// The synchronous RAM path keeps its existing fixed flush timing.
+wire valid_branch = inst[`OPCODE] == OP_BRANCH &&
+                    (inst[`FUNC3] == OP_BEQ || inst[`FUNC3] == OP_BNE ||
+                     inst[`FUNC3] == OP_BLT || inst[`FUNC3] == OP_BGE ||
+                     inst[`FUNC3] == OP_BLTU || inst[`FUNC3] == OP_BGEU);
+wire [31:0] predicted_target = fetch_pc + imm;
+wire predict_taken = STATIC_BRANCH_PREDICTOR && MEM_WAIT_STATES &&
+                     !redirect_pending && imem_valid &&
+                     (inst[`OPCODE] == OP_JAL || (valid_branch && inst[31])) &&
+                     predicted_target[1:0] == 2'b00;
+
+// Keep the architectural outcome separate from the recovery decision: traps,
+// interrupt return PCs, and alignment checks still use the resolved branch.
+assign branch_mispredict = !ex_flush &&
+                          (branch_taken != ex_predicted_taken);
+
 always @(posedge clk or negedge resetb) begin
     if (!resetb) begin
         ex_imm              <= 32'h0;
@@ -285,12 +306,14 @@ always @(posedge clk or negedge resetb) begin
         ex_jal              <= 1'b0;
         ex_jalr             <= 1'b0;
         ex_branch           <= 1'b0;
+        ex_predicted_taken  <= 1'b0;
         ex_system           <= 1'b0;
         ex_system_op        <= 1'b0;
         ex_pc               <= RESETVEC;
         ex_illegal          <= 1'b0;
         ex_mul              <= 1'b0;
     end else if (!ex_stall) begin
+        ex_predicted_taken  <= predict_taken;
         ex_imm              <= imm;
         ex_imm_sel          <= (inst[`OPCODE] == OP_JALR  ) ||
                                (inst[`OPCODE] == OP_LOAD  ) ||
@@ -566,6 +589,10 @@ always @(posedge clk or negedge resetb) begin
     end else if (!ex_stall) begin
         fetch_pc            <= (ex_flush) ? (fetch_pc + `EX_NEXT_PC) :
                                (ex_trap)  ? (ex_trap_pc)   :
+                               (MEM_WAIT_STATES && branch_mispredict) ?
+                                   (branch_taken ? {next_pc[31:1], 1'b0} : ex_pc + 32'd4) :
+                               predict_taken ? predicted_target :
+                               MEM_WAIT_STATES ? fetch_pc + 32'd4 :
                                {next_pc[31:1], 1'b0};
     end
 end
@@ -644,7 +671,7 @@ end
 ////////////////////////////////////////////////////////////
 assign imem_addr            = fetch_pc;
 assign imem_ready           = !ex_stall;
-assign imem_redirect        = redirect_pending && !ex_stall;
+assign imem_redirect        = (redirect_pending || predict_taken) && !ex_stall;
 assign wb_stall             = stall_r ||
                               (wb_memwr && !dmem_wvalid) ||
                               (wb_mem2reg && !dmem_rresp);
